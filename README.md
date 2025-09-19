@@ -1,0 +1,1 @@
+# nw-leaderboard-extractor
