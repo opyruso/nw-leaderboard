@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { loginWithPassword } from '../auth.js';
 
 export default function Login({ onLogin }) {
   const { t, lang, changeLang } = React.useContext(LangContext);
@@ -27,50 +28,22 @@ export default function Login({ onLogin }) {
     setStatus('loading');
     setMessage('');
     try {
-      const response = await fetch(
-        `${window.CONFIG['nwleaderboard-api-url']}/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: form.username,
-            password: form.password,
-          }),
-        }
+      const tokens = await loginWithPassword(
+        form.username,
+        form.password,
+        form.remember
       );
-
-      let data = null;
-      try {
-        data = await response.json();
-      } catch (error) {
-        data = null;
-      }
-
-      if (!response.ok) {
-        const invalidCredentials = response.status === 400 || response.status === 401;
-        setStatus('error');
-        setMessage(invalidCredentials ? t.loginInvalid : t.loginError);
-        return;
-      }
-
-      if (!data) {
-        throw new Error('empty payload');
-      }
-      const tokens = {
-        ...data,
-        access_token: data.access_token || data.token,
-      };
-      if (!tokens.access_token) {
+      if (!tokens || !tokens.access_token) {
         throw new Error('invalid payload');
       }
       onLogin(tokens, form.remember);
       setStatus('success');
     } catch (error) {
       console.warn('Login failed, staying offline', error);
+      const status = error && typeof error.status === 'number' ? error.status : null;
       setStatus('error');
-      setMessage(t.loginError);
+      const invalidCredentials = status === 400 || status === 401;
+      setMessage(invalidCredentials ? t.loginInvalid : t.loginError);
     }
   };
 
