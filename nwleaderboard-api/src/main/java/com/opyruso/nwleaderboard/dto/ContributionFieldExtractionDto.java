@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Describes the raw OCR output and associated crop for a specific region of the contributor screenshot.
+ * Describes the raw OCR output and associated preprocessed crop for a specific region of the contributor screenshot.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ContributionFieldExtractionDto(

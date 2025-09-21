@@ -104,6 +104,7 @@ public class ContributorExtractionService {
     private static final int OPENCV_ADAPTIVE_C = 5;
     private static final Size DILATION_KERNEL = new Size(2, 2);
     private static final Size BLACKHAT_KERNEL = new Size(45, 3);
+    private static final double GLOBAL_CONTRAST_FACTOR = 1.25d;
 
     private static final String DEFAULT_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _-:/().'";
 
@@ -221,21 +222,25 @@ public class ContributorExtractionService {
     }
 
     private ContributionExtractionResponseDto processImage(ImagePayload payload) throws ContributorRequestException {
-        BufferedImage image = payload.image();
+        BufferedImage originalImage = payload.image();
+        BufferedImage preparedImage = prepareContributorImage(originalImage);
 
-        OcrResult modeOcr = runOcr(image, regionForMode(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
+        OcrResult modeOcr = runOcr(originalImage, preparedImage, regionForMode(originalImage),
+                TessPageSegMode.PSM_SINGLE_BLOCK, null);
         ContributionMode declaredMode = interpretMode(modeOcr.text());
         ContributionFieldExtractionDto modeField = buildModeField(modeOcr, declaredMode);
 
-        OcrResult weekOcr = runOcr(image, regionForWeek(image), TessPageSegMode.PSM_SINGLE_LINE, null);
+        OcrResult weekOcr = runOcr(originalImage, preparedImage, regionForWeek(originalImage),
+                TessPageSegMode.PSM_SINGLE_LINE, null);
         Integer detectedWeek = extractWeekValue(weekOcr.text());
         ContributionFieldExtractionDto weekField = buildWeekField(weekOcr, detectedWeek);
 
-        OcrResult dungeonOcr = runOcr(image, regionForDungeon(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
+        OcrResult dungeonOcr = runOcr(originalImage, preparedImage, regionForDungeon(originalImage),
+                TessPageSegMode.PSM_SINGLE_BLOCK, null);
         DungeonMatch dungeonMatch = matchDungeon(dungeonOcr.text());
         ContributionFieldExtractionDto dungeonField = buildDungeonField(dungeonOcr, dungeonMatch);
 
-        List<ContributionRunExtractionDto> rows = extractRows(image, declaredMode);
+        List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode);
         ensureRowCount(rows);
 
         return new ContributionExtractionResponseDto(weekField, dungeonField, modeField, rows);
@@ -285,7 +290,7 @@ public class ContributorExtractionService {
                 text = null;
             }
         }
-        return new ContributionFieldExtractionDto(text, normalized, number, id, encodeToDataUrl(ocr.original()));
+        return new ContributionFieldExtractionDto(text, normalized, number, id, encodeToDataUrl(ocr.preprocessed()));
     }
 
     private void ensureRowCount(List<ContributionRunExtractionDto> rows) {
@@ -488,7 +493,8 @@ public class ContributorExtractionService {
         return cleaned;
     }
 
-    private List<ContributionRunExtractionDto> extractRows(BufferedImage image, ContributionMode declaredMode) {
+    private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
+            ContributionMode declaredMode) {
         List<ContributionRunExtractionDto> result = new ArrayList<>();
         int slotCount = PLAYER_BASE_POSITIONS.size();
 
@@ -498,14 +504,16 @@ public class ContributorExtractionService {
 
             for (Point base : PLAYER_BASE_POSITIONS) {
                 Rectangle playerRect = new Rectangle(base.x, base.y + yOffset, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT);
-                OcrResult playerOcr = runOcr(image, playerRect, TessPageSegMode.PSM_SINGLE_LINE, null);
+                OcrResult playerOcr = runOcr(originalImage, preparedImage, playerRect, TessPageSegMode.PSM_SINGLE_LINE,
+                        null);
                 String cleaned = normalisePlayerName(playerOcr.text());
                 Long playerId = findPlayerId(cleaned);
                 playerFields.add(buildPlayerField(playerOcr, cleaned, playerId));
             }
 
             Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
-            OcrResult valueOcr = runOcr(image, valueRect, TessPageSegMode.PSM_SINGLE_LINE, "0123456789:");
+            OcrResult valueOcr = runOcr(originalImage, preparedImage, valueRect, TessPageSegMode.PSM_SINGLE_LINE,
+                    "0123456789:");
 
             Integer scoreCandidate = declaredMode == ContributionMode.TIME ? null : parseScore(valueOcr.text());
             Integer timeCandidate = parseTime(valueOcr.text());
@@ -580,14 +588,29 @@ public class ContributorExtractionService {
         return clampToImage(MODE_AREA, image);
     }
 
-    private OcrResult runOcr(BufferedImage image, Rectangle area, int pageSegMode, String whitelist) {
-        Rectangle bounded = clampToImage(area, image);
+    private OcrResult runOcr(BufferedImage originalImage, BufferedImage preparedImage, Rectangle area, int pageSegMode,
+            String whitelist) {
+        BufferedImage reference = preparedImage != null ? preparedImage : originalImage;
+        Rectangle bounded = clampToImage(area, reference);
         if (bounded.width <= 0 || bounded.height <= 0) {
             return new OcrResult(bounded, null, null, null);
         }
 
-        BufferedImage region = crop(image, bounded);
-        BufferedImage preprocessed = preprocessForOcr(region);
+        BufferedImage originalRegion = originalImage != null ? crop(originalImage, bounded) : null;
+        BufferedImage baseRegion;
+        if (preparedImage != null) {
+            baseRegion = crop(preparedImage, bounded);
+        } else {
+            baseRegion = originalRegion;
+        }
+        if (baseRegion == null) {
+            return new OcrResult(bounded, originalRegion, null, null);
+        }
+
+        BufferedImage preprocessed = preprocessForOcr(baseRegion);
+        if (preprocessed == null) {
+            preprocessed = baseRegion;
+        }
 
         Tesseract tesseract = createEngine();
         tesseract.setPageSegMode(pageSegMode);
@@ -607,7 +630,7 @@ public class ContributorExtractionService {
             }
         }
 
-        return new OcrResult(bounded, region, preprocessed, text);
+        return new OcrResult(bounded, originalRegion, preprocessed, text);
     }
 
     private Tesseract createEngine() {
@@ -668,6 +691,47 @@ public class ContributorExtractionService {
             graphics.dispose();
         }
         return target;
+    }
+
+    private BufferedImage prepareContributorImage(BufferedImage source) {
+        if (source == null || source.getWidth() <= 0 || source.getHeight() <= 0) {
+            return source;
+        }
+
+        BufferedImage working = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = working.createGraphics();
+        try {
+            graphics.drawImage(source, 0, 0, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        WritableRaster raster = working.getRaster();
+        int[] pixel = new int[raster.getNumBands()];
+        int width = working.getWidth();
+        int height = working.getHeight();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                raster.getPixel(x, y, pixel);
+                for (int i = 0; i < pixel.length; i++) {
+                    int inverted = 255 - pixel[i];
+                    int contrasted = (int) Math.round((inverted - 128) * GLOBAL_CONTRAST_FACTOR + 128);
+                    pixel[i] = clampToByte(contrasted);
+                }
+                raster.setPixel(x, y, pixel);
+            }
+        }
+        return working;
+    }
+
+    private int clampToByte(int value) {
+        if (value < 0) {
+            return 0;
+        }
+        if (value > 255) {
+            return 255;
+        }
+        return value;
     }
 
     private BufferedImage preprocessForOcr(BufferedImage region) {
