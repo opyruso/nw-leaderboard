@@ -12,8 +12,10 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import java.text.Collator;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -37,7 +39,11 @@ public class DungeonResource {
 
         return dungeonRepository.listAll().stream()
                 .filter(Objects::nonNull)
-                .map(dungeon -> new DungeonResponse(dungeon.getId(), resolveName(dungeon, acceptable, displayLocale)))
+                .map(dungeon -> {
+                    Map<String, String> names = buildNameMap(dungeon);
+                    String resolvedName = resolveName(dungeon, acceptable, displayLocale);
+                    return new DungeonResponse(dungeon.getId(), resolvedName, names);
+                })
                 .sorted(Comparator.comparing(DungeonResponse::name, collator))
                 .toList();
     }
@@ -84,6 +90,19 @@ public class DungeonResource {
         return english != null ? english : "";
     }
 
+    private Map<String, String> buildNameMap(Dungeon dungeon) {
+        LinkedHashMap<String, String> names = new LinkedHashMap<>();
+        names.put("en", valueOrEmpty(dungeon.getNameLocalEn()));
+        names.put("de", valueOrEmpty(dungeon.getNameLocalDe()));
+        names.put("fr", valueOrEmpty(dungeon.getNameLocalFr()));
+        names.put("es", valueOrEmpty(dungeon.getNameLocalEs()));
+        names.put("esmx", valueOrEmpty(dungeon.getNameLocalEsmx()));
+        names.put("it", valueOrEmpty(dungeon.getNameLocalIt()));
+        names.put("pl", valueOrEmpty(dungeon.getNameLocalPl()));
+        names.put("pt", valueOrEmpty(dungeon.getNameLocalPt()));
+        return Map.copyOf(names);
+    }
+
     private String translate(Dungeon dungeon, Locale locale) {
         if (locale == null) {
             return null;
@@ -111,5 +130,10 @@ public class DungeonResource {
 
     private String safeTrim(String value) {
         return value == null ? null : value.strip();
+    }
+
+    private String valueOrEmpty(String value) {
+        String trimmed = safeTrim(value);
+        return trimmed == null ? "" : trimmed;
     }
 }

@@ -1,6 +1,132 @@
 import { LangContext } from '../i18n.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
+const DUNGEON_LANG_CODES = ['en', 'de', 'fr', 'es', 'esmx', 'it', 'pl', 'pt'];
+
+function normaliseLanguageKey(key) {
+  if (key === undefined || key === null) {
+    return null;
+  }
+  const lower = String(key).toLowerCase();
+  if (lower === 'es-mx' || lower === 'es_mx') {
+    return 'esmx';
+  }
+  if (DUNGEON_LANG_CODES.includes(lower)) {
+    return lower;
+  }
+  return null;
+}
+
+function safeString(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const trimmed = value.trim();
+  return trimmed;
+}
+
+function toLocaleCode(lang) {
+  return lang === 'esmx' ? 'es-MX' : lang || 'en';
+}
+
+function normaliseDungeonNames(dungeon) {
+  const result = {};
+  if (!dungeon || typeof dungeon !== 'object') {
+    return result;
+  }
+  const { names } = dungeon;
+  if (names && typeof names === 'object') {
+    Object.entries(names).forEach(([key, value]) => {
+      const normalisedKey = normaliseLanguageKey(key);
+      if (!normalisedKey) {
+        return;
+      }
+      const text = safeString(value);
+      if (text) {
+        result[normalisedKey] = text;
+      }
+    });
+  }
+  return result;
+}
+
+function deriveFallbackName(dungeon, names, id) {
+  const candidates = [
+    names.en,
+    safeString(dungeon?.name),
+    safeString(dungeon?.label),
+    safeString(dungeon?.title),
+    safeString(dungeon?.displayName),
+    safeString(dungeon?.slug),
+    safeString(dungeon?.code),
+    safeString(dungeon?.identifier),
+  ];
+  for (const candidate of candidates) {
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return String(id);
+}
+
+function getDungeonNameForLang(dungeon, lang) {
+  if (!dungeon || typeof dungeon !== 'object') {
+    return '';
+  }
+  const { names = {}, fallbackName = '', id = '' } = dungeon;
+  const requested = normaliseLanguageKey(lang);
+  const priorities = [];
+  if (requested) {
+    priorities.push(requested);
+    if (requested === 'esmx') {
+      priorities.push('es');
+    }
+  }
+  if (!priorities.includes('en')) {
+    priorities.push('en');
+  }
+  DUNGEON_LANG_CODES.forEach((code) => {
+    if (!priorities.includes(code)) {
+      priorities.push(code);
+    }
+  });
+  for (const code of priorities) {
+    const value = safeString(names[code]);
+    if (value) {
+      return value;
+    }
+  }
+  const fallback = safeString(fallbackName);
+  if (fallback) {
+    return fallback;
+  }
+  return String(id || '');
+}
+
+function sortDungeons(list, lang) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  const copy = list.slice();
+  let collator;
+  try {
+    collator = new Intl.Collator(toLocaleCode(lang), { sensitivity: 'base', usage: 'sort' });
+  } catch (error) {
+    collator = new Intl.Collator('en', { sensitivity: 'base', usage: 'sort' });
+  }
+  copy.sort((a, b) => {
+    const nameA = getDungeonNameForLang(a, lang);
+    const nameB = getDungeonNameForLang(b, lang);
+    const comparison = collator.compare(nameA, nameB);
+    if (comparison !== 0) {
+      return comparison;
+    }
+    const orderA = typeof a.order === 'number' ? a.order : 0;
+    const orderB = typeof b.order === 'number' ? b.order : 0;
+    return orderA - orderB;
+  });
+  return copy;
+}
 
 function normalisePlayers(entry) {
   const { players, members, team, squad, group, party } = entry || {};
@@ -54,16 +180,12 @@ function normaliseDungeons(data) {
         return null;
       }
       const id = String(identifier);
-      const labelCandidate =
-        dungeon.name ??
-        dungeon.label ??
-        dungeon.title ??
-        dungeon.displayName ??
-        dungeon.slug ??
-        dungeon.code ??
-        dungeon.identifier;
-      const name = labelCandidate ? String(labelCandidate) : id;
-      return { id, name };
+      const names = normaliseDungeonNames(dungeon);
+      const fallbackName = deriveFallbackName(dungeon, names, id);
+      if (!names.en && fallbackName) {
+        names.en = fallbackName;
+      }
+      return { id, names, fallbackName, order: index };
     })
     .filter(Boolean);
 }
@@ -76,7 +198,7 @@ export default function LeaderboardPage({
   getSortValue,
   sortDirection = 'desc',
 }) {
-  const { t } = React.useContext(LangContext);
+  const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
   const [dungeonsLoading, setDungeonsLoading] = React.useState(false);
   const [dungeonsError, setDungeonsError] = React.useState(false);
@@ -104,16 +226,6 @@ export default function LeaderboardPage({
         }
         const normalised = normaliseDungeons(data);
         setDungeons(normalised);
-        if (normalised.length === 0) {
-          setSelectedDungeon(null);
-        } else {
-          setSelectedDungeon((previous) => {
-            if (previous && normalised.some((dungeon) => dungeon.id === previous)) {
-              return previous;
-            }
-            return normalised[0].id;
-          });
-        }
       })
       .catch((error) => {
         if (!active || error.name === 'AbortError') {
@@ -122,7 +234,6 @@ export default function LeaderboardPage({
         console.error('Unable to load dungeons', error);
         setDungeonsError(true);
         setDungeons([]);
-        setSelectedDungeon(null);
       })
       .finally(() => {
         if (active) {
@@ -135,6 +246,20 @@ export default function LeaderboardPage({
       controller.abort();
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!Array.isArray(dungeons) || dungeons.length === 0) {
+      setSelectedDungeon((previous) => (previous === null ? previous : null));
+      return;
+    }
+    setSelectedDungeon((previous) => {
+      if (previous && dungeons.some((dungeon) => dungeon.id === previous)) {
+        return previous;
+      }
+      const [first] = sortDungeons(dungeons, lang);
+      return first ? first.id : null;
+    });
+  }, [dungeons, lang]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
@@ -198,6 +323,8 @@ export default function LeaderboardPage({
     };
   }, [mode, selectedDungeon, getValue]);
 
+  const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
+
   const sortedEntries = React.useMemo(() => {
     if (entries.length === 0) {
       return [];
@@ -245,21 +372,24 @@ export default function LeaderboardPage({
             <p className="leaderboard-status">{t.dungeonSelectorEmpty}</p>
           ) : (
             <ul className="dungeon-list">
-              {dungeons.map((dungeon) => (
-                <li key={dungeon.id}>
-                  <button
-                    type="button"
-                    className={
-                      dungeon.id === selectedDungeon
-                        ? 'dungeon-button active'
-                        : 'dungeon-button'
-                    }
-                    onClick={() => handleSelectDungeon(dungeon.id)}
-                  >
-                    {dungeon.name}
-                  </button>
-                </li>
-              ))}
+              {sortedDungeons.map((dungeon) => {
+                const displayName = getDungeonNameForLang(dungeon, lang);
+                return (
+                  <li key={dungeon.id}>
+                    <button
+                      type="button"
+                      className={
+                          dungeon.id === selectedDungeon
+                            ? 'dungeon-button active'
+                            : 'dungeon-button'
+                      }
+                      onClick={() => handleSelectDungeon(dungeon.id)}
+                    >
+                      {displayName}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </aside>

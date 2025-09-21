@@ -3,6 +3,17 @@ import { ThemeContext } from '../theme.js';
 
 const { useNavigate } = ReactRouterDOM;
 
+const languageOptions = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'fr', label: 'Français' },
+  { value: 'es', label: 'Español' },
+  { value: 'esmx', label: 'Español (México)' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'pt', label: 'Português' },
+];
+
 export default function Preferences() {
   const { t, lang, changeLang } = React.useContext(LangContext);
   const { theme, toggleTheme } = React.useContext(ThemeContext);
@@ -33,8 +44,11 @@ export default function Preferences() {
         <label className="form-field">
           <span>{t.language}</span>
           <select value={lang} onChange={handleLanguageChange}>
-            <option value="en">English</option>
-            <option value="fr">Français</option>
+            {languageOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
         <div className="form-checkbox">
