@@ -37,15 +37,43 @@ export function storeTokens(tokens, remember) {
     throw new Error('Cannot store empty tokens');
   }
   const now = Date.now();
-  const expiresInMs = tokens.expires_in ? tokens.expires_in * 1000 : 15 * 60 * 1000;
+  const expiresInRaw = tokens.expires_in;
+  const expiresInValue =
+    typeof expiresInRaw === 'number'
+      ? expiresInRaw
+      : typeof expiresInRaw === 'string'
+      ? Number.parseInt(expiresInRaw, 10)
+      : null;
+  const expiresInMs =
+    Number.isFinite(expiresInValue) && expiresInValue > 0
+      ? expiresInValue * 1000
+      : 15 * 60 * 1000;
+  const refreshExpiresInRaw = tokens.refresh_expires_in;
+  const refreshExpiresInValue =
+    typeof refreshExpiresInRaw === 'number'
+      ? refreshExpiresInRaw
+      : typeof refreshExpiresInRaw === 'string'
+      ? Number.parseInt(refreshExpiresInRaw, 10)
+      : null;
   const refreshExpiresInMs =
-    typeof tokens.refresh_expires_in === 'number' && tokens.refresh_expires_in > 0
-      ? tokens.refresh_expires_in * 1000
+    Number.isFinite(refreshExpiresInValue) && refreshExpiresInValue > 0
+      ? refreshExpiresInValue * 1000
+      : null;
+  const expiresAt = now + expiresInMs;
+  const existingRefreshExpiresAt =
+    tokens.refresh_expires_at !== undefined && tokens.refresh_expires_at !== null
+      ? Number(tokens.refresh_expires_at)
+      : null;
+  const refreshExpiresAt =
+    refreshExpiresInMs !== null
+      ? now + refreshExpiresInMs
+      : Number.isFinite(existingRefreshExpiresAt)
+      ? existingRefreshExpiresAt
       : null;
   const withExpiry = {
     ...tokens,
-    expires_at: tokens.expires_at || now + expiresInMs,
-    refresh_expires_at: tokens.refresh_expires_at || (refreshExpiresInMs ? now + refreshExpiresInMs : null),
+    expires_at: expiresAt,
+    refresh_expires_at: refreshExpiresAt,
     stored_at: now,
     remember: !!remember,
   };
