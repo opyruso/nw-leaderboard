@@ -45,22 +45,6 @@ cpSync(
   'node_modules/react-router-dom/dist/umd/react-router-dom.development.js',
   'dist/vendor/react-router-dom.development.js'
 );
-cpSync('node_modules/keycloak-js/lib/keycloak.js', 'dist/vendor/keycloak.js');
-cpSync('node_modules/@fortawesome/fontawesome-free/css', 'dist/vendor/fontawesome/css', {
-  recursive: true,
-});
-cpSync('node_modules/@fortawesome/fontawesome-free/webfonts', 'dist/vendor/fontawesome/webfonts', {
-  recursive: true,
-});
-cpSync('node_modules/@fontsource/mouse-memoirs', 'dist/vendor/mouse-memoirs', {
-  recursive: true,
-});
-cpSync('node_modules/flag-icons/css/flag-icons.min.css', 'dist/vendor/flag-icons/css/flag-icons.min.css', {
-  recursive: true,
-});
-cpSync('node_modules/flag-icons/flags', 'dist/vendor/flag-icons/flags', {
-  recursive: true,
-});
 
 let version = '';
 const tag = process.env.GITHUB_REF_NAME || process.env.GIT_TAG || process.env.TAG;

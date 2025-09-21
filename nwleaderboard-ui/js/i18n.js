@@ -3,23 +3,42 @@ import fr from './locales/fr.js';
 
 const translations = { en, fr };
 
-const LangContext = React.createContext();
+function ensureLang(value) {
+  return Object.prototype.hasOwnProperty.call(translations, value) ? value : 'en';
+}
+
+const LangContext = React.createContext({
+  lang: 'en',
+  changeLang: () => {},
+  t: en,
+});
 
 function LangProvider({ children }) {
-  const [lang, setLang] = React.useState(localStorage.getItem('lang') || 'en');
+  const [lang, setLang] = React.useState(() => {
+    const stored = localStorage.getItem('lang');
+    return ensureLang(stored || 'en');
+  });
 
-  const changeLang = (l) => {
-    localStorage.setItem('lang', l);
-    setLang(l);
-  };
+  React.useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
-  const t = translations[lang];
+  const changeLang = React.useCallback((nextLang) => {
+    const safeLang = ensureLang(nextLang);
+    localStorage.setItem('lang', safeLang);
+    setLang(safeLang);
+  }, []);
 
-  return React.createElement(
-    LangContext.Provider,
-    { value: { lang, changeLang, t } },
-    children
+  const value = React.useMemo(
+    () => ({
+      lang,
+      changeLang,
+      t: translations[lang] || en,
+    }),
+    [lang, changeLang]
   );
+
+  return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
 }
 
 export { LangContext, LangProvider };

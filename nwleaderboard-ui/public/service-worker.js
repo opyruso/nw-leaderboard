@@ -3,14 +3,24 @@ const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/config.js',
+  '/config/config.js',
   '/version.txt',
   '/css/main.css',
   '/js/App.js',
+  '/js/BottomNav.js',
+  '/js/VersionChecker.js',
+  '/js/auth.js',
   '/js/i18n.js',
   '/js/index.js',
-  '/js/keycloak.js',
-  '/js/pages/LoginPage.js',
+  '/js/theme.js',
+  '/js/locales/en.js',
+  '/js/locales/fr.js',
+  '/js/pages/Home.js',
+  '/js/pages/Login.js',
+  '/js/pages/Register.js',
+  '/js/pages/ForgotPassword.js',
+  '/js/pages/Preferences.js',
+  '/js/pages/Password.js',
   // __IMAGES__
   // __SOUNDS__
 ];
@@ -92,10 +102,10 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Mine Sweeper Crew';
+  const title = data.title || 'New World Leaderboard';
   const options = {
     body: data.body || '',
-    icon: '/images/icons/icon-192.png',
+    icon: '/images/icons/logo.svg',
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

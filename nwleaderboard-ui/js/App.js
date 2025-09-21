@@ -1,4 +1,5 @@
 import BottomNav from './BottomNav.js';
+import Home from './pages/Home.js';
 import Login from './pages/Login.js';
 import Register from './pages/Register.js';
 import ForgotPassword from './pages/ForgotPassword.js';
@@ -11,19 +12,15 @@ import {
   setupAuthFetch,
   startTokenRefresh,
   stopTokenRefresh,
+  getStoredTokens,
 } from './auth.js';
 
 const { BrowserRouter, Routes, Route, Navigate } = ReactRouterDOM;
 
 export default function App() {
   const [token, setToken] = React.useState(() => {
-    const stored =
-      localStorage.getItem('tokens') || sessionStorage.getItem('tokens');
-    if (stored) {
-      const data = JSON.parse(stored);
-      return data.access_token || null;
-    }
-    return null;
+    const stored = getStoredTokens();
+    return stored && stored.access_token ? stored.access_token : null;
   });
 
   const handleLogout = React.useCallback(() => {
@@ -56,6 +53,7 @@ export default function App() {
     <>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route
             path="/login"
             element={
@@ -80,6 +78,7 @@ export default function App() {
               authenticated ? <Preferences /> : <Navigate to="/login" replace />
             }
           />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <BottomNav authenticated={authenticated} onLogout={handleLogout} />
       </BrowserRouter>
