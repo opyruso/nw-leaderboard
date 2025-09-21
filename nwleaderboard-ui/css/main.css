@@ -87,10 +87,18 @@ body[data-theme='light'] .highlight-list {
   font-size: 1.1rem;
 }
 
+.form-field {
+  position: relative;
+}
+
 .form-field span,
 .form-checkbox span {
   margin-bottom: 0.5rem;
   letter-spacing: 1px;
+}
+
+.form-checkbox span {
+  margin-bottom: 0;
 }
 
 .form-field input,
@@ -100,6 +108,20 @@ body[data-theme='light'] .highlight-list {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.35);
   color: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-field input::placeholder {
+  color: transparent;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: rgba(158, 197, 255, 0.8);
+  box-shadow: 0 0 0 2px rgba(158, 197, 255, 0.2);
 }
 
 body[data-theme='light'] .form-field input,
@@ -110,6 +132,40 @@ body[data-theme='light'] .form-field select {
 
 .form-field select {
   cursor: pointer;
+}
+
+.form-field-floating span {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-bottom: 0;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  transition: transform 0.2s ease, top 0.2s ease, font-size 0.2s ease, opacity 0.2s ease;
+  opacity: 0.8;
+  background: transparent;
+}
+
+.form-field-floating input {
+  padding: 1.1rem 1rem 0.5rem;
+}
+
+.form-field-floating input:focus + span,
+.form-field-floating input:not(:placeholder-shown) + span {
+  top: 0.55rem;
+  transform: translateY(0);
+  font-size: 0.7rem;
+  opacity: 0.65;
+}
+
+body[data-theme='light'] .form-field-floating span {
+  opacity: 0.75;
+}
+
+body[data-theme='light'] .form-field-floating input:focus + span,
+body[data-theme='light'] .form-field-floating input:not(:placeholder-shown) + span {
+  opacity: 0.6;
 }
 
 .form-checkbox {

@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard.service;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opyruso.nwleaderboard.dto.ChangePasswordRequest;
+import jakarta.inject.Inject;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.client.Client;
@@ -46,6 +47,9 @@ public class KeycloakAdminService {
     Keycloak keycloak;
 
     private static final Logger LOG = Logger.getLogger(KeycloakAdminService.class);
+
+    @Inject
+    KeycloakAuthService keycloakAuthService;
 
     @PostConstruct
     void init() {
@@ -152,9 +156,31 @@ public class KeycloakAdminService {
     public int changePassword(String token, ChangePasswordRequest request) {
         LOG.info("Requesting password change");
         try {
-            String userId = TokenVerifier.create(token, AccessToken.class)
-                    .getToken()
-                    .getSubject();
+            AccessToken accessToken = TokenVerifier.create(token, AccessToken.class)
+                    .getToken();
+            String userId = accessToken.getSubject();
+            String username = accessToken.getPreferredUsername();
+
+            if (username == null || username.isBlank()) {
+                LOG.warnf("Token missing username information for user %s", userId);
+                return 400;
+            }
+
+            var loginResult = keycloakAuthService.login(username, request.currentPassword());
+            if (loginResult == null) {
+                LOG.errorf("Empty response when verifying current password for user %s", userId);
+                return 502;
+            }
+
+            int loginStatus = loginResult.status();
+            if (loginStatus != 200) {
+                if (loginStatus == 400 || loginStatus == 401 || loginStatus == 403) {
+                    LOG.warnf("Current password verification failed for user %s", userId);
+                    return 401;
+                }
+                LOG.errorf("Unexpected status %d verifying current password for user %s", loginStatus, userId);
+                return 502;
+            }
 
             CredentialRepresentation cred = new CredentialRepresentation();
             cred.setTemporary(false);
@@ -166,6 +192,9 @@ public class KeycloakAdminService {
             user.resetPassword(cred);
             LOG.debugf("Password reset for user %s", userId);
             return 204;
+        } catch (KeycloakAuthService.LoginException e) {
+            LOG.error("Error verifying current password with Keycloak", e);
+            return 502;
         } catch (Exception e) {
             LOG.errorf(e, "Error changing password");
             return 500;

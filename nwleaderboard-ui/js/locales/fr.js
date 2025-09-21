@@ -15,6 +15,9 @@ const fr = {
   rememberMe: 'Se souvenir de moi',
   username: "Nom d'utilisateur",
   passwordLabel: 'Mot de passe',
+  currentPassword: 'Mot de passe actuel',
+  newPassword: 'Nouveau mot de passe',
+  confirmPassword: 'Confirmer le mot de passe',
   loginDescription:
     'Connectez-vous pour synchroniser vos builds favoris et les comparer avec la communauté.',
   loginAction: 'Continuer',
@@ -33,6 +36,7 @@ const fr = {
   registerEmailTaken: 'Cette adresse e-mail est déjà enregistrée.',
   registerError:
     "Impossible de créer votre compte pour le moment. Veuillez réessayer plus tard.",
+  passwordMismatch: 'Les mots de passe ne correspondent pas. Merci de réessayer.',
   forgotDescription:
     'Indiquez l’adresse e-mail liée à votre compte pour recevoir les instructions de réinitialisation.',
   forgotAction: 'Envoyer le lien',
@@ -44,8 +48,12 @@ const fr = {
     'Personnalisez votre expérience. Ces réglages sont stockés localement sur cet appareil.',
   preferencesSaved: 'Préférences enregistrées',
   passwordDescription:
-    'Les modifications de mot de passe sont disponibles depuis le portail sécurisé.',
-  passwordAction: 'Ouvrir le portail de compte',
+    'Modifiez votre mot de passe en toute sécurité depuis cette page. Indiquez votre mot de passe actuel puis choisissez-en un nouveau.',
+  passwordAction: 'Mettre à jour le mot de passe',
+  passwordSuccess: 'Votre mot de passe a été mis à jour avec succès.',
+  passwordCurrentInvalid: 'Le mot de passe actuel est incorrect.',
+  passwordError:
+    "Impossible de mettre à jour votre mot de passe pour le moment. Veuillez réessayer plus tard.",
   themeToggle: 'Changer de thème',
   versionChecking: 'Recherche de mises à jour…',
   versionUpToDate: 'Vous utilisez la dernière version.',

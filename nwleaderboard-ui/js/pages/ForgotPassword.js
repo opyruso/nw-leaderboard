@@ -44,16 +44,17 @@ export default function ForgotPassword() {
       </h1>
       <p className="page-description">{t.forgotDescription}</p>
       <form className="form" onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>{t.email}</span>
+        <label className="form-field form-field-floating">
           <input
             name="email"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            placeholder=" "
             required
           />
+          <span>{t.email}</span>
         </label>
         <div className="form-actions">
           <button type="submit" disabled={status === 'loading'}>
