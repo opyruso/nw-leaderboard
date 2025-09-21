@@ -1,7 +1,8 @@
 package com.opyruso.nwleaderboard.service;
 
-import com.opyruso.nwleaderboard.dto.ContributionPlayerDto;
-import com.opyruso.nwleaderboard.dto.ContributionRunDto;
+import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
+import com.opyruso.nwleaderboard.dto.ContributionFieldExtractionDto;
+import com.opyruso.nwleaderboard.dto.ContributionRunExtractionDto;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
@@ -17,18 +18,18 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
 import java.awt.image.Kernel;
 import java.awt.image.WritableRaster;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -53,7 +54,7 @@ public class ContributorExtractionService {
 
     private static final int EXPECTED_WIDTH = 2560;
     private static final int EXPECTED_HEIGHT = 1440;
-    private static final int MAX_UPLOADS = 6;
+    private static final int MAX_UPLOADS = 1;
 
     private static final Rectangle DUNGEON_AREA = new Rectangle(700, 230, 1035, 50);
     private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
@@ -92,7 +93,7 @@ public class ContributorExtractionService {
      * @return a list of extracted runs
      * @throws ContributorRequestException if the payload is invalid or OCR fails unexpectedly
      */
-    public List<ContributionRunDto> extractRuns(MultipartFormDataInput input) throws ContributorRequestException {
+    public ContributionExtractionResponseDto extract(MultipartFormDataInput input) throws ContributorRequestException {
         if (input == null) {
             throw new ContributorRequestException("No image provided for extraction");
         }
@@ -102,11 +103,11 @@ public class ContributorExtractionService {
             throw new ContributorRequestException("No valid image part found in request");
         }
 
-        List<ContributionRunDto> result = new ArrayList<>();
-        for (ImagePayload image : images) {
-            result.addAll(processImage(image));
+        if (images.size() > 1) {
+            throw new ContributorRequestException("Only one image can be processed at a time");
         }
-        return result;
+
+        return processImage(images.get(0));
     }
 
     private List<ImagePayload> collectImages(MultipartFormDataInput input) throws ContributorRequestException {
@@ -134,7 +135,7 @@ public class ContributorExtractionService {
         }
 
         if (imageParts.size() > MAX_UPLOADS) {
-            throw new ContributorRequestException("A maximum of " + MAX_UPLOADS + " images can be processed per request");
+            throw new ContributorRequestException("Only one image can be processed per request");
         }
 
         List<ImagePayload> result = new ArrayList<>();
@@ -184,74 +185,99 @@ public class ContributorExtractionService {
         return "image";
     }
 
-    private List<ContributionRunDto> processImage(ImagePayload payload) throws ContributorRequestException {
+    private ContributionExtractionResponseDto processImage(ImagePayload payload) throws ContributorRequestException {
         BufferedImage image = payload.image();
-        ContributionMode declaredMode = detectMode(image);
-        Integer detectedWeek = detectWeek(image);
-        Long dungeonId = detectDungeon(image);
 
-        List<RowExtraction> rows = extractRows(image, declaredMode);
-        if (rows.isEmpty()) {
-            return Collections.emptyList();
-        }
+        OcrResult modeOcr = runOcr(image, regionForMode(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
+        ContributionMode declaredMode = interpretMode(modeOcr.text());
+        ContributionFieldExtractionDto modeField = buildModeField(modeOcr, declaredMode);
 
-        return rows.stream()
-                .map(row -> buildRun(row, detectedWeek, dungeonId))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toCollection(ArrayList::new));
+        OcrResult weekOcr = runOcr(image, regionForWeek(image), TessPageSegMode.PSM_SINGLE_LINE, null);
+        Integer detectedWeek = extractWeekValue(weekOcr.text());
+        ContributionFieldExtractionDto weekField = buildWeekField(weekOcr, detectedWeek);
+
+        OcrResult dungeonOcr = runOcr(image, regionForDungeon(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
+        DungeonMatch dungeonMatch = matchDungeon(dungeonOcr.text());
+        ContributionFieldExtractionDto dungeonField = buildDungeonField(dungeonOcr, dungeonMatch);
+
+        List<ContributionRunExtractionDto> rows = extractRows(image, declaredMode);
+        ensureRowCount(rows);
+
+        return new ContributionExtractionResponseDto(weekField, dungeonField, modeField, rows);
     }
 
-    private ContributionRunDto buildRun(RowExtraction row, Integer week, Long dungeonId) {
-        List<ContributionPlayerDto> players = mapPlayers(row.players());
-        if (players.isEmpty()) {
-            return null;
-        }
-
-        Integer score = null;
-        Integer time = null;
-        if (row.mode() == ContributionMode.SCORE && row.score() != null) {
-            score = row.score();
-        } else if (row.mode() == ContributionMode.TIME && row.timeInSeconds() != null) {
-            time = row.timeInSeconds();
-        } else if (row.score() != null && row.timeInSeconds() == null) {
-            score = row.score();
-        } else if (row.timeInSeconds() != null && row.score() == null) {
-            time = row.timeInSeconds();
-        }
-
-        if (score == null && time == null) {
-            return null;
-        }
-
-        return new ContributionRunDto(week, dungeonId, score, time, players);
+    private ContributionFieldExtractionDto buildModeField(OcrResult ocr, ContributionMode mode) {
+        String normalized = mode != null ? mode.name() : null;
+        return buildField(ocr, normalized, null, null);
     }
 
-    private List<ContributionPlayerDto> mapPlayers(List<String> names) {
-        if (names == null || names.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return names.stream()
-                .map(this::normalisePlayerName)
-                .filter(Objects::nonNull)
-                .map(name -> {
-                    Optional<Player> existing = playerRepository.findByPlayerNameIgnoreCase(name);
-                    return new ContributionPlayerDto(name, existing.map(Player::getId).orElse(null));
-                })
-                .collect(Collectors.toCollection(ArrayList::new));
+    private ContributionFieldExtractionDto buildWeekField(OcrResult ocr, Integer week) {
+        String normalized = week != null ? String.valueOf(week) : null;
+        return buildField(ocr, normalized, week, null);
     }
 
-    private String normalisePlayerName(String input) {
-        if (input == null) {
-            return null;
-        }
-        String cleaned = input.replaceAll("[\\r\\n]", " ").replaceAll("\\s+", " ").strip();
-        cleaned = cleaned.replaceAll("^[0-9]+\\.\\s*", "");
-        return cleaned.isEmpty() ? null : cleaned;
+    private ContributionFieldExtractionDto buildDungeonField(OcrResult ocr, DungeonMatch match) {
+        String normalized = match != null ? match.displayName() : null;
+        Long id = match != null && match.dungeon() != null ? match.dungeon().getId() : null;
+        return buildField(ocr, normalized, null, id);
     }
 
-    private ContributionMode detectMode(BufferedImage image) {
-        String text = runOcr(image, regionForMode(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
+    private ContributionFieldExtractionDto buildPlayerField(OcrResult ocr, String normalized, Long playerId) {
+        return buildField(ocr, normalized, null, playerId);
+    }
+
+    private ContributionFieldExtractionDto buildValueField(OcrResult ocr, ContributionMode mode, Integer score, Integer time) {
+        Integer number = null;
+        String normalized = null;
+        if (mode == ContributionMode.SCORE && score != null && score > 0) {
+            number = score;
+            normalized = String.valueOf(score);
+        } else if (mode == ContributionMode.TIME && time != null && time > 0) {
+            number = time;
+            normalized = formatTimeValue(time);
+        }
+        return buildField(ocr, normalized, number, null);
+    }
+
+    private ContributionFieldExtractionDto buildField(OcrResult ocr, String normalized, Integer number, Long id) {
+        if (ocr == null) {
+            return new ContributionFieldExtractionDto(null, normalized, number, id, null);
+        }
+        String text = ocr.text();
+        if (text != null) {
+            text = text.strip();
+            if (text.isEmpty()) {
+                text = null;
+            }
+        }
+        return new ContributionFieldExtractionDto(text, normalized, number, id, encodeToDataUrl(ocr.original()));
+    }
+
+    private void ensureRowCount(List<ContributionRunExtractionDto> rows) {
+        if (rows == null) {
+            return;
+        }
+        int currentSize = rows.size();
+        if (currentSize >= RUNS_PER_IMAGE) {
+            return;
+        }
+        AtomicInteger index = new AtomicInteger(currentSize);
+        while (rows.size() < RUNS_PER_IMAGE) {
+            List<ContributionFieldExtractionDto> emptyPlayers = new ArrayList<>(PLAYER_BASE_POSITIONS.size());
+            for (int i = 0; i < PLAYER_BASE_POSITIONS.size(); i++) {
+                emptyPlayers.add(new ContributionFieldExtractionDto(null, null, null, null, null));
+            }
+            rows.add(new ContributionRunExtractionDto(
+                    index.incrementAndGet(),
+                    null,
+                    null,
+                    null,
+                    new ContributionFieldExtractionDto(null, null, null, null, null),
+                    emptyPlayers));
+        }
+    }
+
+    private ContributionMode interpretMode(String text) {
         if (text == null || text.isBlank()) {
             return null;
         }
@@ -265,8 +291,25 @@ public class ContributorExtractionService {
         return null;
     }
 
-    private Integer detectWeek(BufferedImage image) {
-        String text = runOcr(image, regionForWeek(image), TessPageSegMode.PSM_SINGLE_LINE, null);
+    private ContributionMode resolveRowMode(ContributionMode declaredMode, Integer scoreCandidate, Integer timeCandidate) {
+        ContributionMode mode = declaredMode;
+        if (mode == null) {
+            if (timeCandidate != null && timeCandidate > 0) {
+                mode = ContributionMode.TIME;
+            } else if (scoreCandidate != null && scoreCandidate > 0) {
+                mode = ContributionMode.SCORE;
+            }
+        }
+        if (mode == ContributionMode.SCORE && (scoreCandidate == null || scoreCandidate <= 0)) {
+            return null;
+        }
+        if (mode == ContributionMode.TIME && (timeCandidate == null || timeCandidate <= 0)) {
+            return null;
+        }
+        return mode;
+    }
+
+    private Integer extractWeekValue(String text) {
         if (text == null) {
             return null;
         }
@@ -280,12 +323,11 @@ public class ContributorExtractionService {
         return null;
     }
 
-    private Long detectDungeon(BufferedImage image) {
-        String text = runOcr(image, regionForDungeon(image), TessPageSegMode.PSM_SINGLE_BLOCK, null);
-        if (text == null || text.isBlank()) {
+    private DungeonMatch matchDungeon(String rawText) {
+        if (rawText == null || rawText.isBlank()) {
             return null;
         }
-        String normalised = normalise(text);
+        String normalised = normalise(rawText);
         if (normalised.isEmpty()) {
             return null;
         }
@@ -296,7 +338,7 @@ public class ContributorExtractionService {
         }
 
         Dungeon bestMatch = null;
-        double bestScore = 0.0;
+        double bestScore = 0.0d;
         for (Dungeon dungeon : dungeons) {
             for (String candidate : namesForDungeon(dungeon)) {
                 double score = similarity.apply(normalised, candidate);
@@ -308,9 +350,75 @@ public class ContributorExtractionService {
         }
 
         if (bestMatch != null && bestScore >= 0.75d) {
-            return bestMatch.getId();
+            String displayName = bestMatch.getNameLocalEn();
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalFr();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalDe();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalEs();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalEsmx();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalIt();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalPl();
+            }
+            if (displayName == null || displayName.isBlank()) {
+                displayName = bestMatch.getNameLocalPt();
+            }
+            return new DungeonMatch(bestMatch, displayName);
         }
         return null;
+    }
+
+    private String normalisePlayerName(String input) {
+        if (input == null) {
+            return null;
+        }
+        String cleaned = input.replaceAll("[\\r\\n]", " ").replaceAll("\\s+", " ").strip();
+        cleaned = cleaned.replaceAll("^[0-9]+\\.\\s*", "");
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    private Long findPlayerId(String cleaned) {
+        if (cleaned == null || cleaned.isBlank()) {
+            return null;
+        }
+        Optional<Player> existing = playerRepository.findByPlayerNameIgnoreCase(cleaned);
+        return existing.map(Player::getId).orElse(null);
+    }
+
+    private String formatTimeValue(Integer timeInSeconds) {
+        if (timeInSeconds == null || timeInSeconds <= 0) {
+            return null;
+        }
+        int total = timeInSeconds;
+        int hours = total / 3600;
+        int minutes = (total % 3600) / 60;
+        int seconds = total % 60;
+        if (hours > 0) {
+            return String.format(Locale.ROOT, "%02d:%02d:%02d", hours, minutes, seconds);
+        }
+        return String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
+    }
+
+    private String encodeToDataUrl(BufferedImage image) {
+        if (image == null) {
+            return null;
+        }
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            ImageIO.write(image, "png", output);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
+        } catch (IOException e) {
+            LOG.debug("Unable to encode OCR crop", e);
+            return null;
+        }
     }
 
     private List<String> namesForDungeon(Dungeon dungeon) {
@@ -338,58 +446,41 @@ public class ContributorExtractionService {
         return cleaned;
     }
 
-    private List<RowExtraction> extractRows(BufferedImage image, ContributionMode declaredMode) {
-        List<RowExtraction> result = new ArrayList<>();
+    private List<ContributionRunExtractionDto> extractRows(BufferedImage image, ContributionMode declaredMode) {
+        List<ContributionRunExtractionDto> result = new ArrayList<>();
+        int slotCount = PLAYER_BASE_POSITIONS.size();
+
         for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
-            LinkedHashSet<String> players = new LinkedHashSet<>();
             int yOffset = rowIndex * PLAYER_ROW_STEP;
+            List<ContributionFieldExtractionDto> playerFields = new ArrayList<>(slotCount);
+
             for (Point base : PLAYER_BASE_POSITIONS) {
                 Rectangle playerRect = new Rectangle(base.x, base.y + yOffset, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT);
-                String playerText = runOcr(image, playerRect, TessPageSegMode.PSM_SINGLE_LINE, null);
-                String cleaned = normalisePlayerName(playerText);
-                if (cleaned != null) {
-                    players.add(cleaned);
-                }
-            }
-
-            if (players.isEmpty()) {
-                continue;
+                OcrResult playerOcr = runOcr(image, playerRect, TessPageSegMode.PSM_SINGLE_LINE, null);
+                String cleaned = normalisePlayerName(playerOcr.text());
+                Long playerId = findPlayerId(cleaned);
+                playerFields.add(buildPlayerField(playerOcr, cleaned, playerId));
             }
 
             Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
-            String valueText = runOcr(image, valueRect, TessPageSegMode.PSM_SINGLE_LINE, "0123456789:");
+            OcrResult valueOcr = runOcr(image, valueRect, TessPageSegMode.PSM_SINGLE_LINE, "0123456789:");
 
-            Integer score = declaredMode == ContributionMode.TIME ? null : parseScore(valueText);
-            Integer time = parseTime(valueText);
+            Integer scoreCandidate = declaredMode == ContributionMode.TIME ? null : parseScore(valueOcr.text());
+            Integer timeCandidate = parseTime(valueOcr.text());
 
-            ContributionMode mode = declaredMode;
-            if (mode == null) {
-                if (time != null) {
-                    mode = ContributionMode.TIME;
-                } else if (score != null) {
-                    mode = ContributionMode.SCORE;
-                }
-            }
+            ContributionMode mode = resolveRowMode(declaredMode, scoreCandidate, timeCandidate);
+            Integer score = mode == ContributionMode.SCORE ? scoreCandidate : null;
+            Integer time = mode == ContributionMode.TIME ? timeCandidate : null;
 
-            if (mode == null) {
-                continue;
-            }
+            ContributionFieldExtractionDto valueField = buildValueField(valueOcr, mode, score, time);
 
-            if (mode == ContributionMode.SCORE) {
-                if (score == null || score <= 0) {
-                    continue;
-                }
-                time = null;
-            } else if (mode == ContributionMode.TIME) {
-                if (time == null || time <= 0) {
-                    continue;
-                }
-                score = null;
-            } else {
-                continue;
-            }
-
-            result.add(new RowExtraction(mode, new ArrayList<>(players), score, time));
+            result.add(new ContributionRunExtractionDto(
+                    rowIndex + 1,
+                    mode != null ? mode.name() : null,
+                    score,
+                    time,
+                    valueField,
+                    playerFields));
         }
 
         return result;
@@ -459,10 +550,10 @@ public class ContributorExtractionService {
         return new Rectangle(x, y, w, h);
     }
 
-    private String runOcr(BufferedImage image, Rectangle area, int pageSegMode, String whitelist) {
+    private OcrResult runOcr(BufferedImage image, Rectangle area, int pageSegMode, String whitelist) {
         Rectangle bounded = clampToImage(area, image);
         if (bounded.width <= 0 || bounded.height <= 0) {
-            return null;
+            return new OcrResult(bounded, null, null, null);
         }
 
         BufferedImage region = crop(image, bounded);
@@ -473,12 +564,22 @@ public class ContributorExtractionService {
         if (whitelist != null) {
             tesseract.setTessVariable("tessedit_char_whitelist", whitelist);
         }
+
+        String text = null;
         try {
-            return tesseract.doOCR(preprocessed).strip();
+            text = tesseract.doOCR(preprocessed);
         } catch (TesseractException e) {
             LOG.debugf(e, "Unable to run OCR on area %s", bounded);
-            return null;
         }
+
+        if (text != null) {
+            text = text.strip();
+            if (text.isEmpty()) {
+                text = null;
+            }
+        }
+
+        return new OcrResult(bounded, region, preprocessed, text);
     }
 
     private Tesseract createEngine() {
@@ -620,7 +721,10 @@ public class ContributorExtractionService {
         TIME
     }
 
-    private record RowExtraction(ContributionMode mode, List<String> players, Integer score, Integer timeInSeconds) {
+    private record DungeonMatch(Dungeon dungeon, String displayName) {
+    }
+
+    private record OcrResult(Rectangle area, BufferedImage original, BufferedImage preprocessed, String text) {
     }
 
     /**

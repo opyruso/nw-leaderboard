@@ -1,9 +1,11 @@
 import { LangContext } from '../i18n.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
-const MAX_FILES = 6;
+const MAX_FILES = 1;
 const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
+const PLAYER_SLOTS = 6;
+const RUNS_PER_IMAGE = 5;
 
 function toLocaleHeader(lang) {
   if (lang === 'esmx') {
@@ -32,49 +34,121 @@ function formatTime(seconds) {
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const secs = total % 60;
-  const minutesPart = String(hours > 0 ? minutes : minutes).padStart(2, '0');
-  const secondsPart = String(secs).padStart(2, '0');
   if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${minutesPart}:${secondsPart}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
-  return `${minutesPart}:${secondsPart}`;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function createEmptyPlayer(seed = Date.now()) {
+function normaliseField(field) {
+  if (!field || typeof field !== 'object') {
+    return { text: '', normalized: '', number: null, id: null, crop: '' };
+  }
+  const text = typeof field.text === 'string' ? field.text.trim() : '';
+  const normalized = typeof field.normalized === 'string' ? field.normalized.trim() : '';
+  const numberCandidate = field.number;
+  let number = null;
+  if (typeof numberCandidate === 'number' && Number.isFinite(numberCandidate)) {
+    number = numberCandidate;
+  } else if (typeof numberCandidate === 'string') {
+    const parsedNumber = Number.parseInt(numberCandidate, 10);
+    if (Number.isFinite(parsedNumber)) {
+      number = parsedNumber;
+    }
+  }
+  const idCandidate = field.id;
+  let id = null;
+  if (typeof idCandidate === 'number' && Number.isFinite(idCandidate)) {
+    id = idCandidate;
+  } else if (typeof idCandidate === 'string') {
+    const parsedId = Number.parseInt(idCandidate, 10);
+    if (Number.isFinite(parsedId)) {
+      id = parsedId;
+    }
+  }
+  const crop = typeof field.crop === 'string' ? field.crop : '';
+  return { text, normalized, number, id, crop };
+}
+
+function createEmptyContext() {
   return {
-    key: `player-${seed}-${Math.random().toString(36).slice(2, 8)}`,
-    player_name: '',
-    id_player: null,
+    week: '',
+    dungeon: '',
+    mode: '',
+    weekField: normaliseField(null),
+    dungeonField: normaliseField(null),
+    modeField: normaliseField(null),
   };
 }
 
-function normalisePlayer(player, index, seed = Date.now()) {
-  const name = typeof player?.player_name === 'string' ? player.player_name.trim() : '';
-  const id = Number.isFinite(player?.id_player) ? Number(player.id_player) : null;
+function normaliseExtractionContext(data) {
+  const weekField = normaliseField(data?.week);
+  const dungeonField = normaliseField(data?.dungeon);
+  const modeField = normaliseField(data?.mode);
+  const weekSource = weekField.number ?? weekField.normalized ?? weekField.text;
+  const dungeonSource = dungeonField.id ?? dungeonField.number ?? dungeonField.normalized ?? dungeonField.text;
+  const week = toPositiveInteger(weekSource) ?? '';
+  const dungeon = toPositiveInteger(dungeonSource) ?? '';
+  const mode = (modeField.normalized || modeField.text || '').toUpperCase();
   return {
-    key: `player-${seed}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-    player_name: name,
-    id_player: id,
+    week,
+    dungeon,
+    mode,
+    weekField,
+    dungeonField,
+    modeField,
   };
 }
 
-function normaliseRun(run, index, seed = Date.now()) {
-  const week = toPositiveInteger(run?.week);
-  const dungeon = toPositiveInteger(run?.dungeon);
-  const score = toPositiveInteger(run?.score);
-  const time = toPositiveInteger(run?.time);
-  const sourcePlayers = Array.isArray(run?.players) ? run.players : [];
-  const players = sourcePlayers.length
-    ? sourcePlayers.map((player, playerIndex) => normalisePlayer(player, playerIndex, seed))
-    : [createEmptyPlayer(seed)];
+function sameName(a, b) {
+  if (!a || !b) {
+    return false;
+  }
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function createPlayerSlot(field, runIndex, slotIndex, seed) {
+  const normalizedField = normaliseField(field);
+  const baseValue = normalizedField.normalized || normalizedField.text;
+  const initialId = Number.isFinite(normalizedField.id) ? Number(normalizedField.id) : null;
   return {
-    id: `run-${seed}-${index}`,
-    week: week ?? '',
-    dungeon: dungeon ?? '',
-    score: score ?? '',
-    time: time ?? '',
-    players,
+    key: `player-${seed}-${runIndex}-${slotIndex}-${Math.random().toString(36).slice(2, 8)}`,
+    slotIndex,
+    value: baseValue,
+    rawText: normalizedField.text,
+    normalized: normalizedField.normalized,
+    originalNormalized: normalizedField.normalized,
+    initialId,
+    playerId: initialId,
+    crop: normalizedField.crop,
   };
+}
+
+function buildRunsFromExtraction(data, context, seed = Date.now()) {
+  const runsSource = Array.isArray(data?.runs) ? data.runs : [];
+  const runs = [];
+  for (let index = 0; index < RUNS_PER_IMAGE; index += 1) {
+    const runSource = runsSource[index] || {};
+    const playersSource = Array.isArray(runSource.players) ? runSource.players : [];
+    const playerSlots = Array.from({ length: PLAYER_SLOTS }, (_, slotIndex) =>
+      createPlayerSlot(playersSource[slotIndex], index, slotIndex, seed),
+    );
+    const score = Number.isFinite(runSource?.score) ? Number(runSource.score) : null;
+    const time = Number.isFinite(runSource?.time) ? Number(runSource.time) : null;
+    const modeValue = typeof runSource?.mode === 'string' ? runSource.mode.toUpperCase() : '';
+    runs.push({
+      id: `run-${seed}-${index}`,
+      index,
+      week: context.week ?? '',
+      dungeon: context.dungeon ?? '',
+      score: score ?? '',
+      time: time ?? '',
+      mode: modeValue || context.mode || '',
+      valueField: normaliseField(runSource.value),
+      playerSlots,
+    });
+  }
+  return runs;
 }
 
 function readImageMeta(file) {
@@ -98,11 +172,23 @@ function readImageMeta(file) {
   });
 }
 
+function hasRunContent(run) {
+  if (!run) {
+    return false;
+  }
+  const hasScore = toPositiveInteger(run.score) !== null;
+  const hasTime = toPositiveInteger(run.time) !== null;
+  const hasPlayers = run.playerSlots.some((slot) => typeof slot.value === 'string' && slot.value.trim());
+  const hasValue = (run.valueField?.text && run.valueField.text.trim()) || (run.valueField?.normalized && run.valueField.normalized.trim());
+  return Boolean(hasScore || hasTime || hasPlayers || hasValue);
+}
+
 export default function Contribute() {
   const { t, lang } = React.useContext(LangContext);
   const fileInputRef = React.useRef(null);
-  const [selectedFiles, setSelectedFiles] = React.useState([]);
+  const [selectedFile, setSelectedFile] = React.useState(null);
   const [runs, setRuns] = React.useState([]);
+  const [contextFields, setContextFields] = React.useState(() => createEmptyContext());
   const [status, setStatus] = React.useState('idle');
   const [messageKey, setMessageKey] = React.useState('');
   const [messageText, setMessageText] = React.useState('');
@@ -185,50 +271,63 @@ export default function Contribute() {
   const handleFileChange = async (event) => {
     const files = Array.from(event.target.files || []);
     setRuns([]);
+    setContextFields(createEmptyContext());
     resetFeedback();
     if (!files.length) {
-      setSelectedFiles([]);
+      setSelectedFile(null);
       return;
     }
     if (files.length > MAX_FILES) {
       setErrorKey('contributeTooMany');
-      setSelectedFiles([]);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
+    const [file] = files;
     setStatus('validating');
     try {
-      const metaList = await Promise.all(files.map((file) => readImageMeta(file)));
-      const invalid = metaList.find(
-        (meta) => meta.width !== EXPECTED_WIDTH || meta.height !== EXPECTED_HEIGHT,
-      );
-      if (invalid) {
-        setSelectedFiles([]);
+      const meta = await readImageMeta(file);
+      if (meta.width !== EXPECTED_WIDTH || meta.height !== EXPECTED_HEIGHT) {
+        setSelectedFile(null);
         setErrorKey('contributeResolutionError');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
-      setSelectedFiles(metaList);
-      setMessageKey('contributeFilesReady');
+      setSelectedFile(meta);
+      setMessageKey('contributeFileReady');
     } catch (error) {
       console.warn('Unable to inspect the selected images', error);
-      setSelectedFiles([]);
+      setSelectedFile(null);
       setErrorKey('contributeFileLoadError');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } finally {
       setStatus('idle');
     }
   };
 
   const handleClearSelection = () => {
-    setSelectedFiles([]);
+    setSelectedFile(null);
     setRuns([]);
+    setContextFields(createEmptyContext());
     resetFeedback();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
+  const updateRun = (index, updater) => {
+    setRuns((previous) => previous.map((run, currentIndex) => (currentIndex === index ? updater(run) : run)));
+  };
+
   const handleExtract = async () => {
     resetFeedback();
-    if (!selectedFiles.length) {
+    if (!selectedFile) {
       setErrorKey('contributeNoFiles');
       return;
     }
@@ -239,18 +338,16 @@ export default function Contribute() {
     setStatus('extracting');
     try {
       const formData = new FormData();
-      selectedFiles.forEach((item) => {
-        formData.append('images', item.file, item.name || item.file.name);
-      });
+      formData.append('image', selectedFile.file, selectedFile.name || selectedFile.file.name);
       const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
         method: 'POST',
         body: formData,
       });
-      let data = [];
+      let data = null;
       try {
         data = await response.json();
       } catch (error) {
-        data = [];
+        data = null;
       }
       if (!response.ok) {
         const apiMessage = data && data.message ? data.message : null;
@@ -259,44 +356,38 @@ export default function Contribute() {
         } else {
           setErrorKey('contributeError');
         }
+        setRuns([]);
+        setContextFields(createEmptyContext());
         return;
       }
       const timestamp = Date.now();
-      const mapped = Array.isArray(data)
-        ? data.map((item, index) => normaliseRun(item, index, timestamp))
-        : [];
-      setRuns(mapped);
-      if (mapped.length) {
+      const context = normaliseExtractionContext(data || {});
+      const mappedRuns = buildRunsFromExtraction(data || {}, context, timestamp);
+      setContextFields(context);
+      setRuns(mappedRuns);
+      if (mappedRuns.some((run) => hasRunContent(run))) {
         setMessageKey('contributeExtractionReady');
       } else {
         setMessageKey('contributeNoResults');
       }
     } catch (error) {
-      console.warn('Unable to extract runs from the provided images', error);
+      console.warn('Unable to extract runs from the provided image', error);
       setErrorKey('contributeError');
     } finally {
       setStatus('idle');
     }
   };
 
-  const updateRun = (index, updater) => {
-    setRuns((previous) =>
-      previous.map((run, currentIndex) => (currentIndex === index ? updater(run) : run)),
-    );
+  const handleContextWeekChange = (value) => {
+    const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
+    setContextFields((previous) => ({ ...previous, week: resolved }));
+    setRuns((previous) => previous.map((run) => ({ ...run, week: resolved })));
   };
 
-  const handleWeekChange = (index, value) => {
-    updateRun(index, (run) => ({
-      ...run,
-      week: value === '' ? '' : toPositiveInteger(value) ?? '',
-    }));
-  };
-
-  const handleDungeonChange = (index, value) => {
-    updateRun(index, (run) => ({
-      ...run,
-      dungeon: value === '' ? '' : toPositiveInteger(value) ?? '',
-    }));
+  const handleContextDungeonChange = (value) => {
+    const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
+    setContextFields((previous) => ({ ...previous, dungeon: resolved }));
+    setRuns((previous) => previous.map((run) => ({ ...run, dungeon: resolved })));
   };
 
   const handleScoreChange = (index, value) => {
@@ -316,29 +407,15 @@ export default function Contribute() {
   const handlePlayerChange = (runIndex, playerIndex, value) => {
     updateRun(runIndex, (run) => ({
       ...run,
-      players: run.players.map((player, currentIndex) =>
+      playerSlots: run.playerSlots.map((slot, currentIndex) =>
         currentIndex === playerIndex
           ? {
-              ...player,
-              player_name: value,
-              id_player: null,
+              ...slot,
+              value,
+              playerId: sameName(slot.originalNormalized || '', value || '') ? slot.initialId : null,
             }
-          : player,
+          : slot,
       ),
-    }));
-  };
-
-  const handleAddPlayer = (runIndex) => {
-    updateRun(runIndex, (run) => ({
-      ...run,
-      players: [...run.players, createEmptyPlayer()],
-    }));
-  };
-
-  const handleRemovePlayer = (runIndex, playerIndex) => {
-    updateRun(runIndex, (run) => ({
-      ...run,
-      players: run.players.filter((_, currentIndex) => currentIndex !== playerIndex),
     }));
   };
 
@@ -357,12 +434,25 @@ export default function Contribute() {
       const dungeon = toPositiveInteger(run.dungeon);
       const score = toPositiveInteger(run.score);
       const time = toPositiveInteger(run.time);
-      const players = run.players
-        .map((player) => ({
-          player_name: typeof player.player_name === 'string' ? player.player_name.trim() : '',
-          id_player: Number.isFinite(player.id_player) ? Number(player.id_player) : null,
-        }))
-        .filter((player) => player.player_name);
+      const seen = new Set();
+      const players = run.playerSlots
+        .map((slot) => {
+          const name = typeof slot.value === 'string' ? slot.value.trim() : '';
+          if (!name) {
+            return null;
+          }
+          const key = name.toLowerCase();
+          if (seen.has(key)) {
+            return null;
+          }
+          seen.add(key);
+          const id = sameName(slot.originalNormalized || '', name) ? slot.initialId : null;
+          return {
+            player_name: name,
+            id_player: Number.isFinite(id) ? id : null,
+          };
+        })
+        .filter(Boolean);
       return {
         week,
         dungeon,
@@ -413,7 +503,8 @@ export default function Contribute() {
       }
       setMessageKey('contributeSuccess');
       setRuns([]);
-      setSelectedFiles([]);
+      setSelectedFile(null);
+      setContextFields(createEmptyContext());
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -441,22 +532,19 @@ export default function Contribute() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            multiple
             onChange={handleFileChange}
             disabled={status === 'validating' || status === 'extracting'}
           />
         </label>
         <p className="form-hint">{t.contributeUploadHint}</p>
-        {selectedFiles.length ? (
+        {selectedFile ? (
           <div className="contribute-files">
             <h2 className="contribute-section-title">{t.contributeImagesTitle}</h2>
             <ul className="contribute-file-list">
-              {selectedFiles.map((file) => (
-                <li key={file.name} className="contribute-file-item">
-                  <span className="contribute-file-name">{file.name}</span>
-                  <span className="contribute-file-meta">{`${file.width}×${file.height}`}</span>
-                </li>
-              ))}
+              <li className="contribute-file-item">
+                <span className="contribute-file-name">{selectedFile.name}</span>
+                <span className="contribute-file-meta">{`${selectedFile.width}×${selectedFile.height}`}</span>
+              </li>
             </ul>
           </div>
         ) : null}
@@ -464,9 +552,7 @@ export default function Contribute() {
           <button
             type="button"
             onClick={handleExtract}
-            disabled={
-              !selectedFiles.length || status === 'extracting' || status === 'validating'
-            }
+            disabled={!selectedFile || status === 'extracting' || status === 'validating'}
           >
             {status === 'extracting' ? t.contributeExtracting : t.contributeExtract}
           </button>
@@ -474,12 +560,89 @@ export default function Contribute() {
             type="button"
             className="secondary"
             onClick={handleClearSelection}
-            disabled={!selectedFiles.length}
+            disabled={!selectedFile}
           >
             {t.contributeClear}
           </button>
         </div>
       </section>
+
+      {(contextFields.weekField.crop || contextFields.dungeonField.crop || contextFields.modeField.crop || runs.length) ? (
+        <section className="form contribute-context" aria-live="polite">
+          <h2 className="contribute-section-title">{t.contributeContextTitle}</h2>
+          <div className="contribute-context-grid">
+            <div className="contribute-context-item">
+              <span className="contribute-context-label">{t.contributeWeek}</span>
+              {contextFields.weekField.crop ? (
+                <img
+                  className="contribute-crop-image"
+                  src={contextFields.weekField.crop}
+                  alt={t.contributeWeek}
+                />
+              ) : null}
+              <p className="contribute-context-ocr">
+                {contextFields.weekField.text
+                  ? t.contributeDetectedText(contextFields.weekField.text)
+                  : t.contributeDetectedEmpty}
+              </p>
+              <input
+                type="number"
+                min="1"
+                value={contextFields.week === '' ? '' : contextFields.week}
+                onChange={(event) => handleContextWeekChange(event.target.value)}
+              />
+            </div>
+            <div className="contribute-context-item">
+              <span className="contribute-context-label">{t.contributeDungeon}</span>
+              {contextFields.dungeonField.crop ? (
+                <img
+                  className="contribute-crop-image"
+                  src={contextFields.dungeonField.crop}
+                  alt={t.contributeDungeon}
+                />
+              ) : null}
+              <p className="contribute-context-ocr">
+                {contextFields.dungeonField.text
+                  ? t.contributeDetectedText(contextFields.dungeonField.text)
+                  : t.contributeDetectedEmpty}
+              </p>
+              <select
+                value={contextFields.dungeon === '' ? '' : String(contextFields.dungeon)}
+                onChange={(event) => handleContextDungeonChange(event.target.value)}
+              >
+                <option value="">{t.contributeDungeonPlaceholder}</option>
+                {dungeons.map((dungeon) => (
+                  <option key={dungeon.id} value={String(dungeon.id)}>
+                    {dungeon.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="contribute-context-item">
+              <span className="contribute-context-label">{t.contributeMode}</span>
+              {contextFields.modeField.crop ? (
+                <img
+                  className="contribute-crop-image"
+                  src={contextFields.modeField.crop}
+                  alt={t.contributeMode}
+                />
+              ) : null}
+              <p className="contribute-context-ocr">
+                {contextFields.modeField.text
+                  ? t.contributeDetectedText(contextFields.modeField.text)
+                  : t.contributeDetectedEmpty}
+              </p>
+              <p className="contribute-context-mode">
+                {contextFields.mode === 'TIME'
+                  ? t.contributeModeTime
+                  : contextFields.mode === 'SCORE'
+                  ? t.contributeModeScore
+                  : t.contributeModeUnknown}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="contribute-results-container" aria-live="polite">
         {loadingDungeons ? (
@@ -502,100 +665,95 @@ export default function Contribute() {
                 run.time && typeof t.contributeTimePreview === 'function'
                   ? t.contributeTimePreview(formatTime(run.time))
                   : '';
+              const modeValue = (run.mode || contextFields.mode || '').toUpperCase();
+              const modeLabel =
+                modeValue === 'TIME'
+                  ? t.contributeModeTime
+                  : modeValue === 'SCORE'
+                  ? t.contributeModeScore
+                  : t.contributeModeUnknown;
               return (
                 <article key={run.id} className="contribute-run">
                   <header className="contribute-run-header">
                     <h3>{label}</h3>
+                    <span className="contribute-run-mode">{modeLabel}</span>
                   </header>
-                  <div className="contribute-run-grid">
-                    <label className="form-field">
-                      <span>{t.contributeWeek}</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={run.week === '' ? '' : run.week}
-                        onChange={(event) => handleWeekChange(runIndex, event.target.value)}
+                  <div className="contribute-run-value">
+                    {run.valueField.crop ? (
+                      <img
+                        className="contribute-crop-image"
+                        src={run.valueField.crop}
+                        alt={t.contributeValueArea}
                       />
-                    </label>
-                    <label className="form-field">
-                      <span>{t.contributeDungeon}</span>
-                      <select
-                        value={run.dungeon === '' ? '' : String(run.dungeon)}
-                        onChange={(event) => handleDungeonChange(runIndex, event.target.value)}
-                      >
-                        <option value="">{t.contributeDungeonPlaceholder}</option>
-                        {dungeons.map((dungeon) => (
-                          <option key={dungeon.id} value={String(dungeon.id)}>
-                            {dungeon.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="form-field">
-                      <span>{t.contributeScore}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={run.score === '' ? '' : run.score}
-                        onChange={(event) => handleScoreChange(runIndex, event.target.value)}
-                      />
-                    </label>
-                    <label className="form-field">
-                      <span>{t.contributeTime}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={run.time === '' ? '' : run.time}
-                        onChange={(event) => handleTimeChange(runIndex, event.target.value)}
-                      />
-                      <small className="form-hint">
-                        {t.contributeTimeHint}
-                        {timePreview ? ` (${timePreview})` : ''}
-                      </small>
-                    </label>
+                    ) : null}
+                    <p className="contribute-context-ocr">
+                      {run.valueField.text
+                        ? t.contributeDetectedText(run.valueField.text)
+                        : t.contributeDetectedEmpty}
+                    </p>
+                    <div className="contribute-run-value-inputs">
+                      <label className="form-field">
+                        <span>{t.contributeScore}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={run.score === '' ? '' : run.score}
+                          onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+                        />
+                      </label>
+                      <label className="form-field">
+                        <span>{t.contributeTime}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={run.time === '' ? '' : run.time}
+                          onChange={(event) => handleTimeChange(runIndex, event.target.value)}
+                        />
+                        <small className="form-hint">
+                          {t.contributeTimeHint}
+                          {timePreview ? ` (${timePreview})` : ''}
+                        </small>
+                      </label>
+                    </div>
                   </div>
                   <div className="contribute-players">
                     <div className="contribute-players-header">
                       <span>{t.contributePlayers}</span>
                       <p className="form-hint">{t.contributePlayersHint}</p>
                     </div>
-                    <ul className="contribute-player-list">
-                      {run.players.map((player, playerIndex) => (
-                        <li key={player.key || playerIndex} className="contribute-player-item">
+                    <ul className="contribute-player-grid">
+                      {run.playerSlots.map((slot, playerIndex) => (
+                        <li key={slot.key || playerIndex} className="contribute-player-slot">
+                          {slot.crop ? (
+                            <img
+                              className="contribute-crop-image"
+                              src={slot.crop}
+                              alt={t.contributePlayerSlotLabel(playerIndex + 1)}
+                            />
+                          ) : null}
+                          <p className="contribute-context-ocr">
+                            {slot.rawText
+                              ? t.contributeDetectedText(slot.rawText)
+                              : t.contributeDetectedEmpty}
+                          </p>
                           <input
                             type="text"
-                            value={player.player_name}
+                            value={slot.value || ''}
                             placeholder={t.contributePlayerPlaceholder}
                             onChange={(event) =>
                               handlePlayerChange(runIndex, playerIndex, event.target.value)
                             }
                           />
-                          {player.id_player ? (
+                          {slot.playerId ? (
                             <span className="contribute-player-id">
                               {typeof t.contributeKnownPlayer === 'function'
-                                ? t.contributeKnownPlayer(player.id_player)
-                                : `ID: ${player.id_player}`}
+                                ? t.contributeKnownPlayer(slot.playerId)
+                                : `ID: ${slot.playerId}`}
                             </span>
                           ) : null}
-                          <button
-                            type="button"
-                            className="secondary"
-                            onClick={() => handleRemovePlayer(runIndex, playerIndex)}
-                          >
-                            {t.contributeRemovePlayer}
-                          </button>
                         </li>
                       ))}
                     </ul>
-                    <div className="form-actions contribute-player-actions">
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => handleAddPlayer(runIndex)}
-                      >
-                        {t.contributeAddPlayer}
-                      </button>
-                    </div>
                   </div>
                 </article>
               );

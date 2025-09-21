@@ -1,6 +1,7 @@
 package com.opyruso.nwleaderboard;
 
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
+import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
 import com.opyruso.nwleaderboard.dto.ContributionRunDto;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
@@ -57,8 +58,8 @@ public class ContributorResource {
         }
 
         try {
-            List<ContributionRunDto> runs = extractionService.extractRuns(input);
-            return Response.ok(runs).build();
+            ContributionExtractionResponseDto extraction = extractionService.extract(input);
+            return Response.ok(extraction).build();
         } catch (ContributorRequestException e) {
             LOG.debug("Unable to extract contributor data", e);
             return Response.status(Status.BAD_REQUEST)
