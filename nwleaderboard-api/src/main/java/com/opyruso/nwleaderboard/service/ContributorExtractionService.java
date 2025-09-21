@@ -9,14 +9,21 @@ import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import javax.imageio.ImageIO;
 import jakarta.inject.Inject;
+import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.image.ConvolveOp;
+import java.awt.image.Kernel;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,6 +54,22 @@ public class ContributorExtractionService {
     private static final int EXPECTED_WIDTH = 2560;
     private static final int EXPECTED_HEIGHT = 1440;
     private static final int MAX_UPLOADS = 6;
+
+    private static final Rectangle DUNGEON_AREA = new Rectangle(700, 230, 1035, 50);
+    private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
+    private static final int PLAYER_BOX_WIDTH = 330;
+    private static final int PLAYER_BOX_HEIGHT = 35;
+    private static final int PLAYER_ROW_STEP = 135;
+    private static final int RUNS_PER_IMAGE = 5;
+    private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
+            new Point(920, 415),
+            new Point(920, 450),
+            new Point(920, 485),
+            new Point(1305, 415),
+            new Point(1305, 450),
+            new Point(1305, 485));
+    private static final int ADAPTIVE_BLOCK_SIZE = 15;
+    private static final int ADAPTIVE_MEAN_OFFSET = 5;
 
     private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)week\\s*(\\d+)");
     private static final Pattern TIME_PATTERN = Pattern.compile("(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})");
@@ -223,6 +246,7 @@ public class ContributorExtractionService {
             return null;
         }
         String cleaned = input.replaceAll("[\\r\\n]", " ").replaceAll("\\s+", " ").strip();
+        cleaned = cleaned.replaceAll("^[0-9]+\\.\\s*", "");
         return cleaned.isEmpty() ? null : cleaned;
     }
 
@@ -315,34 +339,27 @@ public class ContributorExtractionService {
     }
 
     private List<RowExtraction> extractRows(BufferedImage image, ContributionMode declaredMode) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-
-        Rectangle tableArea = regionForTable(image);
-        int rows = 5;
-        int rowHeight = tableArea.height / rows;
-
-        int playersLeft = (int) (width * 0.32);
-        int playersWidth = (int) (width * 0.38);
-        int valueLeft = (int) (width * 0.74);
-        int valueWidth = (int) (width * 0.14);
-
         List<RowExtraction> result = new ArrayList<>();
-        for (int index = 0; index < rows; index++) {
-            int top = tableArea.y + index * rowHeight;
-            Rectangle playersRect = new Rectangle(playersLeft, top, playersWidth, rowHeight);
-            Rectangle valueRect = new Rectangle(valueLeft, top, valueWidth, rowHeight);
+        for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
+            LinkedHashSet<String> players = new LinkedHashSet<>();
+            int yOffset = rowIndex * PLAYER_ROW_STEP;
+            for (Point base : PLAYER_BASE_POSITIONS) {
+                Rectangle playerRect = new Rectangle(base.x, base.y + yOffset, PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT);
+                String playerText = runOcr(image, playerRect, TessPageSegMode.PSM_SINGLE_LINE, null);
+                String cleaned = normalisePlayerName(playerText);
+                if (cleaned != null) {
+                    players.add(cleaned);
+                }
+            }
 
-            String playersText = runOcr(image, playersRect, TessPageSegMode.PSM_AUTO, null);
-            String valueText = runOcr(image, valueRect, TessPageSegMode.PSM_AUTO,
-                    declaredMode == ContributionMode.TIME ? "0123456789:" : null);
-
-            List<String> players = parsePlayers(playersText);
             if (players.isEmpty()) {
                 continue;
             }
 
-            Integer score = parseScore(valueText);
+            Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
+            String valueText = runOcr(image, valueRect, TessPageSegMode.PSM_SINGLE_LINE, "0123456789:");
+
+            Integer score = declaredMode == ContributionMode.TIME ? null : parseScore(valueText);
             Integer time = parseTime(valueText);
 
             ContributionMode mode = declaredMode;
@@ -358,29 +375,24 @@ public class ContributorExtractionService {
                 continue;
             }
 
-            if (mode == ContributionMode.SCORE && (score == null || score <= 0)) {
-                continue;
-            }
-            if (mode == ContributionMode.TIME && (time == null || time <= 0)) {
+            if (mode == ContributionMode.SCORE) {
+                if (score == null || score <= 0) {
+                    continue;
+                }
+                time = null;
+            } else if (mode == ContributionMode.TIME) {
+                if (time == null || time <= 0) {
+                    continue;
+                }
+                score = null;
+            } else {
                 continue;
             }
 
-            result.add(new RowExtraction(mode, players, score, time));
+            result.add(new RowExtraction(mode, new ArrayList<>(players), score, time));
         }
 
         return result;
-    }
-
-    private List<String> parsePlayers(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return List.of();
-        }
-        return List.of(raw.split("\\r?\\n"))
-                .stream()
-                .map(String::strip)
-                .filter(line -> !line.isEmpty())
-                .map(line -> line.replaceAll("^[0-9]+\\.\\s*", ""))
-                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private Integer parseScore(String raw) {
@@ -424,13 +436,7 @@ public class ContributorExtractionService {
     }
 
     private Rectangle regionForDungeon(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int x = (int) (width * 0.14);
-        int y = (int) (height * 0.08);
-        int w = (int) (width * 0.42);
-        int h = (int) (height * 0.1);
-        return new Rectangle(x, y, w, h);
+        return clampToImage(DUNGEON_AREA, image);
     }
 
     private Rectangle regionForWeek(BufferedImage image) {
@@ -453,26 +459,24 @@ public class ContributorExtractionService {
         return new Rectangle(x, y, w, h);
     }
 
-    private Rectangle regionForTable(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int x = (int) (width * 0.18);
-        int y = (int) (height * 0.27);
-        int w = (int) (width * 0.72);
-        int h = (int) (height * 0.58);
-        return new Rectangle(x, y, w, h);
-    }
-
     private String runOcr(BufferedImage image, Rectangle area, int pageSegMode, String whitelist) {
+        Rectangle bounded = clampToImage(area, image);
+        if (bounded.width <= 0 || bounded.height <= 0) {
+            return null;
+        }
+
+        BufferedImage region = crop(image, bounded);
+        BufferedImage preprocessed = preprocessForOcr(region);
+
         Tesseract tesseract = createEngine();
         tesseract.setPageSegMode(pageSegMode);
         if (whitelist != null) {
             tesseract.setTessVariable("tessedit_char_whitelist", whitelist);
         }
         try {
-            return tesseract.doOCR(image, area).strip();
+            return tesseract.doOCR(preprocessed).strip();
         } catch (TesseractException e) {
-            LOG.debugf(e, "Unable to run OCR on area %s", area);
+            LOG.debugf(e, "Unable to run OCR on area %s", bounded);
             return null;
         }
     }
@@ -509,6 +513,100 @@ public class ContributorExtractionService {
             }
         }
         return null;
+    }
+
+    private Rectangle clampToImage(Rectangle rect, BufferedImage image) {
+        int x = Math.max(0, rect.x);
+        int y = Math.max(0, rect.y);
+        int width = Math.min(rect.width, image.getWidth() - x);
+        int height = Math.min(rect.height, image.getHeight() - y);
+        if (width <= 0 || height <= 0) {
+            return new Rectangle(0, 0, 0, 0);
+        }
+        return new Rectangle(x, y, width, height);
+    }
+
+    private BufferedImage crop(BufferedImage source, Rectangle area) {
+        BufferedImage target = new BufferedImage(area.width, area.height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = target.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(source, 0, 0, area.width, area.height, area.x, area.y, area.x + area.width,
+                    area.y + area.height, null);
+        } finally {
+            graphics.dispose();
+        }
+        return target;
+    }
+
+    private BufferedImage preprocessForOcr(BufferedImage region) {
+        if (region.getWidth() <= 0 || region.getHeight() <= 0) {
+            return region;
+        }
+
+        BufferedImage gray = new BufferedImage(region.getWidth(), region.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D graphics = gray.createGraphics();
+        try {
+            graphics.drawImage(region, 0, 0, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        BufferedImage thresholded = applyAdaptiveThreshold(gray, ADAPTIVE_BLOCK_SIZE, ADAPTIVE_MEAN_OFFSET);
+        return applySharpen(thresholded);
+    }
+
+    private BufferedImage applyAdaptiveThreshold(BufferedImage gray, int blockSize, int meanOffset) {
+        int width = gray.getWidth();
+        int height = gray.getHeight();
+        int radius = Math.max(1, blockSize / 2);
+
+        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+        WritableRaster sourceRaster = gray.getRaster();
+        WritableRaster targetRaster = result.getRaster();
+
+        long[][] integral = new long[height + 1][width + 1];
+        for (int y = 1; y <= height; y++) {
+            long rowSum = 0;
+            for (int x = 1; x <= width; x++) {
+                int pixel = sourceRaster.getSample(x - 1, y - 1, 0);
+                rowSum += pixel;
+                integral[y][x] = integral[y - 1][x] + rowSum;
+            }
+        }
+
+        for (int y = 0; y < height; y++) {
+            int y0 = Math.max(0, y - radius);
+            int y1 = Math.min(height - 1, y + radius);
+            for (int x = 0; x < width; x++) {
+                int x0 = Math.max(0, x - radius);
+                int x1 = Math.min(width - 1, x + radius);
+
+                int area = (x1 - x0 + 1) * (y1 - y0 + 1);
+                long sum = integral[y1 + 1][x1 + 1] - integral[y0][x1 + 1] - integral[y1 + 1][x0] + integral[y0][x0];
+                int threshold = (int) (sum / area) - meanOffset;
+                threshold = Math.max(0, Math.min(255, threshold));
+
+                int pixel = sourceRaster.getSample(x, y, 0);
+                int value = pixel > threshold ? 255 : 0;
+                targetRaster.setSample(x, y, 0, value);
+            }
+        }
+
+        return result;
+    }
+
+    private BufferedImage applySharpen(BufferedImage image) {
+        float[] kernelData = new float[] {
+                0f, -1f, 0f,
+                -1f, 5f, -1f,
+                0f, -1f, 0f
+        };
+        Kernel kernel = new Kernel(3, 3, kernelData);
+        ConvolveOp op = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
+        BufferedImage result = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        op.filter(image, result);
+        return result;
     }
 
     /**
