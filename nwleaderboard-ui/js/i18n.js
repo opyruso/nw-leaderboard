@@ -1,7 +1,20 @@
+import de from './locales/de.js';
 import en from './locales/en.js';
+import es from './locales/es.js';
+import esmx from './locales/esmx.js';
 import fr from './locales/fr.js';
+import it from './locales/it.js';
+import pl from './locales/pl.js';
+import pt from './locales/pt.js';
 
-const translations = { en, fr };
+const translations = { en, fr, de, es, esmx, it, pl, pt };
+
+function toDocumentLang(value) {
+  if (value === 'esmx') {
+    return 'es-MX';
+  }
+  return value || 'en';
+}
 
 function ensureLang(value) {
   return Object.prototype.hasOwnProperty.call(translations, value) ? value : 'en';
@@ -20,7 +33,7 @@ function LangProvider({ children }) {
   });
 
   React.useEffect(() => {
-    document.documentElement.lang = lang;
+    document.documentElement.lang = toDocumentLang(lang);
   }, [lang]);
 
   const changeLang = React.useCallback((nextLang) => {

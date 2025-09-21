@@ -21,23 +21,25 @@ function NavButton({ to, children, onClick }) {
 
 export default function BottomNav({ authenticated, onLogout }) {
   const { t } = React.useContext(LangContext);
+  const isAuthenticated = Boolean(authenticated);
+
+  const accountNavigation = isAuthenticated ? (
+    <>
+      <NavButton to="/preferences">{t.preferences}</NavButton>
+      <NavButton onClick={onLogout}>{t.logout}</NavButton>
+    </>
+  ) : (
+    <>
+      <NavButton to="/login">{t.login}</NavButton>
+      <NavButton to="/register">{t.register}</NavButton>
+      <NavButton to="/forgot-password">{t.forgotPassword}</NavButton>
+    </>
+  );
 
   return (
     <nav className="bottom-nav" aria-label={t.navMenu}>
       <NavButton to="/">{t.home}</NavButton>
-      {authenticated ? (
-        <>
-          <NavButton to="/preferences">{t.preferences}</NavButton>
-          <NavButton to="/password">{t.password}</NavButton>
-          <NavButton onClick={onLogout}>{t.logout}</NavButton>
-        </>
-      ) : (
-        <>
-          <NavButton to="/login">{t.login}</NavButton>
-          <NavButton to="/register">{t.register}</NavButton>
-          <NavButton to="/forgot-password">{t.forgotPassword}</NavButton>
-        </>
-      )}
+      {accountNavigation}
     </nav>
   );
 }

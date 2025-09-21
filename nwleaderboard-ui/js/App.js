@@ -1,5 +1,8 @@
 import BottomNav from './BottomNav.js';
 import Home from './pages/Home.js';
+import Score from './pages/Score.js';
+import Time from './pages/Time.js';
+import Individual from './pages/Individual.js';
 import Login from './pages/Login.js';
 import Register from './pages/Register.js';
 import ForgotPassword from './pages/ForgotPassword.js';
@@ -54,6 +57,9 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/score" element={<Score />} />
+          <Route path="/time" element={<Time />} />
+          <Route path="/individual" element={<Individual />} />
           <Route
             path="/login"
             element={

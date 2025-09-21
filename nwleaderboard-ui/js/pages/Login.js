@@ -1,16 +1,5 @@
 import { LangContext } from '../i18n.js';
 
-function buildDemoTokens(username) {
-  const issuedAt = Date.now();
-  return {
-    access_token: `demo-${username || 'player'}-${issuedAt}`,
-    token_type: 'Bearer',
-    expires_at: issuedAt + 60 * 60 * 1000,
-    scope: 'demo',
-    demo: true,
-  };
-}
-
 export default function Login({ onLogin }) {
   const { t, lang, changeLang } = React.useContext(LangContext);
   const [form, setForm] = React.useState({
@@ -85,13 +74,6 @@ export default function Login({ onLogin }) {
     }
   };
 
-  const handleDemoLogin = () => {
-    const tokens = buildDemoTokens(form.username);
-    onLogin(tokens, form.remember);
-    setStatus('demo');
-    setMessage(t.loginDemoActive);
-  };
-
   return (
     <main className="page" aria-labelledby="login-title">
       <h1 id="login-title" className="page-title">
@@ -138,13 +120,6 @@ export default function Login({ onLogin }) {
         <div className="form-actions">
           <button type="submit" disabled={status === 'loading'}>
             {status === 'loading' ? '…' : t.loginAction}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={handleDemoLogin}
-          >
-            {t.loginDemo}
           </button>
         </div>
       </form>

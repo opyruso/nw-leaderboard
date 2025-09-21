@@ -1,10 +1,24 @@
 import { LangContext } from '../i18n.js';
 import { ThemeContext } from '../theme.js';
 
+const { useNavigate } = ReactRouterDOM;
+
+const languageOptions = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'fr', label: 'Français' },
+  { value: 'es', label: 'Español' },
+  { value: 'esmx', label: 'Español (México)' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'pl', label: 'Polski' },
+  { value: 'pt', label: 'Português' },
+];
+
 export default function Preferences() {
   const { t, lang, changeLang } = React.useContext(LangContext);
   const { theme, toggleTheme } = React.useContext(ThemeContext);
   const [messageKey, setMessageKey] = React.useState('');
+  const navigate = useNavigate();
 
   const handleLanguageChange = (event) => {
     changeLang(event.target.value);
@@ -14,6 +28,10 @@ export default function Preferences() {
   const handleThemeChange = () => {
     toggleTheme();
     setMessageKey('preferencesSaved');
+  };
+
+  const goToPasswordPage = () => {
+    navigate('/password');
   };
 
   return (
@@ -26,14 +44,22 @@ export default function Preferences() {
         <label className="form-field">
           <span>{t.language}</span>
           <select value={lang} onChange={handleLanguageChange}>
-            <option value="en">English</option>
-            <option value="fr">Français</option>
+            {languageOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
         <div className="form-checkbox">
           <span>{t.theme}</span>
           <button type="button" onClick={handleThemeChange}>
             {t.themeToggle} ({theme === 'dark' ? t.themeDark : t.themeLight})
+          </button>
+        </div>
+        <div className="form-actions">
+          <button type="button" onClick={goToPasswordPage}>
+            {t.password}
           </button>
         </div>
       </section>

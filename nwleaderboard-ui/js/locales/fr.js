@@ -1,6 +1,9 @@
 const fr = {
   gameName: 'New World Leaderboard',
   home: 'Accueil',
+  score: 'Score',
+  time: 'Temps',
+  individual: 'Individuel',
   login: 'Connexion',
   logout: 'Déconnexion',
   register: "Créer un compte",
@@ -25,8 +28,6 @@ const fr = {
   reload: 'Recharger maintenant',
   loginError:
     "Impossible de contacter le service d'authentification. Vérifiez votre connexion puis réessayez.",
-  loginDemo: 'Utiliser le mode démo hors-ligne',
-  loginDemoActive: 'Mode démo activé',
   registerDescription:
     'Créez votre compte pour partager vos builds préférés avec la communauté. Remplissez le formulaire ci-dessous pour commencer.',
   registerAction: 'Créer mon compte',
@@ -61,8 +62,21 @@ const fr = {
   versionError:
     "Impossible de vérifier la version de l'application. Le mode hors-ligne est actif.",
   leaderboardTitle: 'Derniers faits marquants',
+  leaderboardMenuTitle: 'Classements',
   leaderboardEmpty: 'Aucun score pour le moment. Revenez vite !',
   navMenu: 'Menu',
+  scoreTitle: 'Meilleurs scores',
+  timeTitle: 'Meilleurs temps',
+  individualTitle: 'Classement individuel',
+  individualComingSoon: 'Classement individuel à venir',
+  dungeonSelectorTitle: 'Sélectionnez un donjon',
+  dungeonSelectorEmpty: 'Aucun donjon disponible pour le moment.',
+  dungeonSelectorError: 'Impossible de charger les donjons. Veuillez réessayer plus tard.',
+  leaderboardLoading: 'Chargement du classement…',
+  leaderboardNoResults: 'Aucune run enregistrée pour ce donjon pour le moment.',
+  leaderboardError: 'Impossible de charger les données du classement.',
+  leaderboardUnknownWeek: 'Semaine inconnue',
+  leaderboardUnknownPlayers: 'Équipe inconnue',
   cachePreparing: 'Préparation du cache hors-ligne…',
   cacheComplete: 'Cache hors-ligne prêt',
   cacheSummary: (success, total) =>
