@@ -47,6 +47,7 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
+import static org.bytedeco.opencv.global.opencv_imgproc.MORPH_BLACKHAT;
 import static org.bytedeco.opencv.global.opencv_imgproc.MORPH_RECT;
 import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
 import static org.bytedeco.opencv.global.opencv_imgproc.ADAPTIVE_THRESH_GAUSSIAN_C;
@@ -59,6 +60,7 @@ import static org.bytedeco.opencv.global.opencv_imgproc.createCLAHE;
 import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;
 import static org.bytedeco.opencv.global.opencv_imgproc.dilate;
 import static org.bytedeco.opencv.global.opencv_imgproc.getStructuringElement;
+import static org.bytedeco.opencv.global.opencv_imgproc.morphologyEx;
 import static org.bytedeco.opencv.global.opencv_imgproc.resize;
 
 /**
@@ -101,6 +103,7 @@ public class ContributorExtractionService {
     private static final int OPENCV_ADAPTIVE_BLOCK_SIZE = 31;
     private static final int OPENCV_ADAPTIVE_C = 5;
     private static final Size DILATION_KERNEL = new Size(2, 2);
+    private static final Size BLACKHAT_KERNEL = new Size(45, 3);
 
     private static final String DEFAULT_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _-:/().'";
 
@@ -686,8 +689,9 @@ public class ContributorExtractionService {
                     Mat upscaled = new Mat();
                     Mat claheMat = new Mat();
                     Mat smooth = new Mat();
-                    Mat binary = new Mat();
                     Mat inverted = new Mat();
+                    Mat blackhat = new Mat();
+                    Mat thresholded = new Mat();
                     Mat dilated = new Mat()) {
                 cvtColor(bgr, gray, COLOR_BGR2GRAY);
                 resize(gray, upscaled, new Size(), UPSCALE_FACTOR, UPSCALE_FACTOR, INTER_CUBIC);
@@ -700,13 +704,21 @@ public class ContributorExtractionService {
                 }
 
                 bilateralFilter(claheMat, smooth, BILATERAL_FILTER_DIAMETER, BILATERAL_SIGMA_COLOR, BILATERAL_SIGMA_SPACE);
-                adaptiveThreshold(smooth, binary, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY,
+                bitwise_not(smooth, inverted);
+
+                Mat blackhatKernel = getStructuringElement(MORPH_RECT, BLACKHAT_KERNEL);
+                try {
+                    morphologyEx(inverted, blackhat, MORPH_BLACKHAT, blackhatKernel);
+                } finally {
+                    blackhatKernel.close();
+                }
+
+                adaptiveThreshold(blackhat, thresholded, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY,
                         OPENCV_ADAPTIVE_BLOCK_SIZE, OPENCV_ADAPTIVE_C);
-                bitwise_not(binary, inverted);
 
                 Mat kernel = getStructuringElement(MORPH_RECT, DILATION_KERNEL);
                 try {
-                    dilate(inverted, dilated, kernel);
+                    dilate(thresholded, dilated, kernel);
                 } finally {
                     kernel.close();
                 }
