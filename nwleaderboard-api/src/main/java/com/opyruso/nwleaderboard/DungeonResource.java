@@ -3,7 +3,6 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.DungeonResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
-import io.quarkus.hibernate.orm.panache.common.WithSession;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -30,7 +29,6 @@ public class DungeonResource {
     DungeonRepository dungeonRepository;
 
     @GET
-    @WithSession
     public List<DungeonResponse> list(@Context HttpHeaders headers) {
         List<Locale> acceptable = headers != null ? headers.getAcceptableLanguages() : List.of();
         Locale displayLocale = selectDisplayLocale(acceptable);
