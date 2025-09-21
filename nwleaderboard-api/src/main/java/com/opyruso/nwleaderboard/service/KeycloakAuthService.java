@@ -24,16 +24,16 @@ public class KeycloakAuthService {
 
     private static final Logger LOG = Logger.getLogger(KeycloakAuthService.class);
 
-    @ConfigProperty(name = "auth.public.url")
+    @ConfigProperty(name = "auth.admin.url")
     String serverUrl;
 
-    @ConfigProperty(name = "auth.public.realm")
+    @ConfigProperty(name = "auth.admin.realm")
     String realm;
 
-    @ConfigProperty(name = "auth.public.client-id")
+    @ConfigProperty(name = "auth.admin.client-id")
     String clientId;
 
-    @ConfigProperty(name = "auth.public.client-secret", defaultValue = "")
+    @ConfigProperty(name = "auth.admin.client-secret", defaultValue = "")
     String clientSecret;
 
     HttpClient httpClient;
