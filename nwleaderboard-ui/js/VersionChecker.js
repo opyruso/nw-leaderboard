@@ -40,6 +40,24 @@ export default function VersionChecker() {
   useServiceWorkerMessages(setState);
 
   React.useEffect(() => {
+    if (state.status !== 'current' || state.cacheMessage !== 'complete') {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      setState((prev) => {
+        if (prev.status !== 'current' || prev.cacheMessage !== 'complete') {
+          return prev;
+        }
+
+        return { ...prev, cacheMessage: null };
+      });
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [state.status, state.cacheMessage]);
+
+  React.useEffect(() => {
     let cancelled = false;
     const check = async () => {
       try {
