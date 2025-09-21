@@ -37,10 +37,29 @@ import net.sourceforge.tess4j.ITessAPI.TessOcrEngineMode;
 import net.sourceforge.tess4j.ITessAPI.TessPageSegMode;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
+import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.javacv.OpenCVFrameConverter;
+import org.bytedeco.opencv.opencv_core.CLAHE;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+
+import static org.bytedeco.opencv.global.opencv_core.MORPH_RECT;
+import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
+import static org.bytedeco.opencv.global.opencv_imgproc.ADAPTIVE_THRESH_GAUSSIAN_C;
+import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGR2GRAY;
+import static org.bytedeco.opencv.global.opencv_imgproc.INTER_CUBIC;
+import static org.bytedeco.opencv.global.opencv_imgproc.THRESH_BINARY;
+import static org.bytedeco.opencv.global.opencv_imgproc.adaptiveThreshold;
+import static org.bytedeco.opencv.global.opencv_imgproc.bilateralFilter;
+import static org.bytedeco.opencv.global.opencv_imgproc.createCLAHE;
+import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;
+import static org.bytedeco.opencv.global.opencv_imgproc.dilate;
+import static org.bytedeco.opencv.global.opencv_imgproc.getStructuringElement;
+import static org.bytedeco.opencv.global.opencv_imgproc.resize;
 
 /**
  * Handles OCR extraction on contributor uploads. The implementation relies on the scoreboard layout being
@@ -57,10 +76,12 @@ public class ContributorExtractionService {
     private static final int MAX_UPLOADS = 1;
 
     private static final Rectangle DUNGEON_AREA = new Rectangle(700, 230, 1035, 50);
+    private static final Rectangle MODE_AREA = new Rectangle(700, 300, 340, 40);
+    private static final Rectangle WEEK_AREA = new Rectangle(2030, 790, 260, 30);
     private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
     private static final int PLAYER_BOX_WIDTH = 330;
     private static final int PLAYER_BOX_HEIGHT = 35;
-    private static final int PLAYER_ROW_STEP = 135;
+    private static final int PLAYER_ROW_STEP = 134;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 415),
@@ -71,8 +92,19 @@ public class ContributorExtractionService {
             new Point(1305, 485));
     private static final int ADAPTIVE_BLOCK_SIZE = 15;
     private static final int ADAPTIVE_MEAN_OFFSET = 5;
+    private static final double UPSCALE_FACTOR = 3.0d;
+    private static final double CLAHE_CLIP_LIMIT = 2.0d;
+    private static final Size CLAHE_TILE_GRID = new Size(8, 8);
+    private static final int BILATERAL_FILTER_DIAMETER = 5;
+    private static final double BILATERAL_SIGMA_COLOR = 15.0d;
+    private static final double BILATERAL_SIGMA_SPACE = 15.0d;
+    private static final int OPENCV_ADAPTIVE_BLOCK_SIZE = 31;
+    private static final int OPENCV_ADAPTIVE_C = 5;
+    private static final Size DILATION_KERNEL = new Size(2, 2);
 
-    private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)week\\s*(\\d+)");
+    private static final String DEFAULT_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _-:/().'";
+
+    private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)(?:week|semaine)?\\s*(\\d{1,3})");
     private static final Pattern TIME_PATTERN = Pattern.compile("(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})");
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d[\\d,. ]*)");
 
@@ -320,6 +352,13 @@ public class ContributorExtractionService {
             } catch (NumberFormatException ignored) {
             }
         }
+        Matcher digitsOnly = Pattern.compile("(\\d{1,3})").matcher(text);
+        if (digitsOnly.find()) {
+            try {
+                return Integer.parseInt(digitsOnly.group(1));
+            } catch (NumberFormatException ignored) {
+            }
+        }
         return null;
     }
 
@@ -531,23 +570,11 @@ public class ContributorExtractionService {
     }
 
     private Rectangle regionForWeek(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int x = (int) (width * 0.68);
-        int y = (int) (height * 0.08);
-        int w = (int) (width * 0.2);
-        int h = (int) (height * 0.1);
-        return new Rectangle(x, y, w, h);
+        return clampToImage(WEEK_AREA, image);
     }
 
     private Rectangle regionForMode(BufferedImage image) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-        int x = (int) (width * 0.44);
-        int y = (int) (height * 0.17);
-        int w = (int) (width * 0.24);
-        int h = (int) (height * 0.08);
-        return new Rectangle(x, y, w, h);
+        return clampToImage(MODE_AREA, image);
     }
 
     private OcrResult runOcr(BufferedImage image, Rectangle area, int pageSegMode, String whitelist) {
@@ -561,9 +588,7 @@ public class ContributorExtractionService {
 
         Tesseract tesseract = createEngine();
         tesseract.setPageSegMode(pageSegMode);
-        if (whitelist != null) {
-            tesseract.setTessVariable("tessedit_char_whitelist", whitelist);
-        }
+        tesseract.setTessVariable("tessedit_char_whitelist", whitelist != null ? whitelist : DEFAULT_WHITELIST);
 
         String text = null;
         try {
@@ -591,6 +616,8 @@ public class ContributorExtractionService {
             tesseract.setDatapath(dataPath);
         }
         tesseract.setTessVariable("user_defined_dpi", "300");
+        tesseract.setTessVariable("load_system_dawg", "0");
+        tesseract.setTessVariable("load_freq_dawg", "0");
         return tesseract;
     }
 
@@ -645,6 +672,57 @@ public class ContributorExtractionService {
             return region;
         }
 
+        try (Java2DFrameConverter java2DConverter = new Java2DFrameConverter();
+                OpenCVFrameConverter.ToMat matConverter = new OpenCVFrameConverter.ToMat()) {
+            Mat bgr = matConverter.convert(java2DConverter.convert(region));
+            if (bgr == null || bgr.empty()) {
+                if (bgr != null) {
+                    bgr.close();
+                }
+                return legacyPreprocess(region);
+            }
+
+            try (Mat gray = new Mat();
+                    Mat upscaled = new Mat();
+                    Mat claheMat = new Mat();
+                    Mat smooth = new Mat();
+                    Mat binary = new Mat();
+                    Mat inverted = new Mat();
+                    Mat dilated = new Mat()) {
+                cvtColor(bgr, gray, COLOR_BGR2GRAY);
+                resize(gray, upscaled, new Size(), UPSCALE_FACTOR, UPSCALE_FACTOR, INTER_CUBIC);
+
+                CLAHE clahe = createCLAHE(CLAHE_CLIP_LIMIT, CLAHE_TILE_GRID);
+                try {
+                    clahe.apply(upscaled, claheMat);
+                } finally {
+                    clahe.close();
+                }
+
+                bilateralFilter(claheMat, smooth, BILATERAL_FILTER_DIAMETER, BILATERAL_SIGMA_COLOR, BILATERAL_SIGMA_SPACE);
+                adaptiveThreshold(smooth, binary, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY,
+                        OPENCV_ADAPTIVE_BLOCK_SIZE, OPENCV_ADAPTIVE_C);
+                bitwise_not(binary, inverted);
+
+                Mat kernel = getStructuringElement(MORPH_RECT, DILATION_KERNEL);
+                try {
+                    dilate(inverted, dilated, kernel);
+                } finally {
+                    kernel.close();
+                }
+
+                BufferedImage processed = java2DConverter.convert(matConverter.convert(dilated));
+                return ensureGrayscale(processed);
+            } finally {
+                bgr.close();
+            }
+        } catch (RuntimeException | UnsatisfiedLinkError e) {
+            LOG.debug("Falling back to legacy OCR preprocessing", e);
+            return legacyPreprocess(region);
+        }
+    }
+
+    private BufferedImage legacyPreprocess(BufferedImage region) {
         BufferedImage gray = new BufferedImage(region.getWidth(), region.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
         Graphics2D graphics = gray.createGraphics();
         try {
@@ -652,9 +730,25 @@ public class ContributorExtractionService {
         } finally {
             graphics.dispose();
         }
-
         BufferedImage thresholded = applyAdaptiveThreshold(gray, ADAPTIVE_BLOCK_SIZE, ADAPTIVE_MEAN_OFFSET);
         return applySharpen(thresholded);
+    }
+
+    private BufferedImage ensureGrayscale(BufferedImage image) {
+        if (image == null) {
+            return null;
+        }
+        if (image.getType() == BufferedImage.TYPE_BYTE_GRAY) {
+            return image;
+        }
+        BufferedImage gray = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
+        Graphics2D graphics = gray.createGraphics();
+        try {
+            graphics.drawImage(image, 0, 0, null);
+        } finally {
+            graphics.dispose();
+        }
+        return gray;
     }
 
     private BufferedImage applyAdaptiveThreshold(BufferedImage gray, int blockSize, int meanOffset) {
