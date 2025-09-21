@@ -68,10 +68,10 @@ export default function VersionChecker() {
         const version = (await response.text()).trim();
         if (cancelled) return;
         const previous = localStorage.getItem(VERSION_STORAGE_KEY);
+        localStorage.setItem(VERSION_STORAGE_KEY, version);
         if (previous && previous !== version) {
           setState({ status: 'outdated', version, cacheMessage: null });
         } else {
-          localStorage.setItem(VERSION_STORAGE_KEY, version);
           setState({ status: 'current', version, cacheMessage: null });
         }
       } catch (error) {
