@@ -39,7 +39,7 @@ import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.OpenCVFrameConverter;
-import org.bytedeco.opencv.opencv_core.CLAHE;
+import org.bytedeco.opencv.opencv_imgproc.CLAHE;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
@@ -47,7 +47,7 @@ import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
-import static org.bytedeco.opencv.global.opencv_core.MORPH_RECT;
+import static org.bytedeco.opencv.global.opencv_imgproc.MORPH_RECT;
 import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
 import static org.bytedeco.opencv.global.opencv_imgproc.ADAPTIVE_THRESH_GAUSSIAN_C;
 import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGR2GRAY;
