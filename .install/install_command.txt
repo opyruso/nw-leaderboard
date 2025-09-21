@@ -1,0 +1,237 @@
+cd /opt
+mkdir nwleaderboard
+mkdir nwleaderboard/nwleaderboard-dev
+mkdir nwleaderboard/nwleaderboard-rec
+mkdir nwleaderboard/nwleaderboard-pro
+mkdir nwleaderboard/nwleaderboard-api-dev
+mkdir nwleaderboard/nwleaderboard-api-rec
+mkdir nwleaderboard/nwleaderboard-api-pro
+chmod -R 777 nwleaderboard
+chown -R opyruso:opyruso nwleaderboard
+
+# as root
+mkdir /opt/actions-runner-nwleaderboard
+cd /opt/actions-runner-nwleaderboard
+curl -o actions-runner-linux-x64-2.328.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.328.0/actions-runner-linux-x64-2.328.0.tar.gz
+tar xzf ./actions-runner-linux-x64-2.328.0.tar.gz
+chown -R opyruso:opyruso /opt/actions-runner-nwleaderboard
+su opyruso
+./config.sh --url https://github.com/opyruso/nw-leaderboard --token AE6RTM6TUPES5CHXZNENSZDIZ66DG
+exit
+./svc.sh install
+./svc.sh start
+
+
+
+
+
+
+
+
+vi nwleaderboard-api-dev/serviceinstaller.sh
+
+#!/bin/bash
+
+# Variables
+SERVICE_NAME="quarkus-nwleaderboard-api-dev"
+BOT_USER="nwleaderboard-api-dev"
+BOT_DIR="/opt/nwleaderboard/$BOT_USER"
+JAR_NAME="nwleaderboard-api-runner.jar"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+
+echo "?? Création de l'utilisateur système '$BOT_USER' (sans shell ni home)..."
+id "$BOT_USER" &>/dev/null || useradd -r -s /sbin/nologin "$BOT_USER"
+
+echo "?? Création du dossier $BOT_DIR..."
+mkdir -p "$BOT_DIR"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR"
+
+echo "?? Copie du JAR dans $BOT_DIR..."
+cp "$JAR_NAME" "$BOT_DIR/"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR/$JAR_NAME"
+
+echo "?? Création du service systemd..."
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=$SERVICE_NAME
+After=network.target
+
+[Service]
+User=$BOT_USER
+WorkingDirectory=$BOT_DIR
+ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "?? Reload systemd & enable service..."
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl enable "$SERVICE_NAME"
+systemctl start "$SERVICE_NAME"
+
+echo "? Service $SERVICE_NAME installé et démarré."
+systemctl status "$SERVICE_NAME" --no-pager
+
+
+
+
+
+
+
+
+
+
+
+
+vi nwleaderboard-api-rec/serviceinstaller.sh
+
+#!/bin/bash
+
+# Variables
+SERVICE_NAME="quarkus-nwleaderboard-api-rec"
+BOT_USER="nwleaderboard-api-rec"
+BOT_DIR="/opt/nwleaderboard/$BOT_USER"
+JAR_NAME="nwleaderboard-api-runner.jar"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+
+echo "?? Création de l'utilisateur système '$BOT_USER' (sans shell ni home)..."
+id "$BOT_USER" &>/dev/null || useradd -r -s /sbin/nologin "$BOT_USER"
+
+echo "?? Création du dossier $BOT_DIR..."
+mkdir -p "$BOT_DIR"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR"
+
+echo "?? Copie du JAR dans $BOT_DIR..."
+cp "$JAR_NAME" "$BOT_DIR/"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR/$JAR_NAME"
+
+echo "?? Création du service systemd..."
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=$SERVICE_NAME
+After=network.target
+
+[Service]
+User=$BOT_USER
+WorkingDirectory=$BOT_DIR
+ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "?? Reload systemd & enable service..."
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl enable "$SERVICE_NAME"
+systemctl start "$SERVICE_NAME"
+
+echo "? Service $SERVICE_NAME installé et démarré."
+systemctl status "$SERVICE_NAME" --no-pager
+
+
+
+
+
+
+
+
+
+
+
+
+vi nwleaderboard-api-pro/serviceinstaller.sh
+
+#!/bin/bash
+
+# Variables
+SERVICE_NAME="quarkus-nwleaderboard-api-pro"
+BOT_USER="nwleaderboard-api-pro"
+BOT_DIR="/opt/nwleaderboard/$BOT_USER"
+JAR_NAME="nwleaderboard-api-runner.jar"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+
+echo "?? Création de l'utilisateur système '$BOT_USER' (sans shell ni home)..."
+id "$BOT_USER" &>/dev/null || useradd -r -s /sbin/nologin "$BOT_USER"
+
+echo "?? Création du dossier $BOT_DIR..."
+mkdir -p "$BOT_DIR"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR"
+
+echo "?? Copie du JAR dans $BOT_DIR..."
+cp "$JAR_NAME" "$BOT_DIR/"
+chown "$BOT_USER":"$BOT_USER" "$BOT_DIR/$JAR_NAME"
+
+echo "?? Création du service systemd..."
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=$SERVICE_NAME
+After=network.target
+
+[Service]
+User=$BOT_USER
+WorkingDirectory=$BOT_DIR
+ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "?? Reload systemd & enable service..."
+systemctl daemon-reexec
+systemctl daemon-reload
+systemctl enable "$SERVICE_NAME"
+systemctl start "$SERVICE_NAME"
+
+echo "? Service $SERVICE_NAME installé et démarré."
+systemctl status "$SERVICE_NAME" --no-pager
+
+
+
+
+
+
+
+
+
+
+chmod +x nwleaderboard-api-dev/serviceinstaller.sh
+chmod +x nwleaderboard-api-rec/serviceinstaller.sh
+chmod +x nwleaderboard-api-pro/serviceinstaller.sh
+
+
+
+
+mkdir nwleaderboard-api-dev/config
+mkdir nwleaderboard-api-rec/config
+mkdir nwleaderboard-api-pro/config
+
+vi nwleaderboard-api-dev/config/application.properties
+vi nwleaderboard-api-rec/config/application.properties
+vi nwleaderboard-api-pro/config/application.properties
+
+chown -R opyruso:opyruso nwleaderboard-api-dev/config
+chown -R opyruso:opyruso nwleaderboard-api-rec/config
+chown -R opyruso:opyruso nwleaderboard-api-pro/config
+
+
+DATABASE (cf script)
+
+
+Pour un build AAB, ne pas oublié d'ajouter les clé BUBBLE dans le service du runner :
+vi /etc/systemd/system/actions.runner.opyruso-nwleaderboard.server01.service
+Ajouter a la fin de [Service] :
+--> EnvironmentFile=/etc/secrets/bubblewrap.env
+
+

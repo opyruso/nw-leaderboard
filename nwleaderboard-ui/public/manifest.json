@@ -1,0 +1,25 @@
+{
+  "name": "New World Leaderboard",
+  "short_name": "New World Leaderboard",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "images/icons/logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg"
+    },
+    {
+      "src": "images/icons/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg"
+    },
+    {
+      "src": "images/icons/logo.svg",
+      "sizes": "1024x1024",
+      "type": "image/svg"
+    }
+  ]
+}

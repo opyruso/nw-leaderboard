@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.opyruso.nwleaderboard",
+      "sha256_cert_fingerprints": [
+        "E2:D7:85:A9:6E:F1:EC:A0:06:1E:AB:4F:46:0D:91:79:4D:60:C5:CD:59:95:3B:85:B0:47:70:69:6D:F8:49:4E"
+      ]
+    }
+  }
+]

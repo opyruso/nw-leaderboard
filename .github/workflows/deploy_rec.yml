@@ -1,0 +1,68 @@
+name: Déploiement Rec
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-rec:
+    runs-on: self-hosted
+
+    steps:
+      - name: 🔄 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Properties nwleaderboard-rec
+        run: |
+          cd /opt/propertiesmanager-connector
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE "nwleaderboard" "main" "rec" "${{ github.workspace }}/nwleaderboard-ui/config/config.js"
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE "nwleaderboard" "main" "rec" "${{ github.workspace }}/nwleaderboard-api/src/main/resources/application.properties"
+          cd ${{ github.workspace }}
+
+      - name: 🚀 Déploiement sur nwleaderboard-rec
+        run: |
+          cd nwleaderboard-ui
+          export CONFIG_ENV=rec
+          echo "📦 Installation des dépendances..."
+          npm install
+
+          echo "🏗️  Build du site..."
+          npm run build
+
+          echo "🔍 Vérification du dossier dist/"
+          if [ ! -d "dist" ]; then
+            echo "❌ Le dossier 'dist/' n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "🧹 Nettoyage du dossier de test..."
+          rm -rf /opt/nwleaderboard/nwleaderboard-rec/*
+
+          echo "📁 Copie des fichiers dans nwleaderboard-rec..."
+          cp -r dist/* /opt/nwleaderboard/nwleaderboard-rec/
+
+          echo "✅ Déploiement du front REC terminé !"
+
+          cd ../nwleaderboard-api
+          echo "📦 Installation des dépendances..."
+          mvn clean package
+
+          echo "🔍 Vérification du dossier target/"
+          if [ ! -d "target" ]; then
+            echo "❌ Le dossier 'target/' n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "🧹 Nettoyage du dossier de test..."
+          rm -rf /opt/nwleaderboard/nwleaderboard-api-rec/nwleaderboard-api-runner.jar
+
+          echo "📁 Copie des fichiers dans nwleaderboard-api-rec..."
+          cp -r target/nwleaderboard-api-1.0.0-SNAPSHOT-runner.jar /opt/nwleaderboard/nwleaderboard-api-rec/nwleaderboard-api-runner.jar
+          sudo chown nwleaderboard-api-rec: /opt/nwleaderboard/nwleaderboard-api-rec/nwleaderboard-api-runner.jar
+          cp ${{ github.workspace }}/nwleaderboard-api/src/main/resources/application.properties /opt/nwleaderboard/nwleaderboard-api-rec/config/application.properties
+
+          echo "📁 redemarrage du service..."
+          sudo systemctl restart quarkus-nwleaderboard-api-rec.service
+
+          echo "✅ Déploiement REC terminé !"

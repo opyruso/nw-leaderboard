@@ -1,0 +1,8 @@
+/nwleaderboard-ui/node_modules/
+/nwleaderboard-ui/dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/.project

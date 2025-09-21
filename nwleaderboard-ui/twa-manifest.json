@@ -1,0 +1,62 @@
+{
+  "packageId": "com.opyruso.nwleaderboard",
+  "host": "nwleaderboard.games.opyruso.com",
+  "name": "New World Leaderboard",
+  "launcherName": "New World Leaderboard",
+  "display": "minimal-ui",
+  "themeColor": "#000000",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#000000",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://nwleaderboard.games.opyruso.com/images/icons/icon-1024.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/opt/certificats/android_opyruso_official.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://nwleaderboard.games.opyruso.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
+  "androidManifest": {
+    "permissions": [
+      "com.android.vending.BILLING"
+    ],
+    "applicationMetadata": [],
+    "components": []
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://nwleaderboard.games.opyruso.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    {
+      "value": "E2:D7:85:A9:6E:F1:EC:A0:06:1E:AB:4F:46:0D:91:79:4D:60:C5:CD:59:95:3B:85:B0:47:70:69:6D:F8:49:4E"
+    }
+  ],
+  "additionalTrustedOrigins": [
+    "auth.opyruso.com"
+  ],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "appVersion": "1"
+}

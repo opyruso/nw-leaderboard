@@ -1,0 +1,120 @@
+---
+name: Déploiement Pro
+
+'on':
+  push:
+    tags:
+      - '*.*.*'
+      - '*.*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-pro:
+    runs-on: self-hosted
+
+    steps:
+      - name: 🔄 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Déploiement sur nwleaderboard-pro
+        run: |
+          cd /opt/propertiesmanager-connector
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE "nwleaderboard" "${{ github.ref_name }}" "pro" "${{ github.workspace }}/nwleaderboard-ui/config/config.js"
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE "nwleaderboard" "${{ github.ref_name }}" "pro" "${{ github.workspace }}/nwleaderboard-api/src/main/resources/application.properties"
+          cd ${{ github.workspace }}
+
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 🏗️ Build standard
+        run: |
+          cd nwleaderboard-ui
+          export CONFIG_ENV=pro
+          echo "📦 Installation des dépendances..."
+          npm install
+
+          echo "🏗️  Build du site..."
+          npm run build
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: 🚀 Déploiement du front sur nwleaderboard-pro
+        run: |
+          cd nwleaderboard-ui
+          export CONFIG_ENV=pro
+          npm run build
+
+          echo "🔍 Vérification du dossier dist/"
+          if [ ! -d "dist" ]; then
+            echo "❌ Le dossier 'dist/' n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "🧹 Nettoyage du dossier de test..."
+          rm -rf /opt/nwleaderboard/nwleaderboard-pro/*
+
+          echo "📁 Copie des fichiers dans nwleaderboard-pro..."
+          cp -r dist/* /opt/nwleaderboard/nwleaderboard-pro/
+
+          echo "✅ Déploiement du front PRO terminé !"
+
+      - name: 🚀 generation de l'aab
+        run: |
+          cd nwleaderboard-ui
+          export CONFIG_ENV=pro
+          npm run build:aab
+
+          echo "🔍 Vérification du dossier dist/"
+          if [ ! -d "dist" ]; then
+            echo "❌ Le dossier 'dist/' n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "✅ generation de l'aab terminé !"
+
+      - name: ☕ Set up JDK 21 for API
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 🚀 Déploiement de l'API PRO
+        run: |
+          cd nwleaderboard-api
+          echo "📦 Installation des dépendances..."
+          mvn clean package
+
+          echo "🔍 Vérification du dossier target/"
+          if [ ! -d "target" ]; then
+            echo "❌ Le dossier 'target/' n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "🧹 Nettoyage du dossier de test..."
+          rm -rf /opt/nwleaderboard/nwleaderboard-api-pro/nwleaderboard-api-runner.jar
+
+          echo "📁 Copie des fichiers dans nwleaderboard-api-pro..."
+          cp -r target/nwleaderboard-api-1.0.0-SNAPSHOT-runner.jar /opt/nwleaderboard/nwleaderboard-api-pro/nwleaderboard-api-runner.jar
+          sudo chown nwleaderboard-api-pro: /opt/nwleaderboard/nwleaderboard-api-pro/nwleaderboard-api-runner.jar
+          cp ${{ github.workspace }}/nwleaderboard-api/src/main/resources/application.properties /opt/nwleaderboard/nwleaderboard-api-pro/config/application.properties
+
+          echo "📁 redemarrage du service..."
+          sudo systemctl restart quarkus-nwleaderboard-api-pro.service
+
+          echo "✅ Déploiement PRO terminé !"
+
+      - name: 📦 Attacher l'AAB à la release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nwleaderboard-ui/app-release-bundle.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
