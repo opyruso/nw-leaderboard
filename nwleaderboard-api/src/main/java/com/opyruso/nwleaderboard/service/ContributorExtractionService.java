@@ -50,7 +50,7 @@ public class ContributorExtractionService {
 
     private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)week\\s*(\\d+)");
     private static final Pattern TIME_PATTERN = Pattern.compile("(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})");
-    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d[\\d,\. ]*)");
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d[\\d,. ]*)");
 
     private static final List<String> IMAGE_FIELD_NAMES = List.of("image", "images", "file", "files", "upload", "uploads");
 
