@@ -8,6 +8,7 @@ const fr = {
   password: 'Changer le mot de passe',
   preferences: 'Préférences',
   language: 'Langue',
+  email: 'Adresse e-mail',
   theme: 'Thème',
   themeDark: 'Sombre',
   themeLight: 'Clair',
@@ -23,11 +24,21 @@ const fr = {
   loginDemo: 'Utiliser le mode démo hors-ligne',
   loginDemoActive: 'Mode démo activé',
   registerDescription:
-    "La création de compte est gérée sur le portail web officiel pour des raisons de sécurité.",
-  registerAction: 'Ouvrir le portail',
+    'Créez votre compte pour partager vos builds préférés avec la communauté. Remplissez le formulaire ci-dessous pour commencer.',
+  registerAction: 'Créer mon compte',
+  registerSuccess: 'Votre compte a été créé avec succès.',
+  registerValidationError: 'Veuillez vérifier le formulaire puis réessayer.',
+  registerUsernameTaken: "Ce nom d'utilisateur est déjà utilisé.",
+  registerEmailTaken: 'Cette adresse e-mail est déjà enregistrée.',
+  registerError:
+    "Impossible de créer votre compte pour le moment. Veuillez réessayer plus tard.",
   forgotDescription:
-    'La réinitialisation du mot de passe se fait sur le portail. Nous vous y redirigerons.',
-  forgotAction: 'Réinitialiser le mot de passe',
+    'Indiquez l’adresse e-mail liée à votre compte pour recevoir les instructions de réinitialisation.',
+  forgotAction: 'Envoyer le lien',
+  forgotSuccess:
+    "Si un compte correspond à cette adresse, vous recevrez un e-mail de réinitialisation sous peu.",
+  forgotError:
+    "Impossible d'envoyer l'e-mail de réinitialisation. Veuillez réessayer plus tard.",
   preferencesDescription:
     'Personnalisez votre expérience. Ces réglages sont stockés localement sur cet appareil.',
   preferencesSaved: 'Préférences enregistrées',
