@@ -7,7 +7,7 @@ import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.imageio.ImageIO;
+import javax.imageio.ImageIO;
 import jakarta.inject.Inject;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
