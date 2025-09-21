@@ -26,7 +26,6 @@ export default function BottomNav({ authenticated, onLogout }) {
   const accountNavigation = isAuthenticated ? (
     <>
       <NavButton to="/preferences">{t.preferences}</NavButton>
-      <NavButton to="/password">{t.password}</NavButton>
       <NavButton onClick={onLogout}>{t.logout}</NavButton>
     </>
   ) : (
