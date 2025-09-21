@@ -6,6 +6,7 @@ export default function Register() {
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
   const [status, setStatus] = React.useState('idle');
   const [message, setMessage] = React.useState('');
@@ -18,10 +19,20 @@ export default function Register() {
     }));
   };
 
+  const preventCopyPaste = (event) => {
+    event.preventDefault();
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus('loading');
     setMessage('');
+
+    if (form.password !== form.confirmPassword) {
+      setStatus('error');
+      setMessage(t.passwordMismatch);
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -66,7 +77,7 @@ export default function Register() {
 
       setStatus('success');
       setMessage(t.registerSuccess);
-      setForm({ username: '', email: '', password: '' });
+      setForm({ username: '', email: '', password: '', confirmPassword: '' });
     } catch (error) {
       console.error('Unable to register user', error);
       setStatus('error');
@@ -81,38 +92,59 @@ export default function Register() {
       </h1>
       <p className="page-description">{t.registerDescription}</p>
       <form className="form" onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>{t.username}</span>
+        <label className="form-field form-field-floating">
           <input
             name="username"
             type="text"
             value={form.username}
             onChange={updateField}
             autoComplete="username"
+            placeholder=" "
             required
           />
+          <span>{t.username}</span>
         </label>
-        <label className="form-field">
-          <span>{t.email}</span>
+        <label className="form-field form-field-floating">
           <input
             name="email"
             type="email"
             value={form.email}
             onChange={updateField}
             autoComplete="email"
+            placeholder=" "
             required
           />
+          <span>{t.email}</span>
         </label>
-        <label className="form-field">
-          <span>{t.passwordLabel}</span>
+        <label className="form-field form-field-floating">
           <input
             name="password"
             type="password"
             value={form.password}
             onChange={updateField}
             autoComplete="new-password"
+            onCopy={preventCopyPaste}
+            onCut={preventCopyPaste}
+            onPaste={preventCopyPaste}
+            placeholder=" "
             required
           />
+          <span>{t.passwordLabel}</span>
+        </label>
+        <label className="form-field form-field-floating">
+          <input
+            name="confirmPassword"
+            type="password"
+            value={form.confirmPassword}
+            onChange={updateField}
+            autoComplete="new-password"
+            onCopy={preventCopyPaste}
+            onCut={preventCopyPaste}
+            onPaste={preventCopyPaste}
+            placeholder=" "
+            required
+          />
+          <span>{t.confirmPassword}</span>
         </label>
         <div className="form-actions">
           <button type="submit" disabled={status === 'loading'}>

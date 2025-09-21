@@ -29,6 +29,10 @@ export default function Login({ onLogin }) {
     }));
   };
 
+  const preventCopyPaste = (event) => {
+    event.preventDefault();
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus('loading');
@@ -95,27 +99,32 @@ export default function Login({ onLogin }) {
       </h1>
       <p className="page-description">{t.loginDescription}</p>
       <form className="form" onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>{t.username}</span>
+        <label className="form-field form-field-floating">
           <input
             name="username"
             type="text"
             value={form.username}
             onChange={updateField}
             autoComplete="username"
+            placeholder=" "
             required
           />
+          <span>{t.username}</span>
         </label>
-        <label className="form-field">
-          <span>{t.passwordLabel}</span>
+        <label className="form-field form-field-floating">
           <input
             name="password"
             type="password"
             value={form.password}
             onChange={updateField}
             autoComplete="current-password"
+            onCopy={preventCopyPaste}
+            onCut={preventCopyPaste}
+            onPaste={preventCopyPaste}
+            placeholder=" "
             required
           />
+          <span>{t.passwordLabel}</span>
         </label>
         <label className="form-checkbox">
           <input

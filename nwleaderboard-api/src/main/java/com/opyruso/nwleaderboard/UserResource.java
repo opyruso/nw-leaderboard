@@ -1,6 +1,7 @@
 package com.opyruso.nwleaderboard;
 
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
+import com.opyruso.nwleaderboard.dto.ChangePasswordRequest;
 import com.opyruso.nwleaderboard.dto.RegisterRequest;
 import com.opyruso.nwleaderboard.dto.ResetPasswordRequest;
 import com.opyruso.nwleaderboard.service.KeycloakAdminService;
@@ -14,6 +15,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 
 @Path("/user")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -42,6 +45,42 @@ public class UserResource {
         keycloakAdminService.sendResetPassword(request.email());
         return Response.status(Status.ACCEPTED)
                 .entity(new ApiMessageResponse("If an account matches this email, a reset message has been sent", null))
+                .build();
+    }
+
+    @POST
+    @Path("/password")
+    public Response changePassword(@Context HttpHeaders headers, @Valid ChangePasswordRequest request) {
+        String token = extractBearer(headers);
+        if (token == null) {
+            return Response.status(Status.UNAUTHORIZED)
+                    .entity(new ApiMessageResponse("Authentication required", null))
+                    .build();
+        }
+
+        int status = keycloakAdminService.changePassword(token, request);
+        if (status == Status.NO_CONTENT.getStatusCode()) {
+            return Response.status(Status.NO_CONTENT).build();
+        }
+
+        Status mappedStatus;
+        String message;
+        if (status == Status.UNAUTHORIZED.getStatusCode()) {
+            mappedStatus = Status.UNAUTHORIZED;
+            message = "Current password is incorrect";
+        } else if (status == Status.BAD_REQUEST.getStatusCode()) {
+            mappedStatus = Status.BAD_REQUEST;
+            message = "Unable to verify the user information";
+        } else if (status == Status.BAD_GATEWAY.getStatusCode()) {
+            mappedStatus = Status.BAD_GATEWAY;
+            message = "Authentication service unavailable";
+        } else {
+            mappedStatus = Status.BAD_GATEWAY;
+            message = "Unable to change password";
+        }
+
+        return Response.status(mappedStatus)
+                .entity(new ApiMessageResponse(message, null))
                 .build();
     }
 
@@ -78,5 +117,20 @@ public class UserResource {
         return Response.status(status)
                 .entity(new ApiMessageResponse(message, code))
                 .build();
+    }
+
+    private String extractBearer(HttpHeaders headers) {
+        if (headers == null) {
+            return null;
+        }
+        String value = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        if (!value.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return null;
+        }
+        String token = value.substring(7).trim();
+        return token.isEmpty() ? null : token;
     }
 }

@@ -15,6 +15,9 @@ const en = {
   rememberMe: 'Remember me',
   username: 'Username',
   passwordLabel: 'Password',
+  currentPassword: 'Current password',
+  newPassword: 'New password',
+  confirmPassword: 'Confirm password',
   loginDescription:
     'Sign in to synchronise your favourite builds and compare them with the community.',
   loginAction: 'Continue',
@@ -32,6 +35,7 @@ const en = {
   registerUsernameTaken: 'This username is already in use.',
   registerEmailTaken: 'This email is already registered.',
   registerError: 'We were unable to create your account. Please try again later.',
+  passwordMismatch: 'The passwords do not match. Please try again.',
   forgotDescription:
     'Enter the email linked to your account and we will send you instructions to reset your password.',
   forgotAction: 'Send reset link',
@@ -43,8 +47,12 @@ const en = {
     'Customise your experience. These settings are stored locally on this device.',
   preferencesSaved: 'Preferences updated',
   passwordDescription:
-    'Password updates are available from the secure account portal.',
-  passwordAction: 'Open account portal',
+    'Update your password securely from this page. Enter your current password and choose a new one.',
+  passwordAction: 'Update password',
+  passwordSuccess: 'Your password has been updated successfully.',
+  passwordCurrentInvalid: 'The current password is incorrect.',
+  passwordError:
+    'We were unable to update your password. Please try again later.',
   themeToggle: 'Toggle theme',
   versionChecking: 'Checking for updates…',
   versionUpToDate: 'You are using the latest version.',
