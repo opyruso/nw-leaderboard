@@ -28,8 +28,6 @@ const fr = {
   reload: 'Recharger maintenant',
   loginError:
     "Impossible de contacter le service d'authentification. Vérifiez votre connexion puis réessayez.",
-  loginDemo: 'Utiliser le mode démo hors-ligne',
-  loginDemoActive: 'Mode démo activé',
   registerDescription:
     'Créez votre compte pour partager vos builds préférés avec la communauté. Remplissez le formulaire ci-dessous pour commencer.',
   registerAction: 'Créer mon compte',

@@ -28,8 +28,6 @@ const en = {
   loginInvalid: 'Incorrect username or password. Please try again.',
   loginError:
     'Unable to contact the authentication service. Please check your connection and try again.',
-  loginDemo: 'Use offline demo mode',
-  loginDemoActive: 'Demo mode activated',
   registerDescription:
     'Create your account to share your favourite builds with the community. Fill in the form below to get started.',
   registerAction: 'Create my account',

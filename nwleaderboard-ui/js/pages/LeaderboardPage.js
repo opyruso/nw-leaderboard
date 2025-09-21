@@ -235,32 +235,6 @@ export default function LeaderboardPage({
         {pageTitle}
       </h1>
       <div className="leaderboard-layout">
-        <section className="leaderboard-results" aria-live="polite">
-          {entriesLoading ? (
-            <p className="leaderboard-status">{t.leaderboardLoading}</p>
-          ) : entriesError ? (
-            <p className="leaderboard-status error">{t.leaderboardError}</p>
-          ) : sortedEntries.length === 0 ? (
-            <p className="leaderboard-status">{t.leaderboardNoResults}</p>
-          ) : (
-            <ul className="leaderboard-list">
-              {sortedEntries.map((entry) => {
-                const playersText = entry.players.length
-                  ? entry.players.join(', ')
-                  : t.leaderboardUnknownPlayers;
-                const weekDisplay = entry.week || t.leaderboardUnknownWeek;
-                const valueDisplay = formatValue(entry.value, entry.raw);
-                return (
-                  <li key={entry.id} className="leaderboard-row">
-                    <span className="leaderboard-week">{weekDisplay}</span>
-                    <span className="leaderboard-players">{playersText}</span>
-                    <span className="leaderboard-value">{valueDisplay}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
         <aside className="leaderboard-sidebar">
           <h2 className="leaderboard-sidebar-title">{t.dungeonSelectorTitle}</h2>
           {dungeonsLoading ? (
@@ -289,6 +263,32 @@ export default function LeaderboardPage({
             </ul>
           )}
         </aside>
+        <section className="leaderboard-results" aria-live="polite">
+          {entriesLoading ? (
+            <p className="leaderboard-status">{t.leaderboardLoading}</p>
+          ) : entriesError ? (
+            <p className="leaderboard-status error">{t.leaderboardError}</p>
+          ) : sortedEntries.length === 0 ? (
+            <p className="leaderboard-status">{t.leaderboardNoResults}</p>
+          ) : (
+            <ul className="leaderboard-list">
+              {sortedEntries.map((entry) => {
+                const playersText = entry.players.length
+                  ? entry.players.join(', ')
+                  : t.leaderboardUnknownPlayers;
+                const weekDisplay = entry.week || t.leaderboardUnknownWeek;
+                const valueDisplay = formatValue(entry.value, entry.raw);
+                return (
+                  <li key={entry.id} className="leaderboard-row">
+                    <span className="leaderboard-week">{weekDisplay}</span>
+                    <span className="leaderboard-players">{playersText}</span>
+                    <span className="leaderboard-value">{valueDisplay}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
     </main>
   );
