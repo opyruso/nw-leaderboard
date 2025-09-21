@@ -1,1 +1,1 @@
-# nw-leaderboard-extractor
+# nw-leaderboard
