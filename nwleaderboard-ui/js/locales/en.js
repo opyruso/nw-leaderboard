@@ -19,6 +19,7 @@ const en = {
     'Sign in to synchronise your favourite builds and compare them with the community.',
   loginAction: 'Continue',
   reload: 'Refresh now',
+  loginInvalid: 'Incorrect username or password. Please try again.',
   loginError:
     'Unable to contact the authentication service. Please check your connection and try again.',
   loginDemo: 'Use offline demo mode',

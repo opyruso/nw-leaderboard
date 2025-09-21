@@ -18,6 +18,7 @@ const fr = {
   loginDescription:
     'Connectez-vous pour synchroniser vos builds favoris et les comparer avec la communauté.',
   loginAction: 'Continuer',
+  loginInvalid: 'Identifiants incorrects. Merci de réessayer.',
   reload: 'Recharger maintenant',
   loginError:
     "Impossible de contacter le service d'authentification. Vérifiez votre connexion puis réessayez.",

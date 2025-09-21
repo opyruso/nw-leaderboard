@@ -48,10 +48,23 @@ export default function Login({ onLogin }) {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('login failed');
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = null;
       }
-      const data = await response.json();
+
+      if (!response.ok) {
+        const invalidCredentials = response.status === 400 || response.status === 401;
+        setStatus('error');
+        setMessage(invalidCredentials ? t.loginInvalid : t.loginError);
+        return;
+      }
+
+      if (!data) {
+        throw new Error('empty payload');
+      }
       const tokens = {
         ...data,
         access_token: data.access_token || data.token,

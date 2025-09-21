@@ -12,7 +12,6 @@ const ASSETS = [
   '/js/auth.js',
   '/js/i18n.js',
   '/js/index.js',
-  '/js/keycloak.js',
   '/js/theme.js',
   '/js/locales/en.js',
   '/js/locales/fr.js',

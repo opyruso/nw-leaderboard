@@ -4,7 +4,11 @@ export default function Password() {
   const { t } = React.useContext(LangContext);
 
   const openAccount = () => {
-    window.open(`${window.CONFIG['nwleaderboard-api-url']}/portal/account`, '_blank');
+    const baseUrl = window.CONFIG['auth-url'] || '';
+    const trimmedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const realm = window.CONFIG['auth-realm'];
+    const accountUrl = `${trimmedBase}/realms/${realm}/account`;
+    window.open(accountUrl, '_blank', 'noopener');
   };
 
   return (

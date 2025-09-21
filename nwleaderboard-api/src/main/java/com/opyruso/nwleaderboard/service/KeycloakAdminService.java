@@ -1,13 +1,8 @@
 package com.opyruso.nwleaderboard.service;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opyruso.nwleaderboard.dto.ChangePasswordRequest;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.ext.ContextResolver;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.keycloak.OAuth2Constants;
@@ -49,20 +44,12 @@ public class KeycloakAdminService {
 
     @PostConstruct
     void init() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        Client client = ClientBuilder.newBuilder()
-                .register((ContextResolver<ObjectMapper>) type -> mapper)
-                .build();
-
         keycloak = KeycloakBuilder.builder()
                 .serverUrl(serverUrl)
                 .realm(realm)
                 .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                 .clientId(clientId)
                 .clientSecret(clientSecret)
-                .resteasyClient(client)
                 .build();
     }
 
