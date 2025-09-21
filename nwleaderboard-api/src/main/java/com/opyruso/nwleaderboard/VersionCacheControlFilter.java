@@ -1,24 +1,33 @@
 package com.opyruso.nwleaderboard;
 
-import io.quarkus.vertx.http.runtime.filters.RouteFilter;
+import io.quarkus.runtime.StartupEvent;
+import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import jakarta.inject.Singleton;
-import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 
-@Singleton
+@ApplicationScoped
 public class VersionCacheControlFilter {
 
-    private static final String NO_CACHE_HEADER = "no-store, no-cache, must-revalidate";
+    private static final String VERSION_PATH = "/version.txt";
+    private static final String CACHE_CONTROL_HEADER = "no-store, no-cache, must-revalidate";
 
-    @RouteFilter(100)
-    void addNoCacheHeaders(RoutingContext context) {
-        if ("/version.txt".equals(context.normalizedPath())) {
-            context.addHeadersEndHandler(ignored -> {
-                context.response().headers().set(HttpHeaders.CACHE_CONTROL, NO_CACHE_HEADER);
-                context.response().headers().set("Pragma", "no-cache");
-                context.response().headers().set("Expires", "0");
-            });
-        }
+    private final Router router;
+
+    public VersionCacheControlFilter(Router router) {
+        this.router = router;
+    }
+
+    void registerFilter(@Observes StartupEvent event) {
+        router.route(VERSION_PATH).order(-100).handler(this::addNoCacheHeaders);
+    }
+
+    private void addNoCacheHeaders(RoutingContext context) {
+        context.addHeadersEndHandler(ignored -> {
+            context.response().headers().set("Cache-Control", CACHE_CONTROL_HEADER);
+            context.response().headers().set("Pragma", "no-cache");
+            context.response().headers().set("Expires", "0");
+        });
         context.next();
     }
 }
