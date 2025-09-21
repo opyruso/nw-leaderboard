@@ -19,12 +19,14 @@ function NavButton({ to, children, onClick }) {
   );
 }
 
-export default function BottomNav({ authenticated, onLogout }) {
+export default function BottomNav({ authenticated, canContribute = false, onLogout }) {
   const { t } = React.useContext(LangContext);
   const isAuthenticated = Boolean(authenticated);
+  const showContribute = isAuthenticated && Boolean(canContribute);
 
   const accountNavigation = isAuthenticated ? (
     <>
+      {showContribute ? <NavButton to="/contribute">{t.contribute}</NavButton> : null}
       <NavButton to="/preferences">{t.preferences}</NavButton>
       <NavButton onClick={onLogout}>{t.logout}</NavButton>
     </>
