@@ -49,11 +49,8 @@ public class KeycloakAdminService {
 
     @PostConstruct
     void init() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
         Client client = ClientBuilder.newBuilder()
-                .register((ContextResolver<ObjectMapper>) type -> mapper)
+                .register(new KeycloakObjectMapperContextResolver())
                 .build();
 
         keycloak = KeycloakBuilder.builder()
@@ -64,6 +61,20 @@ public class KeycloakAdminService {
                 .clientSecret(clientSecret)
                 .resteasyClient(client)
                 .build();
+    }
+
+    static final class KeycloakObjectMapperContextResolver implements ContextResolver<ObjectMapper> {
+        private final ObjectMapper mapper;
+
+        KeycloakObjectMapperContextResolver() {
+            mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        }
+
+        @Override
+        public ObjectMapper getContext(Class<?> type) {
+            return mapper;
+        }
     }
 
     public void register(String username, String email, String password) throws RegisterException {
