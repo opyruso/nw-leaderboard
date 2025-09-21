@@ -8,6 +8,7 @@ import Register from './pages/Register.js';
 import ForgotPassword from './pages/ForgotPassword.js';
 import Preferences from './pages/Preferences.js';
 import Password from './pages/Password.js';
+import Contribute from './pages/Contribute.js';
 import VersionChecker from './VersionChecker.js';
 import {
   storeTokens,
@@ -16,18 +17,22 @@ import {
   startTokenRefresh,
   stopTokenRefresh,
   getStoredTokens,
+  hasContributorRole,
 } from './auth.js';
 
 const { BrowserRouter, Routes, Route, Navigate } = ReactRouterDOM;
 
 export default function App() {
-  const [token, setToken] = React.useState(() => {
+  const [authState, setAuthState] = React.useState(() => {
     const stored = getStoredTokens();
-    return stored && stored.access_token ? stored.access_token : null;
+    return {
+      token: stored && stored.access_token ? stored.access_token : null,
+      canContribute: hasContributorRole(stored),
+    };
   });
 
   const handleLogout = React.useCallback(() => {
-    setToken(null);
+    setAuthState({ token: null, canContribute: false });
     clearTokens();
     stopTokenRefresh();
   }, []);
@@ -39,18 +44,21 @@ export default function App() {
   }, [handleLogout]);
 
   React.useEffect(() => {
-    if (token) {
+    if (authState.token) {
       startTokenRefresh();
       return () => stopTokenRefresh();
     }
-  }, [token]);
+  }, [authState.token]);
 
   const handleLogin = (tokens, remember) => {
-    setToken(tokens.access_token);
     storeTokens(tokens, remember);
+    setAuthState({
+      token: tokens && tokens.access_token ? tokens.access_token : null,
+      canContribute: hasContributorRole(tokens),
+    });
   };
 
-  const authenticated = !!token;
+  const authenticated = !!authState.token;
 
   return (
     <>
@@ -84,9 +92,23 @@ export default function App() {
               authenticated ? <Preferences /> : <Navigate to="/login" replace />
             }
           />
+          <Route
+            path="/contribute"
+            element={
+              authenticated && authState.canContribute ? (
+                <Contribute />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <BottomNav authenticated={authenticated} onLogout={handleLogout} />
+        <BottomNav
+          authenticated={authenticated}
+          canContribute={authState.canContribute}
+          onLogout={handleLogout}
+        />
       </BrowserRouter>
       <VersionChecker />
     </>

@@ -41,6 +41,81 @@ export function clearTokens() {
   stopTokenRefresh();
 }
 
+function decodeAccessToken(accessToken) {
+  if (!accessToken || typeof accessToken !== 'string') {
+    return null;
+  }
+  const parts = accessToken.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch (error) {
+    console.warn('Unable to decode access token payload', error);
+    return null;
+  }
+}
+
+function collectRolesFromPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+  const accumulator = new Set();
+  const addRole = (role) => {
+    if (typeof role === 'string' && role.trim()) {
+      accumulator.add(role.trim());
+    }
+  };
+
+  if (Array.isArray(payload.groups)) {
+    payload.groups.forEach(addRole);
+  }
+  if (payload.realm_access && Array.isArray(payload.realm_access.roles)) {
+    payload.realm_access.roles.forEach(addRole);
+  }
+  if (payload.resource_access && typeof payload.resource_access === 'object') {
+    Object.values(payload.resource_access).forEach((client) => {
+      if (client && Array.isArray(client.roles)) {
+        client.roles.forEach(addRole);
+      }
+    });
+  }
+  return Array.from(accumulator);
+}
+
+function hasClientRole(payload, clientId, roleName) {
+  if (!payload || !payload.resource_access || typeof payload.resource_access !== 'object') {
+    return false;
+  }
+  const entry = payload.resource_access[clientId];
+  if (!entry || !Array.isArray(entry.roles)) {
+    return false;
+  }
+  return entry.roles.some(
+    (role) => typeof role === 'string' && role.toLowerCase() === String(roleName || '').toLowerCase(),
+  );
+}
+
+export function hasContributorRole(tokens) {
+  const source = tokens || readStoredTokens();
+  if (!source || !source.access_token) {
+    return false;
+  }
+  const payload = decodeAccessToken(source.access_token);
+  if (!payload) {
+    return false;
+  }
+  const roles = collectRolesFromPayload(payload);
+  if (roles.some((role) => role.toLowerCase() === 'contributor')) {
+    return true;
+  }
+  return hasClientRole(payload, 'nwleaderboard-app', 'contributor');
+}
+
 export function setupAuthFetch() {
   if (fetchInitialised) return;
   fetchInitialised = true;
