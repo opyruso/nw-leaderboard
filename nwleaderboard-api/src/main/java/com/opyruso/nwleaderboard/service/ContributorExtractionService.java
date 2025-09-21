@@ -15,8 +15,6 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.ConvolveOp;
-import java.awt.image.Kernel;
 import java.awt.image.WritableRaster;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,31 +35,11 @@ import net.sourceforge.tess4j.ITessAPI.TessOcrEngineMode;
 import net.sourceforge.tess4j.ITessAPI.TessPageSegMode;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
-import org.bytedeco.javacv.Java2DFrameConverter;
-import org.bytedeco.javacv.OpenCVFrameConverter;
-import org.bytedeco.opencv.opencv_imgproc.CLAHE;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Size;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
-import static org.bytedeco.opencv.global.opencv_imgproc.MORPH_BLACKHAT;
-import static org.bytedeco.opencv.global.opencv_imgproc.MORPH_RECT;
-import static org.bytedeco.opencv.global.opencv_core.bitwise_not;
-import static org.bytedeco.opencv.global.opencv_imgproc.ADAPTIVE_THRESH_GAUSSIAN_C;
-import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGR2GRAY;
-import static org.bytedeco.opencv.global.opencv_imgproc.INTER_CUBIC;
-import static org.bytedeco.opencv.global.opencv_imgproc.THRESH_BINARY;
-import static org.bytedeco.opencv.global.opencv_imgproc.adaptiveThreshold;
-import static org.bytedeco.opencv.global.opencv_imgproc.bilateralFilter;
-import static org.bytedeco.opencv.global.opencv_imgproc.createCLAHE;
-import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;
-import static org.bytedeco.opencv.global.opencv_imgproc.dilate;
-import static org.bytedeco.opencv.global.opencv_imgproc.getStructuringElement;
-import static org.bytedeco.opencv.global.opencv_imgproc.morphologyEx;
-import static org.bytedeco.opencv.global.opencv_imgproc.resize;
 
 /**
  * Handles OCR extraction on contributor uploads. The implementation relies on the scoreboard layout being
@@ -92,18 +70,7 @@ public class ContributorExtractionService {
             new Point(1305, 415),
             new Point(1305, 450),
             new Point(1305, 485));
-    private static final int ADAPTIVE_BLOCK_SIZE = 15;
-    private static final int ADAPTIVE_MEAN_OFFSET = 5;
-    private static final double UPSCALE_FACTOR = 3.0d;
-    private static final double CLAHE_CLIP_LIMIT = 2.0d;
-    private static final Size CLAHE_TILE_GRID = new Size(8, 8);
-    private static final int BILATERAL_FILTER_DIAMETER = 5;
-    private static final double BILATERAL_SIGMA_COLOR = 15.0d;
-    private static final double BILATERAL_SIGMA_SPACE = 15.0d;
-    private static final int OPENCV_ADAPTIVE_BLOCK_SIZE = 31;
-    private static final int OPENCV_ADAPTIVE_C = 5;
-    private static final Size DILATION_KERNEL = new Size(2, 2);
-    private static final Size BLACKHAT_KERNEL = new Size(45, 3);
+    private static final int CROP_UPSCALE_FACTOR = 4;
     private static final double GLOBAL_CONTRAST_FACTOR = 1.25d;
 
     private static final String DEFAULT_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _-:/().'";
@@ -735,149 +702,31 @@ public class ContributorExtractionService {
     }
 
     private BufferedImage preprocessForOcr(BufferedImage region) {
-        if (region.getWidth() <= 0 || region.getHeight() <= 0) {
+        if (region == null) {
+            return null;
+        }
+        int width = region.getWidth();
+        int height = region.getHeight();
+        if (width <= 0 || height <= 0) {
             return region;
         }
 
-        try (Java2DFrameConverter java2DConverter = new Java2DFrameConverter();
-                OpenCVFrameConverter.ToMat matConverter = new OpenCVFrameConverter.ToMat()) {
-            Mat bgr = matConverter.convert(java2DConverter.convert(region));
-            if (bgr == null || bgr.empty()) {
-                if (bgr != null) {
-                    bgr.close();
-                }
-                return legacyPreprocess(region);
-            }
-
-            try (Mat gray = new Mat();
-                    Mat upscaled = new Mat();
-                    Mat claheMat = new Mat();
-                    Mat smooth = new Mat();
-                    Mat inverted = new Mat();
-                    Mat blackhat = new Mat();
-                    Mat thresholded = new Mat();
-                    Mat dilated = new Mat()) {
-                cvtColor(bgr, gray, COLOR_BGR2GRAY);
-                resize(gray, upscaled, new Size(), UPSCALE_FACTOR, UPSCALE_FACTOR, INTER_CUBIC);
-
-                CLAHE clahe = createCLAHE(CLAHE_CLIP_LIMIT, CLAHE_TILE_GRID);
-                try {
-                    clahe.apply(upscaled, claheMat);
-                } finally {
-                    clahe.close();
-                }
-
-                bilateralFilter(claheMat, smooth, BILATERAL_FILTER_DIAMETER, BILATERAL_SIGMA_COLOR, BILATERAL_SIGMA_SPACE);
-                bitwise_not(smooth, inverted);
-
-                Mat blackhatKernel = getStructuringElement(MORPH_RECT, BLACKHAT_KERNEL);
-                try {
-                    morphologyEx(inverted, blackhat, MORPH_BLACKHAT, blackhatKernel);
-                } finally {
-                    blackhatKernel.close();
-                }
-
-                adaptiveThreshold(blackhat, thresholded, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY,
-                        OPENCV_ADAPTIVE_BLOCK_SIZE, OPENCV_ADAPTIVE_C);
-
-                Mat kernel = getStructuringElement(MORPH_RECT, DILATION_KERNEL);
-                try {
-                    dilate(thresholded, dilated, kernel);
-                } finally {
-                    kernel.close();
-                }
-
-                BufferedImage processed = java2DConverter.convert(matConverter.convert(dilated));
-                return ensureGrayscale(processed);
-            } finally {
-                bgr.close();
-            }
-        } catch (RuntimeException | UnsatisfiedLinkError e) {
-            LOG.debug("Falling back to legacy OCR preprocessing", e);
-            return legacyPreprocess(region);
+        int targetWidth = Math.max(1, width * CROP_UPSCALE_FACTOR);
+        int targetHeight = Math.max(1, height * CROP_UPSCALE_FACTOR);
+        int type = region.getType();
+        if (type == BufferedImage.TYPE_CUSTOM || type == 0) {
+            type = BufferedImage.TYPE_INT_RGB;
         }
-    }
 
-    private BufferedImage legacyPreprocess(BufferedImage region) {
-        BufferedImage gray = new BufferedImage(region.getWidth(), region.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D graphics = gray.createGraphics();
+        BufferedImage upscaled = new BufferedImage(targetWidth, targetHeight, type);
+        Graphics2D graphics = upscaled.createGraphics();
         try {
-            graphics.drawImage(region, 0, 0, null);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            graphics.drawImage(region, 0, 0, targetWidth, targetHeight, null);
         } finally {
             graphics.dispose();
         }
-        BufferedImage thresholded = applyAdaptiveThreshold(gray, ADAPTIVE_BLOCK_SIZE, ADAPTIVE_MEAN_OFFSET);
-        return applySharpen(thresholded);
-    }
-
-    private BufferedImage ensureGrayscale(BufferedImage image) {
-        if (image == null) {
-            return null;
-        }
-        if (image.getType() == BufferedImage.TYPE_BYTE_GRAY) {
-            return image;
-        }
-        BufferedImage gray = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D graphics = gray.createGraphics();
-        try {
-            graphics.drawImage(image, 0, 0, null);
-        } finally {
-            graphics.dispose();
-        }
-        return gray;
-    }
-
-    private BufferedImage applyAdaptiveThreshold(BufferedImage gray, int blockSize, int meanOffset) {
-        int width = gray.getWidth();
-        int height = gray.getHeight();
-        int radius = Math.max(1, blockSize / 2);
-
-        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-        WritableRaster sourceRaster = gray.getRaster();
-        WritableRaster targetRaster = result.getRaster();
-
-        long[][] integral = new long[height + 1][width + 1];
-        for (int y = 1; y <= height; y++) {
-            long rowSum = 0;
-            for (int x = 1; x <= width; x++) {
-                int pixel = sourceRaster.getSample(x - 1, y - 1, 0);
-                rowSum += pixel;
-                integral[y][x] = integral[y - 1][x] + rowSum;
-            }
-        }
-
-        for (int y = 0; y < height; y++) {
-            int y0 = Math.max(0, y - radius);
-            int y1 = Math.min(height - 1, y + radius);
-            for (int x = 0; x < width; x++) {
-                int x0 = Math.max(0, x - radius);
-                int x1 = Math.min(width - 1, x + radius);
-
-                int area = (x1 - x0 + 1) * (y1 - y0 + 1);
-                long sum = integral[y1 + 1][x1 + 1] - integral[y0][x1 + 1] - integral[y1 + 1][x0] + integral[y0][x0];
-                int threshold = (int) (sum / area) - meanOffset;
-                threshold = Math.max(0, Math.min(255, threshold));
-
-                int pixel = sourceRaster.getSample(x, y, 0);
-                int value = pixel > threshold ? 255 : 0;
-                targetRaster.setSample(x, y, 0, value);
-            }
-        }
-
-        return result;
-    }
-
-    private BufferedImage applySharpen(BufferedImage image) {
-        float[] kernelData = new float[] {
-                0f, -1f, 0f,
-                -1f, 5f, -1f,
-                0f, -1f, 0f
-        };
-        Kernel kernel = new Kernel(3, 3, kernelData);
-        ConvolveOp op = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);
-        BufferedImage result = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        op.filter(image, result);
-        return result;
+        return upscaled;
     }
 
     /**
