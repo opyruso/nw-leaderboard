@@ -22,6 +22,10 @@ const fr = {
   contributeImageFallback: (index) => `Image ${index}`,
   contributeFileLoadError:
     'Impossible d’analyser l’image sélectionnée. Veuillez réessayer.',
+  contributeFileStatusReady: 'Prêt',
+  contributeFileStatusProcessing: 'En cours…',
+  contributeFileStatusSuccess: 'Extrait',
+  contributeFileStatusError: 'Erreur',
   contributeTooMany: 'Vous pouvez importer jusqu’à 12 images à la fois.',
   contributeResolutionError: 'Seules les captures en 2560×1440 sont acceptées.',
   contributeNoFiles: 'Sélectionnez une capture avant de lancer l’extraction.',

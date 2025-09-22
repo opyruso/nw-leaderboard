@@ -122,131 +122,6 @@ function normaliseField(field) {
   return { text, normalized, number, id, crop, confidence, status, alreadyExists, details, confirmed };
 }
 
-function cloneField(field) {
-  if (!field || typeof field !== 'object') {
-    return null;
-  }
-  const copy = { ...field };
-  if (field.details && typeof field.details === 'object') {
-    copy.details = { ...field.details };
-  }
-  return copy;
-}
-
-function mergeContextField(currentField, candidateField) {
-  const candidate = cloneField(candidateField);
-  if (!candidate) {
-    return currentField ? cloneField(currentField) : null;
-  }
-  const current = currentField ? cloneField(currentField) : null;
-  if (!current) {
-    return candidate;
-  }
-  const merged = { ...current };
-  if (!merged.text && candidate.text) {
-    merged.text = candidate.text;
-  }
-  if (!merged.normalized && candidate.normalized) {
-    merged.normalized = candidate.normalized;
-  }
-  if ((merged.number === null || merged.number === undefined) && candidate.number !== null && candidate.number !== undefined) {
-    merged.number = candidate.number;
-  }
-  if ((merged.id === null || merged.id === undefined) && candidate.id !== null && candidate.id !== undefined) {
-    merged.id = candidate.id;
-  }
-  if (!merged.crop && candidate.crop) {
-    merged.crop = candidate.crop;
-  }
-  if (
-    (merged.confidence === null || merged.confidence === undefined || Number.isNaN(merged.confidence)) &&
-    candidate.confidence !== null &&
-    candidate.confidence !== undefined &&
-    !Number.isNaN(candidate.confidence)
-  ) {
-    merged.confidence = candidate.confidence;
-  }
-  if (!merged.status && candidate.status) {
-    merged.status = candidate.status;
-  }
-  if (merged.status !== 'success' && candidate.status === 'success') {
-    merged.status = 'success';
-  } else if (merged.status !== 'success' && candidate.status === 'warning') {
-    merged.status = 'warning';
-  }
-  if (merged.alreadyExists !== true && candidate.alreadyExists === true) {
-    merged.alreadyExists = true;
-  } else if (
-    (merged.alreadyExists === null || merged.alreadyExists === undefined) &&
-    candidate.alreadyExists !== undefined &&
-    candidate.alreadyExists !== null
-  ) {
-    merged.alreadyExists = candidate.alreadyExists;
-  }
-  if (candidate.details) {
-    const mergedDetails = { ...(candidate.details || {}) };
-    if (merged.details) {
-      Object.entries(merged.details).forEach(([key, value]) => {
-        if (!mergedDetails.hasOwnProperty(key) || mergedDetails[key] === null || mergedDetails[key] === undefined) {
-          mergedDetails[key] = value;
-        }
-      });
-    }
-    merged.details = Object.keys(mergedDetails).length ? mergedDetails : null;
-  }
-  const currentConfirmed = merged.confirmed === undefined ? true : merged.confirmed;
-  const candidateConfirmed = candidate.confirmed === undefined ? true : candidate.confirmed;
-  merged.confirmed = Boolean(currentConfirmed && candidateConfirmed);
-  return merged;
-}
-
-function pickExpectedPlayerCount(current, candidate) {
-  const currentValid = Number.isFinite(current) && current > 0;
-  const candidateValid = Number.isFinite(candidate) && candidate > 0;
-  if (!currentValid && candidateValid) {
-    return candidate;
-  }
-  if (currentValid && candidateValid) {
-    if (current === DEFAULT_PLAYER_SLOTS && candidate !== DEFAULT_PLAYER_SLOTS) {
-      return candidate;
-    }
-    return current;
-  }
-  return currentValid ? current : candidateValid ? candidate : DEFAULT_PLAYER_SLOTS;
-}
-
-function mergeContexts(current, candidate) {
-  if (!candidate) {
-    return current ? {
-        ...current,
-        weekField: mergeContextField(current.weekField, null),
-        dungeonField: mergeContextField(current.dungeonField, null),
-        modeField: mergeContextField(current.modeField, null),
-      } : null;
-  }
-  if (!current) {
-    return {
-      week: candidate.week,
-      dungeon: candidate.dungeon,
-      mode: candidate.mode,
-      expectedPlayerCount: candidate.expectedPlayerCount,
-      weekField: mergeContextField(null, candidate.weekField),
-      dungeonField: mergeContextField(null, candidate.dungeonField),
-      modeField: mergeContextField(null, candidate.modeField),
-    };
-  }
-  const expectedPlayerCount = pickExpectedPlayerCount(current.expectedPlayerCount, candidate.expectedPlayerCount);
-  return {
-    week: current.week || candidate.week || '',
-    dungeon: current.dungeon || candidate.dungeon || '',
-    mode: (current.mode || candidate.mode || '').toUpperCase(),
-    expectedPlayerCount,
-    weekField: mergeContextField(current.weekField, candidate.weekField),
-    dungeonField: mergeContextField(current.dungeonField, candidate.dungeonField),
-    modeField: mergeContextField(current.modeField, candidate.modeField),
-  };
-}
-
 function createEmptyContext() {
   return {
     week: '',
@@ -411,8 +286,7 @@ export default function Contribute() {
   const { t, lang } = React.useContext(LangContext);
   const fileInputRef = React.useRef(null);
   const [selectedFiles, setSelectedFiles] = React.useState(() => []);
-  const [runs, setRuns] = React.useState([]);
-  const [contextFields, setContextFields] = React.useState(() => createEmptyContext());
+  const [fileResults, setFileResults] = React.useState([]);
   const [status, setStatus] = React.useState('idle');
   const [messageKey, setMessageKey] = React.useState('');
   const [messageText, setMessageText] = React.useState('');
@@ -436,6 +310,38 @@ export default function Contribute() {
         return `${t.contributeConfidence}: ${formatted}%`;
       }
       return `Confidence: ${formatted}%`;
+    },
+    [t],
+  );
+
+  const getFileLabel = React.useCallback(
+    (file, index) => {
+      if (file && typeof file.name === 'string' && file.name.trim()) {
+        return file.name;
+      }
+      if (file && file.file && typeof file.file.name === 'string' && file.file.name.trim()) {
+        return file.file.name;
+      }
+      if (typeof t.contributeImageFallback === 'function') {
+        return t.contributeImageFallback(index + 1);
+      }
+      return `Image ${index + 1}`;
+    },
+    [t],
+  );
+
+  const getFileStatusLabel = React.useCallback(
+    (status) => {
+      if (status === 'processing') {
+        return t.contributeFileStatusProcessing || 'Processing';
+      }
+      if (status === 'success') {
+        return t.contributeFileStatusSuccess || 'Ready';
+      }
+      if (status === 'error') {
+        return t.contributeFileStatusError || 'Error';
+      }
+      return t.contributeFileStatusReady || 'Ready';
     },
     [t],
   );
@@ -513,8 +419,7 @@ export default function Contribute() {
 
   const handleFileChange = async (event) => {
     const files = Array.from(event.target.files || []);
-    setRuns([]);
-    setContextFields(createEmptyContext());
+    setFileResults([]);
     resetFeedback();
     if (!files.length) {
       setSelectedFiles([]);
@@ -540,16 +445,23 @@ export default function Contribute() {
         }
         return;
       }
-      setSelectedFiles(metadata);
-      if (metadata.length === 1) {
+      const timestamp = Date.now();
+      const enrichedMetadata = metadata.map((meta, index) => ({
+        ...meta,
+        id: `file-${timestamp}-${index}`,
+        status: 'ready',
+        errorMessage: '',
+      }));
+      setSelectedFiles(enrichedMetadata);
+      if (enrichedMetadata.length === 1) {
         setMessageText('');
         setMessageKey('contributeFileReady');
       } else {
         setMessageKey('');
         const message =
           typeof t.contributeFilesReady === 'function'
-            ? t.contributeFilesReady(metadata.length)
-            : `${metadata.length} ${t.contributeFilesReady || 'images ready for extraction.'}`;
+            ? t.contributeFilesReady(enrichedMetadata.length)
+            : `${enrichedMetadata.length} ${t.contributeFilesReady || 'images ready for extraction.'}`;
         setMessageText(message);
       }
     } catch (error) {
@@ -566,16 +478,54 @@ export default function Contribute() {
 
   const handleClearSelection = () => {
     setSelectedFiles([]);
-    setRuns([]);
-    setContextFields(createEmptyContext());
+    setFileResults([]);
     resetFeedback();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const updateRun = (index, updater) => {
-    setRuns((previous) => previous.map((run, currentIndex) => (currentIndex === index ? updater(run) : run)));
+  const updateSelectedFile = (id, updater) => {
+    setSelectedFiles((previous) =>
+      previous.map((file) => {
+        if (file.id !== id) {
+          return file;
+        }
+        const updates = typeof updater === 'function' ? updater(file) : updater;
+        if (!updates) {
+          return file;
+        }
+        if (typeof updates === 'object') {
+          return { ...file, ...updates };
+        }
+        return file;
+      }),
+    );
+  };
+
+  const modifyFileResult = (fileId, modifier) => {
+    setFileResults((previous) =>
+      previous.map((result) => {
+        if (result.id !== fileId) {
+          return result;
+        }
+        const next = typeof modifier === 'function' ? modifier(result) : null;
+        if (!next || typeof next !== 'object') {
+          return result;
+        }
+        return next;
+      }),
+    );
+  };
+
+  const updateRun = (fileId, runIndex, updater) => {
+    modifyFileResult(fileId, (result) => {
+      const currentRuns = Array.isArray(result.runs) ? result.runs : [];
+      const updatedRuns = currentRuns.map((run, currentIndex) =>
+        currentIndex === runIndex ? updater(run) : run,
+      );
+      return { ...result, runs: updatedRuns };
+    });
   };
 
   const handleExtract = async () => {
@@ -590,122 +540,172 @@ export default function Contribute() {
     }
     setStatus('extracting');
     try {
-      setRuns([]);
-      setContextFields(createEmptyContext());
-      const aggregatedRuns = [];
-      let mergedContext = null;
+      setFileResults([]);
+      setSelectedFiles((previous) =>
+        previous.map((file) => ({
+          ...file,
+          status: 'ready',
+          errorMessage: '',
+        })),
+      );
+      const nextResults = [];
       const timestampBase = Date.now();
+      let successCount = 0;
+      let failureCount = 0;
+      let firstErrorMessage = '';
 
       for (let index = 0; index < selectedFiles.length; index += 1) {
         const meta = selectedFiles[index];
         if (!meta || !meta.file) {
           continue;
         }
+        updateSelectedFile(meta.id, { status: 'processing', errorMessage: '' });
         const formData = new FormData();
-        const fileName = meta.name || meta.file.name || `image-${index + 1}`;
+        const fileName = meta.name || (meta.file && meta.file.name) || `image-${index + 1}`;
         formData.append('image', meta.file, fileName);
-        const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
-          method: 'POST',
-          body: formData,
-        });
-        let data = null;
+
+        let responseData = null;
+        let requestOk = false;
+        let apiMessage = '';
         try {
-          data = await response.json();
-        } catch (error) {
-          data = null;
-        }
-        if (!response.ok) {
-          const apiMessage = data && data.message ? data.message : null;
-          if (apiMessage) {
-            setErrorText(apiMessage);
-          } else {
-            setErrorKey('contributeError');
+          const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
+            method: 'POST',
+            body: formData,
+          });
+          try {
+            responseData = await response.json();
+          } catch (error) {
+            responseData = null;
           }
-          setRuns([]);
-          setContextFields(createEmptyContext());
-          return;
+          if (!response.ok) {
+            apiMessage = responseData && responseData.message ? responseData.message : '';
+          } else {
+            requestOk = true;
+          }
+        } catch (error) {
+          apiMessage = '';
         }
 
-        const context = normaliseExtractionContext(data || {});
-        mergedContext = mergeContexts(mergedContext, context) || context;
-        const runsForImage = buildRunsFromExtraction(data || {}, context, `${timestampBase}-${index}`);
-        aggregatedRuns.push(...runsForImage);
+        if (!requestOk) {
+          failureCount += 1;
+          if (apiMessage && !firstErrorMessage) {
+            firstErrorMessage = apiMessage;
+          }
+          updateSelectedFile(meta.id, { status: 'error', errorMessage: apiMessage || '' });
+          continue;
+        }
+
+        const context = normaliseExtractionContext(responseData || {});
+        const runsForImage = buildRunsFromExtraction(responseData || {}, context, `${timestampBase}-${index}`);
+        const runsWithContext = runsForImage.map((run) => ({
+          ...run,
+          week: context.week ?? run.week ?? '',
+          dungeon: context.dungeon ?? run.dungeon ?? '',
+          mode: run.mode || context.mode || '',
+          expectedPlayerCount:
+            Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
+              ? run.expectedPlayerCount
+              : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
+        }));
+        nextResults.push({ id: meta.id, context, runs: runsWithContext });
+        successCount += 1;
+        updateSelectedFile(meta.id, { status: 'success', errorMessage: '' });
       }
 
-      const finalContext = mergedContext || createEmptyContext();
-      setContextFields(finalContext);
-      const runsWithContext = aggregatedRuns.map((run) => ({
-        ...run,
-        week: finalContext.week ?? run.week ?? '',
-        dungeon: finalContext.dungeon ?? run.dungeon ?? '',
-        mode: run.mode || finalContext.mode || '',
-        expectedPlayerCount:
-          Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
-            ? run.expectedPlayerCount
-            : finalContext.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
-      }));
-      setRuns(runsWithContext);
-      if (runsWithContext.some((run) => hasRunContent(run))) {
-        setMessageKey('contributeExtractionReady');
-        setMessageText('');
-      } else {
-        setMessageKey('contributeNoResults');
+      setFileResults(nextResults);
+
+      const hasAnyContent = nextResults.some((result) =>
+        Array.isArray(result.runs) ? result.runs.some((run) => hasRunContent(run)) : false,
+      );
+
+      if (successCount > 0) {
+        if (hasAnyContent) {
+          setMessageKey('contributeExtractionReady');
+          setMessageText('');
+        } else {
+          setMessageKey('contributeNoResults');
+          setMessageText('');
+        }
+        setErrorKey('');
+        setErrorText('');
+      } else if (failureCount > 0) {
+        if (firstErrorMessage) {
+          setErrorText(firstErrorMessage);
+          setErrorKey('');
+        } else {
+          setErrorKey('contributeError');
+          setErrorText('');
+        }
+        setMessageKey('');
         setMessageText('');
       }
     } catch (error) {
       console.warn('Unable to extract runs from the provided images', error);
       setErrorKey('contributeError');
+      setMessageKey('');
+      setMessageText('');
+      setFileResults([]);
     } finally {
       setStatus('idle');
     }
   };
 
-  const handleContextWeekChange = (value) => {
+  const handleContextWeekChange = (fileId, value) => {
     const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
-    setContextFields((previous) => ({ ...previous, week: resolved }));
-    setRuns((previous) => previous.map((run) => ({ ...run, week: resolved })));
+    modifyFileResult(fileId, (result) => {
+      const currentContext = result?.context ? { ...result.context } : createEmptyContext();
+      const updatedContext = { ...currentContext, week: resolved };
+      const updatedRuns = Array.isArray(result.runs)
+        ? result.runs.map((run) => ({ ...run, week: resolved }))
+        : [];
+      return { ...result, context: updatedContext, runs: updatedRuns };
+    });
   };
 
-  const handleContextDungeonChange = (value) => {
+  const handleContextDungeonChange = (fileId, value) => {
     const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
     const selectedDungeon = dungeons.find((item) => String(item.id) === String(resolved));
     const expectedFromSelection = Number.isFinite(selectedDungeon?.playerCount)
       ? Number(selectedDungeon.playerCount)
       : DEFAULT_PLAYER_SLOTS;
     const timestamp = Date.now();
-    setContextFields((previous) => {
-      const currentDetails = previous.dungeonField.details ? { ...previous.dungeonField.details } : {};
+    modifyFileResult(fileId, (result) => {
+      const currentContext = result?.context ? { ...result.context } : createEmptyContext();
+      const previousDungeonField = currentContext.dungeonField || normaliseField(null);
+      const currentDetails = previousDungeonField.details ? { ...previousDungeonField.details } : {};
       if (expectedFromSelection) {
         currentDetails.player_count = expectedFromSelection;
       }
-      return {
-        ...previous,
+      const updatedDungeonField = {
+        ...previousDungeonField,
+        status: resolved ? 'success' : previousDungeonField.status,
+        confirmed: true,
+        details: Object.keys(currentDetails).length ? currentDetails : null,
+      };
+      const updatedContext = {
+        ...currentContext,
         dungeon: resolved,
         expectedPlayerCount: expectedFromSelection,
-        dungeonField: {
-          ...previous.dungeonField,
-          status: resolved ? 'success' : previous.dungeonField.status,
-          confirmed: true,
-          details: Object.keys(currentDetails).length ? currentDetails : null,
-        },
+        dungeonField: updatedDungeonField,
       };
+      const updatedRuns = Array.isArray(result.runs)
+        ? result.runs.map((run) =>
+            applyExpectedPlayerCountToRun(
+              {
+                ...run,
+                dungeon: resolved,
+              },
+              expectedFromSelection,
+              timestamp,
+            ),
+          )
+        : [];
+      return { ...result, context: updatedContext, runs: updatedRuns };
     });
-    setRuns((previous) =>
-      previous.map((run) =>
-        applyExpectedPlayerCountToRun(
-          {
-            ...run,
-            dungeon: resolved,
-          },
-          expectedFromSelection,
-          timestamp,
-        ),
-      ),
-    );
   };
 
-  const handleScoreChange = (index, value) => {
-    updateRun(index, (run) => ({
+  const handleScoreChange = (fileId, runIndex, value) => {
+    updateRun(fileId, runIndex, (run) => ({
       ...run,
       score: value === '' ? '' : toPositiveInteger(value) ?? '',
       valueField: run.valueField
@@ -714,8 +714,8 @@ export default function Contribute() {
     }));
   };
 
-  const handleTimeChange = (index, value) => {
-    updateRun(index, (run) => ({
+  const handleTimeChange = (fileId, runIndex, value) => {
+    updateRun(fileId, runIndex, (run) => ({
       ...run,
       time: value === '' ? '' : toPositiveInteger(value) ?? '',
       valueField: run.valueField
@@ -724,8 +724,8 @@ export default function Contribute() {
     }));
   };
 
-  const handlePlayerChange = (runIndex, playerIndex, value) => {
-    updateRun(runIndex, (run) => ({
+  const handlePlayerChange = (fileId, runIndex, playerIndex, value) => {
+    updateRun(fileId, runIndex, (run) => ({
       ...run,
       playerSlots: run.playerSlots.map((slot, currentIndex) => {
         if (currentIndex !== playerIndex) {
@@ -766,8 +766,9 @@ export default function Contribute() {
     }));
   };
 
-  const handlePlayerApplySuggestion = (runIndex, playerIndex) => {
-    const run = runs?.[runIndex];
+  const handlePlayerApplySuggestion = (fileId, runIndex, playerIndex) => {
+    const result = fileResults.find((item) => item.id === fileId);
+    const run = result && Array.isArray(result.runs) ? result.runs[runIndex] : null;
     if (!run) {
       return;
     }
@@ -782,18 +783,18 @@ export default function Contribute() {
     if (!suggestionName.trim()) {
       return;
     }
-    handlePlayerChange(runIndex, playerIndex, suggestionName);
+    handlePlayerChange(fileId, runIndex, playerIndex, suggestionName);
   };
 
-  const handleRunValueConfirm = (index) => {
-    updateRun(index, (run) => ({
+  const handleRunValueConfirm = (fileId, runIndex) => {
+    updateRun(fileId, runIndex, (run) => ({
       ...run,
       valueField: run.valueField ? { ...run.valueField, confirmed: true } : run.valueField,
     }));
   };
 
-  const handlePlayerConfirm = (runIndex, playerIndex) => {
-    updateRun(runIndex, (run) => ({
+  const handlePlayerConfirm = (fileId, runIndex, playerIndex) => {
+    updateRun(fileId, runIndex, (run) => ({
       ...run,
       playerSlots: run.playerSlots.map((slot, currentIndex) =>
         currentIndex === playerIndex
@@ -806,33 +807,43 @@ export default function Contribute() {
     }));
   };
 
-  const handleContextFieldConfirm = (fieldKey) => {
-    setContextFields((previous) => {
-      if (!previous || !previous[fieldKey]) {
-        return previous;
+  const handleContextFieldConfirm = (fileId, fieldKey) => {
+    modifyFileResult(fileId, (result) => {
+      const currentContext = result?.context ? { ...result.context } : createEmptyContext();
+      if (!currentContext[fieldKey]) {
+        return { ...result, context: currentContext };
       }
       return {
-        ...previous,
-        [fieldKey]: {
-          ...previous[fieldKey],
-          confirmed: true,
+        ...result,
+        context: {
+          ...currentContext,
+          [fieldKey]: {
+            ...currentContext[fieldKey],
+            confirmed: true,
+          },
         },
       };
     });
   };
 
-  const handleRemoveRun = (index) => {
+  const handleRemoveRun = (fileId, runIndex) => {
     const confirmationMessage = t.contributeRunRemoveConfirm || 'Remove this run?';
     if (!window.confirm(confirmationMessage)) {
       return;
     }
-    setRuns((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
+    modifyFileResult(fileId, (result) => {
+      const currentRuns = Array.isArray(result.runs) ? result.runs : [];
+      const updatedRuns = currentRuns.filter((_, currentIndex) => currentIndex !== runIndex);
+      return { ...result, runs: updatedRuns };
+    });
   };
 
   const handleSubmit = async () => {
     resetFeedback();
-    const runsWithContent = runs.filter((run) => hasRunContent(run));
-    if (!runsWithContent.length) {
+    const activeResults = fileResults.filter((result) =>
+      Array.isArray(result.runs) && result.runs.some((run) => hasRunContent(run)),
+    );
+    if (!activeResults.length) {
       setErrorKey('contributeNoResults');
       return;
     }
@@ -841,23 +852,40 @@ export default function Contribute() {
       return;
     }
 
-    const unresolvedContextWarnings = ['dungeonField', 'modeField'].some((fieldKey) => {
-      const field = contextFields?.[fieldKey];
-      return field && field.status === 'warning' && !field.confirmed;
+    const unresolvedContextWarnings = activeResults.some((result) => {
+      const context = result?.context;
+      if (!context) {
+        return false;
+      }
+      return ['dungeonField', 'modeField'].some((fieldKey) => {
+        const field = context[fieldKey];
+        return field && field.status === 'warning' && !field.confirmed;
+      });
     });
     if (unresolvedContextWarnings) {
       setErrorKey('contributeWarningsPending');
       return;
     }
 
-    const preparedRuns = runsWithContent.map((run) => {
+    const runsWithContent = [];
+    activeResults.forEach((result) => {
+      const context = result?.context || createEmptyContext();
+      const runsForResult = Array.isArray(result.runs) ? result.runs : [];
+      runsForResult.forEach((run) => {
+        if (hasRunContent(run)) {
+          runsWithContent.push({ run, context });
+        }
+      });
+    });
+
+    const preparedRuns = runsWithContent.map(({ run, context }) => {
       const week = toPositiveInteger(run.week);
       const dungeon = toPositiveInteger(run.dungeon);
       const score = toPositiveInteger(run.score);
       const time = toPositiveInteger(run.time);
       const expectedCount = Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
         ? run.expectedPlayerCount
-        : contextFields.expectedPlayerCount || DEFAULT_PLAYER_SLOTS;
+        : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS;
       const seen = new Set();
       const players = run.playerSlots
         .map((slot) => {
@@ -877,15 +905,7 @@ export default function Contribute() {
           };
         })
         .filter(Boolean);
-      return {
-        run,
-        week,
-        dungeon,
-        score,
-        time,
-        players,
-        expectedPlayerCount: expectedCount,
-      };
+      return { run, week, dungeon, score, time, players, expectedPlayerCount: expectedCount };
     });
 
     const invalid = preparedRuns.some(({ week, dungeon, score, time, players }) => {
@@ -964,9 +984,8 @@ export default function Contribute() {
         return;
       }
       setMessageKey('contributeSuccess');
-      setRuns([]);
       setSelectedFiles([]);
-      setContextFields(createEmptyContext());
+      setFileResults([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -978,17 +997,18 @@ export default function Contribute() {
     }
   };
 
+  const orderedResults = React.useMemo(() => {
+    const fromSelection = selectedFiles
+      .map((file) => fileResults.find((result) => result.id === file.id))
+      .filter(Boolean);
+    const remaining = fileResults.filter(
+      (result) => !selectedFiles.some((file) => file.id === result.id),
+    );
+    return fromSelection.concat(remaining);
+  }, [selectedFiles, fileResults]);
+
   const resolvedError = errorText || (errorKey && t[errorKey] ? t[errorKey] : '');
   const resolvedMessage = messageText || (messageKey && t[messageKey] ? t[messageKey] : '');
-  const weekStatusClass = getStatusClass(contextFields.weekField.status, contextFields.weekField.confirmed);
-  const dungeonStatusClass = getStatusClass(
-    contextFields.dungeonField.status,
-    contextFields.dungeonField.confirmed,
-  );
-  const modeStatusClass = getStatusClass(contextFields.modeField.status, contextFields.modeField.confirmed);
-  const weekConfidenceLabel = getConfidenceLabel(contextFields.weekField.confidence);
-  const dungeonConfidenceLabel = getConfidenceLabel(contextFields.dungeonField.confidence);
-  const modeConfidenceLabel = getConfidenceLabel(contextFields.modeField.confidence);
 
   return (
     <main className="page" aria-labelledby="contribute-title">
@@ -1014,16 +1034,25 @@ export default function Contribute() {
             <h2 className="contribute-section-title">{t.contributeImagesTitle}</h2>
             <ul className="contribute-file-list">
               {selectedFiles.map((file, index) => {
-                const label =
-                  file.name ||
-                  (file.file && file.file.name) ||
-                  (typeof t.contributeImageFallback === 'function'
-                    ? t.contributeImageFallback(index + 1)
-                    : `Image ${index + 1}`);
+                const label = getFileLabel(file, index);
+                const statusKey = file.status || 'ready';
+                const statusLabel = getFileStatusLabel(statusKey);
+                const statusText =
+                  statusKey === 'error' && file.errorMessage
+                    ? `${statusLabel}: ${file.errorMessage}`
+                    : statusLabel;
                 return (
-                  <li key={`${label}-${index}`} className="contribute-file-item">
-                    <span className="contribute-file-name">{label}</span>
-                    <span className="contribute-file-meta">{`${file.width}×${file.height}`}</span>
+                  <li
+                    key={file.id || `${label}-${index}`}
+                    className={`contribute-file-item contribute-file-item--${statusKey}`}
+                  >
+                    <div className="contribute-file-details">
+                      <span className="contribute-file-name">{label}</span>
+                      <span className="contribute-file-meta">{`${file.width}×${file.height}`}</span>
+                    </div>
+                    <span className={`contribute-file-status contribute-file-status--${statusKey}`}>
+                      {statusText}
+                    </span>
                   </li>
                 );
               })}
@@ -1049,126 +1078,6 @@ export default function Contribute() {
         </div>
       </section>
 
-      {(contextFields.weekField.crop || contextFields.dungeonField.crop || contextFields.modeField.crop || runs.length) ? (
-        <section className="form contribute-context" aria-live="polite">
-          <h2 className="contribute-section-title">{t.contributeContextTitle}</h2>
-          <div className="contribute-context-grid">
-            <div className={`contribute-context-item ${weekStatusClass}`}>
-              <span className="contribute-context-label">{t.contributeWeek}</span>
-              {contextFields.weekField.crop ? (
-                <img
-                  className="contribute-crop-image"
-                  src={contextFields.weekField.crop}
-                  alt={t.contributeWeek}
-                />
-              ) : null}
-              <p className="contribute-context-ocr">
-                {contextFields.weekField.text
-                  ? t.contributeDetectedText(contextFields.weekField.text)
-                  : t.contributeDetectedEmpty}
-              </p>
-              {weekConfidenceLabel ? (
-                <p className="contribute-confidence">{weekConfidenceLabel}</p>
-              ) : null}
-              <input
-                type="number"
-                min="1"
-                value={contextFields.week === '' ? '' : contextFields.week}
-                onChange={(event) => handleContextWeekChange(event.target.value)}
-              />
-            </div>
-            <div className={`contribute-context-item ${dungeonStatusClass}`}>
-              <span className="contribute-context-label">{t.contributeDungeon}</span>
-              {contextFields.dungeonField.crop ? (
-                <img
-                  className="contribute-crop-image"
-                  src={contextFields.dungeonField.crop}
-                  alt={t.contributeDungeon}
-                />
-              ) : null}
-              <p className="contribute-context-ocr">
-                {contextFields.dungeonField.text
-                  ? t.contributeDetectedText(contextFields.dungeonField.text)
-                  : t.contributeDetectedEmpty}
-              </p>
-              {dungeonConfidenceLabel ? (
-                <p className="contribute-confidence">{dungeonConfidenceLabel}</p>
-              ) : null}
-              <p className="contribute-context-info">
-                {typeof t.contributeDungeonExpectedPlayers === 'function'
-                  ? t.contributeDungeonExpectedPlayers(contextFields.expectedPlayerCount)
-                  : `${t.contributePlayers}: ${contextFields.expectedPlayerCount}`}
-              </p>
-              {contextFields.dungeonField.status === 'warning' ? (
-                <p className="contribute-context-warning">
-                  {t.contributeDungeonMissing || ''}
-                </p>
-              ) : null}
-              <select
-                value={contextFields.dungeon === '' ? '' : String(contextFields.dungeon)}
-                onChange={(event) => handleContextDungeonChange(event.target.value)}
-              >
-                <option value="">{t.contributeDungeonPlaceholder}</option>
-                {dungeons.map((dungeon) => (
-                  <option key={dungeon.id} value={String(dungeon.id)}>
-                    {dungeon.name}
-                  </option>
-                ))}
-              </select>
-              {contextFields.dungeonField.status === 'warning' ? (
-                <button
-                  type="button"
-                  className="status-action"
-                  onClick={() => handleContextFieldConfirm('dungeonField')}
-                  disabled={contextFields.dungeonField.confirmed}
-                >
-                  {contextFields.dungeonField.confirmed
-                    ? t.contributeWarningConfirmed
-                    : t.contributeWarningConfirm}
-                </button>
-              ) : null}
-            </div>
-            <div className={`contribute-context-item ${modeStatusClass}`}>
-              <span className="contribute-context-label">{t.contributeMode}</span>
-              {contextFields.modeField.crop ? (
-                <img
-                  className="contribute-crop-image"
-                  src={contextFields.modeField.crop}
-                  alt={t.contributeMode}
-                />
-              ) : null}
-              <p className="contribute-context-ocr">
-                {contextFields.modeField.text
-                  ? t.contributeDetectedText(contextFields.modeField.text)
-                  : t.contributeDetectedEmpty}
-              </p>
-              {modeConfidenceLabel ? (
-                <p className="contribute-confidence">{modeConfidenceLabel}</p>
-              ) : null}
-              <p className="contribute-context-mode">
-                {contextFields.mode === 'TIME'
-                  ? t.contributeModeTime
-                  : contextFields.mode === 'SCORE'
-                  ? t.contributeModeScore
-                  : t.contributeModeUnknown}
-              </p>
-              {contextFields.modeField.status === 'warning' ? (
-                <button
-                  type="button"
-                  className="status-action"
-                  onClick={() => handleContextFieldConfirm('modeField')}
-                  disabled={contextFields.modeField.confirmed}
-                >
-                  {contextFields.modeField.confirmed
-                    ? t.contributeWarningConfirmed
-                    : t.contributeWarningConfirm}
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       <section className="contribute-results-container" aria-live="polite">
         {loadingDungeons ? (
           <p className="form-hint">{t.contributeDungeonsLoading}</p>
@@ -1178,207 +1087,381 @@ export default function Contribute() {
             {t.contributeDungeonsError}
           </p>
         ) : null}
-        {runs.length ? (
+        {orderedResults.length ? (
           <div className="form contribute-results">
             <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
-            {runs.map((run, runIndex) => {
-              const label =
-                typeof t.contributeRunLabel === 'function'
-                  ? t.contributeRunLabel(runIndex + 1)
-                  : `${t.contributeResultsTitle} ${runIndex + 1}`;
-              const timePreview =
-                run.time && typeof t.contributeTimePreview === 'function'
-                  ? t.contributeTimePreview(formatTime(run.time))
-                  : '';
-              const modeValue = (run.mode || contextFields.mode || '').toUpperCase();
-              const modeLabel =
-                modeValue === 'TIME'
-                  ? t.contributeModeTime
-                  : modeValue === 'SCORE'
-                  ? t.contributeModeScore
-                  : t.contributeModeUnknown;
-              const expectedPlayersLabel =
-                typeof t.contributePlayersExpected === 'function'
-                  ? t.contributePlayersExpected(run.expectedPlayerCount)
-                  : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
-              const hasValueField = Boolean(
-                (run.valueField?.text && run.valueField.text.trim()) ||
-                  (run.valueField?.normalized && run.valueField.normalized.trim()) ||
-                  (run.score && run.score !== '') ||
-                  (run.time && run.time !== ''),
+            {orderedResults.map((result, groupIndex) => {
+              const fileIndex = selectedFiles.findIndex((file) => file.id === result.id);
+              const displayIndex = fileIndex >= 0 ? fileIndex : groupIndex;
+              const fileMeta = fileIndex >= 0 ? selectedFiles[fileIndex] : null;
+              const fileLabel = getFileLabel(fileMeta, displayIndex);
+              const context = result?.context ? result.context : createEmptyContext();
+              const weekStatusClass = getStatusClass(
+                context.weekField.status,
+                context.weekField.confirmed,
               );
-              const valueStatusClass = hasValueField
-                ? getStatusClass(run.valueField.status, run.valueField.confirmed)
-                : '';
-              const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
+              const dungeonStatusClass = getStatusClass(
+                context.dungeonField.status,
+                context.dungeonField.confirmed,
+              );
+              const modeStatusClass = getStatusClass(
+                context.modeField.status,
+                context.modeField.confirmed,
+              );
+              const weekConfidenceLabel = getConfidenceLabel(context.weekField.confidence);
+              const dungeonConfidenceLabel = getConfidenceLabel(context.dungeonField.confidence);
+              const modeConfidenceLabel = getConfidenceLabel(context.modeField.confidence);
               return (
-                <article key={run.id} className="contribute-run">
-                  <header className="contribute-run-header">
-                    <h3>{label}</h3>
-                    <span className="contribute-run-mode">{modeLabel}</span>
-                    <button
-                      type="button"
-                      className="contribute-run-remove"
-                      onClick={() => handleRemoveRun(runIndex)}
-                      aria-label={t.contributeRunRemove || 'Remove run'}
-                    >
-                      ×
-                    </button>
+                <article key={result.id} className="contribute-file-result">
+                  <header className="contribute-file-result-header">
+                    <h3>{fileLabel}</h3>
+                    {fileMeta ? (
+                      <span className="contribute-file-result-meta">
+                        {`${fileMeta.width}×${fileMeta.height}`}
+                      </span>
+                    ) : null}
                   </header>
-                  <div className={`contribute-run-value ${valueStatusClass}`}>
-                    {run.valueField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={run.valueField.crop}
-                        alt={t.contributeValueArea}
+                  <div className="contribute-context-grid">
+                    <div className={`contribute-context-item ${weekStatusClass}`}>
+                      <span className="contribute-context-label">{t.contributeWeek}</span>
+                      {context.weekField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={context.weekField.crop}
+                          alt={t.contributeWeek}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {context.weekField.text
+                          ? t.contributeDetectedText(context.weekField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {weekConfidenceLabel ? (
+                        <p className="contribute-confidence">{weekConfidenceLabel}</p>
+                      ) : null}
+                      <input
+                        type="number"
+                        min="1"
+                        value={context.week === '' ? '' : context.week}
+                        onChange={(event) => handleContextWeekChange(result.id, event.target.value)}
                       />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {run.valueField.text
-                        ? t.contributeDetectedText(run.valueField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    {valueConfidenceLabel ? (
-                      <p className="contribute-confidence">{valueConfidenceLabel}</p>
-                    ) : null}
-                    {run.valueField.status === 'warning' && hasValueField ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeValueNeedsReview}</p>
+                    </div>
+                    <div className={`contribute-context-item ${dungeonStatusClass}`}>
+                      <span className="contribute-context-label">{t.contributeDungeon}</span>
+                      {context.dungeonField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={context.dungeonField.crop}
+                          alt={t.contributeDungeon}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {context.dungeonField.text
+                          ? t.contributeDetectedText(context.dungeonField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {dungeonConfidenceLabel ? (
+                        <p className="contribute-confidence">{dungeonConfidenceLabel}</p>
+                      ) : null}
+                      <p className="contribute-context-info">
+                        {typeof t.contributeDungeonExpectedPlayers === 'function'
+                          ? t.contributeDungeonExpectedPlayers(context.expectedPlayerCount)
+                          : `${t.contributePlayers}: ${context.expectedPlayerCount}`}
+                      </p>
+                      {context.dungeonField.status === 'warning' ? (
+                        <p className="contribute-context-warning">
+                          {t.contributeDungeonMissing || ''}
+                        </p>
+                      ) : null}
+                      <select
+                        value={context.dungeon === '' ? '' : String(context.dungeon)}
+                        onChange={(event) => handleContextDungeonChange(result.id, event.target.value)}
+                      >
+                        <option value="">{t.contributeDungeonPlaceholder}</option>
+                        {dungeons.map((dungeon) => (
+                          <option key={dungeon.id} value={String(dungeon.id)}>
+                            {dungeon.name}
+                          </option>
+                        ))}
+                      </select>
+                      {context.dungeonField.status === 'warning' ? (
                         <button
                           type="button"
                           className="status-action"
-                          onClick={() => handleRunValueConfirm(runIndex)}
-                          disabled={run.valueField.confirmed}
+                          onClick={() => handleContextFieldConfirm(result.id, 'dungeonField')}
+                          disabled={context.dungeonField.confirmed}
                         >
-                          {run.valueField.confirmed
+                          {context.dungeonField.confirmed
                             ? t.contributeWarningConfirmed
                             : t.contributeWarningConfirm}
                         </button>
-                      </div>
-                    ) : null}
-                    <div className="contribute-run-value-inputs">
-                      <label className="form-field">
-                        <span>{t.contributeScore}</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={run.score === '' ? '' : run.score}
-                          onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+                      ) : null}
+                    </div>
+                    <div className={`contribute-context-item ${modeStatusClass}`}>
+                      <span className="contribute-context-label">{t.contributeMode}</span>
+                      {context.modeField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={context.modeField.crop}
+                          alt={t.contributeMode}
                         />
-                      </label>
-                      <label className="form-field">
-                        <span>{t.contributeTime}</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={run.time === '' ? '' : run.time}
-                          onChange={(event) => handleTimeChange(runIndex, event.target.value)}
-                        />
-                        <small className="form-hint">
-                          {t.contributeTimeHint}
-                          {timePreview ? ` (${timePreview})` : ''}
-                        </small>
-                      </label>
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {context.modeField.text
+                          ? t.contributeDetectedText(context.modeField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {modeConfidenceLabel ? (
+                        <p className="contribute-confidence">{modeConfidenceLabel}</p>
+                      ) : null}
+                      <p className="contribute-context-mode">
+                        {(context.mode || '').toUpperCase() === 'TIME'
+                          ? t.contributeModeTime
+                          : (context.mode || '').toUpperCase() === 'SCORE'
+                          ? t.contributeModeScore
+                          : t.contributeModeUnknown}
+                      </p>
+                      {context.modeField.status === 'warning' ? (
+                        <button
+                          type="button"
+                          className="status-action"
+                          onClick={() => handleContextFieldConfirm(result.id, 'modeField')}
+                          disabled={context.modeField.confirmed}
+                        >
+                          {context.modeField.confirmed
+                            ? t.contributeWarningConfirmed
+                            : t.contributeWarningConfirm}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
-                  <div className="contribute-players">
-                    <div className="contribute-players-header">
-                      <span>{expectedPlayersLabel}</span>
-                      <p className="form-hint">{t.contributePlayersHint}</p>
-                    </div>
-                    <ul className="contribute-player-grid">
-                      {run.playerSlots.map((slot, playerIndex) => {
-                        const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
-                        const suggestion =
-                          slot.details && typeof slot.details.suggestion === 'object'
-                            ? slot.details.suggestion
-                            : null;
-                        const suggestionName =
-                          suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
-                        const suggestionLabel = suggestionName
-                          ? typeof t.contributePlayerSuggestion === 'function'
-                            ? t.contributePlayerSuggestion(suggestionName)
-                            : t.contributePlayerSuggestion
-                            ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
-                            : suggestionName
+                  {Array.isArray(result.runs) && result.runs.length ? (
+                    <div className="contribute-file-runs">
+                      {result.runs.map((run, runIndex) => {
+                        const label =
+                          typeof t.contributeRunLabel === 'function'
+                            ? t.contributeRunLabel(runIndex + 1)
+                            : `${t.contributeResultsTitle} ${runIndex + 1}`;
+                        const timePreview =
+                          run.time && typeof t.contributeTimePreview === 'function'
+                            ? t.contributeTimePreview(formatTime(run.time))
+                            : '';
+                        const modeValue = (run.mode || context.mode || '').toUpperCase();
+                        const modeLabel =
+                          modeValue === 'TIME'
+                            ? t.contributeModeTime
+                            : modeValue === 'SCORE'
+                            ? t.contributeModeScore
+                            : t.contributeModeUnknown;
+                        const expectedPlayersLabel =
+                          typeof t.contributePlayersExpected === 'function'
+                            ? t.contributePlayersExpected(run.expectedPlayerCount)
+                            : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
+                        const hasValueField = Boolean(
+                          (run.valueField?.text && run.valueField.text.trim()) ||
+                            (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+                            (run.score && run.score !== '') ||
+                            (run.time && run.time !== ''),
+                        );
+                        const valueStatusClass = hasValueField
+                          ? getStatusClass(run.valueField.status, run.valueField.confirmed)
                           : '';
-                        const suggestionActionLabel =
-                          typeof t.contributePlayerApplySuggestion === 'function'
-                            ? t.contributePlayerApplySuggestion(suggestionName)
-                            : t.contributePlayerApplySuggestion || 'Use suggestion';
+                        const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
                         return (
-                          <li
-                            key={slot.key || playerIndex}
-                            className={`contribute-player-slot ${getStatusClass(slot.status, slot.confirmed)}`}
-                          >
-                            {slot.crop ? (
+                          <article key={run.id} className="contribute-run">
+                          <header className="contribute-run-header">
+                            <h3>{label}</h3>
+                            <span className="contribute-run-mode">{modeLabel}</span>
+                            <button
+                              type="button"
+                              className="contribute-run-remove"
+                              onClick={() => handleRemoveRun(result.id, runIndex)}
+                              aria-label={t.contributeRunRemove || 'Remove run'}
+                            >
+                              ×
+                            </button>
+                          </header>
+                          <div className={`contribute-run-value ${valueStatusClass}`}>
+                            {run.valueField.crop ? (
                               <img
                                 className="contribute-crop-image"
-                                src={slot.crop}
-                                alt={t.contributePlayerSlotLabel(playerIndex + 1)}
+                                src={run.valueField.crop}
+                                alt={t.contributeValueArea}
                               />
                             ) : null}
                             <p className="contribute-context-ocr">
-                              {slot.rawText
-                                ? t.contributeDetectedText(slot.rawText)
+                              {run.valueField.text
+                                ? t.contributeDetectedText(run.valueField.text)
                                 : t.contributeDetectedEmpty}
                             </p>
-                            {playerConfidenceLabel ? (
-                              <p className="contribute-confidence contribute-confidence--player">
-                                {playerConfidenceLabel}
-                              </p>
+                            {valueConfidenceLabel ? (
+                              <p className="contribute-confidence">{valueConfidenceLabel}</p>
                             ) : null}
-                            {slot.status ? (
-                              <p className="contribute-player-status">
-                                {slot.status === 'success'
-                                  ? t.contributePlayerExisting
-                                  : t.contributePlayerNew}
-                              </p>
-                            ) : null}
-                            <input
-                              type="text"
-                              value={slot.value || ''}
-                              placeholder={t.contributePlayerPlaceholder}
-                              onChange={(event) =>
-                                handlePlayerChange(runIndex, playerIndex, event.target.value)
-                              }
-                            />
-                            {slot.playerId ? (
-                              <span className="contribute-player-id">
-                                {typeof t.contributeKnownPlayer === 'function'
-                                  ? t.contributeKnownPlayer(slot.playerId)
-                                  : `ID: ${slot.playerId}`}
-                              </span>
-                            ) : null}
-                            {suggestionLabel && slot.status !== 'success' ? (
-                              <div className="contribute-player-suggestion">
-                                <p className="form-hint">{suggestionLabel}</p>
+                            {run.valueField.status === 'warning' && hasValueField ? (
+                              <div className="contribute-field-warning">
+                                <p className="form-hint">{t.contributeValueNeedsReview}</p>
                                 <button
                                   type="button"
                                   className="status-action"
-                                  onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
+                                  onClick={() => handleRunValueConfirm(result.id, runIndex)}
+                                  disabled={run.valueField.confirmed}
                                 >
-                                  {suggestionActionLabel}
+                                  {run.valueField.confirmed
+                                    ? t.contributeWarningConfirmed
+                                    : t.contributeWarningConfirm}
                                 </button>
                               </div>
                             ) : null}
-                            {slot.status === 'warning' && slot.value && slot.value.trim() ? (
-                              <button
-                                type="button"
-                                className="status-action"
-                                onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
-                                disabled={slot.confirmed}
-                              >
-                                {slot.confirmed
-                                  ? t.contributeWarningConfirmed
-                                  : t.contributeWarningConfirm}
-                              </button>
-                            ) : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                            <div className="contribute-run-value-inputs">
+                              <label className="form-field">
+                                <span>{t.contributeScore}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={run.score === '' ? '' : run.score}
+                                  onChange={(event) =>
+                                    handleScoreChange(result.id, runIndex, event.target.value)
+                                  }
+                                />
+                              </label>
+                              <label className="form-field">
+                                <span>{t.contributeTime}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={run.time === '' ? '' : run.time}
+                                  onChange={(event) =>
+                                    handleTimeChange(result.id, runIndex, event.target.value)
+                                  }
+                                />
+                                <small className="form-hint">
+                                  {t.contributeTimeHint}
+                                  {timePreview ? ` (${timePreview})` : ''}
+                                </small>
+                              </label>
+                            </div>
+                          </div>
+                          <div className="contribute-players">
+                            <div className="contribute-players-header">
+                              <span>{expectedPlayersLabel}</span>
+                              <p className="form-hint">{t.contributePlayersHint}</p>
+                            </div>
+                            <ul className="contribute-player-grid">
+                              {run.playerSlots.map((slot, playerIndex) => {
+                                const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
+                                const suggestion =
+                                  slot.details && typeof slot.details.suggestion === 'object'
+                                    ? slot.details.suggestion
+                                    : null;
+                                const suggestionName =
+                                  suggestion && typeof suggestion.name === 'string'
+                                    ? suggestion.name
+                                    : '';
+                                const suggestionLabel = suggestionName
+                                  ? typeof t.contributePlayerSuggestion === 'function'
+                                    ? t.contributePlayerSuggestion(suggestionName)
+                                    : t.contributePlayerSuggestion
+                                    ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
+                                    : suggestionName
+                                  : '';
+                                const suggestionActionLabel =
+                                  typeof t.contributePlayerApplySuggestion === 'function'
+                                    ? t.contributePlayerApplySuggestion(suggestionName)
+                                    : t.contributePlayerApplySuggestion || 'Use suggestion';
+                                return (
+                                  <li
+                                    key={slot.key || playerIndex}
+                                    className={`contribute-player-slot ${getStatusClass(
+                                      slot.status,
+                                      slot.confirmed,
+                                    )}`}
+                                  >
+                                    {slot.crop ? (
+                                      <img
+                                        className="contribute-crop-image"
+                                        src={slot.crop}
+                                        alt={t.contributePlayerSlotLabel(playerIndex + 1)}
+                                      />
+                                    ) : null}
+                                    <p className="contribute-context-ocr">
+                                      {slot.rawText
+                                        ? t.contributeDetectedText(slot.rawText)
+                                        : t.contributeDetectedEmpty}
+                                    </p>
+                                    {playerConfidenceLabel ? (
+                                      <p className="contribute-confidence contribute-confidence--player">
+                                        {playerConfidenceLabel}
+                                      </p>
+                                    ) : null}
+                                    {slot.status ? (
+                                      <p className="contribute-player-status">
+                                        {slot.status === 'success'
+                                          ? t.contributePlayerExisting
+                                          : t.contributePlayerNew}
+                                      </p>
+                                    ) : null}
+                                    <input
+                                      type="text"
+                                      value={slot.value || ''}
+                                      placeholder={t.contributePlayerPlaceholder}
+                                      onChange={(event) =>
+                                        handlePlayerChange(
+                                          result.id,
+                                          runIndex,
+                                          playerIndex,
+                                          event.target.value,
+                                        )
+                                      }
+                                    />
+                                    {slot.playerId ? (
+                                      <span className="contribute-player-id">
+                                        {typeof t.contributeKnownPlayer === 'function'
+                                          ? t.contributeKnownPlayer(slot.playerId)
+                                          : `ID: ${slot.playerId}`}
+                                      </span>
+                                    ) : null}
+                                    {suggestionLabel && slot.status !== 'success' ? (
+                                      <div className="contribute-player-suggestion">
+                                        <p className="form-hint">{suggestionLabel}</p>
+                                        <button
+                                          type="button"
+                                          className="status-action"
+                                          onClick={() =>
+                                            handlePlayerApplySuggestion(
+                                              result.id,
+                                              runIndex,
+                                              playerIndex,
+                                            )
+                                          }
+                                        >
+                                          {suggestionActionLabel}
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                    {slot.status === 'warning' && slot.value && slot.value.trim() ? (
+                                      <button
+                                        type="button"
+                                        className="status-action"
+                                        onClick={() =>
+                                          handlePlayerConfirm(result.id, runIndex, playerIndex)
+                                        }
+                                        disabled={slot.confirmed}
+                                      >
+                                        {slot.confirmed
+                                          ? t.contributeWarningConfirmed
+                                          : t.contributeWarningConfirm}
+                                      </button>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </article>
+                      );
+                    })}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
