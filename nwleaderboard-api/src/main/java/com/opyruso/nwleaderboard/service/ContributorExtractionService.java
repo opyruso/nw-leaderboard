@@ -58,7 +58,7 @@ public class ContributorExtractionService {
     private static final int EXPECTED_HEIGHT = 1440;
     private static final int MAX_UPLOADS = 12;
 
-    private static final Rectangle DUNGEON_AREA = new Rectangle(700, 230, 1035, 50);
+    private static final Rectangle DUNGEON_AREA = new Rectangle(695, 225, 1040, 60);
     private static final Rectangle MODE_AREA = new Rectangle(700, 300, 340, 40);
     private static final Rectangle WEEK_AREA = new Rectangle(2030, 790, 260, 30);
     private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
