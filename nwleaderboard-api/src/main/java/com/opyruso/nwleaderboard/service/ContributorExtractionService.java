@@ -27,7 +27,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,7 +57,7 @@ public class ContributorExtractionService {
     private static final int EXPECTED_HEIGHT = 1440;
     private static final int MAX_UPLOADS = 12;
 
-    private static final Rectangle DUNGEON_AREA = new Rectangle(695, 225, 1040, 60);
+    private static final Rectangle DUNGEON_AREA = new Rectangle(675, 215, 1060, 70);
     private static final Rectangle MODE_AREA = new Rectangle(700, 300, 340, 40);
     private static final Rectangle WEEK_AREA = new Rectangle(2030, 790, 260, 30);
     private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
@@ -293,7 +292,8 @@ public class ContributorExtractionService {
         return buildField(ocr, normalized, null, id, status, exists, details);
     }
 
-    private ContributionFieldExtractionDto buildPlayerField(OcrResult ocr, String normalized, Player existing) {
+    private ContributionFieldExtractionDto buildPlayerField(OcrResult ocr, String normalized, Player existing,
+            Player suggestion) {
         LinkedHashMap<String, Object> details = new LinkedHashMap<>();
         Long playerId = null;
         String status = null;
@@ -307,8 +307,31 @@ public class ContributorExtractionService {
         } else if (normalized != null && !normalized.isBlank()) {
             status = "warning";
             alreadyExists = Boolean.FALSE;
+            Map<String, Object> suggestionDetails = buildPlayerSuggestionDetails(suggestion);
+            if (suggestionDetails != null && !suggestionDetails.isEmpty()) {
+                details.put("suggestion", suggestionDetails);
+            }
         }
         return buildField(ocr, normalized, null, playerId, status, alreadyExists, details);
+    }
+
+    private Map<String, Object> buildPlayerSuggestionDetails(Player suggestion) {
+        if (suggestion == null) {
+            return null;
+        }
+        LinkedHashMap<String, Object> suggestionDetails = new LinkedHashMap<>();
+        Long suggestedId = suggestion.getId();
+        if (suggestedId != null) {
+            suggestionDetails.put("id", suggestedId);
+        }
+        String suggestedName = suggestion.getPlayerName();
+        if (suggestedName != null) {
+            String trimmed = suggestedName.strip();
+            if (!trimmed.isEmpty()) {
+                suggestionDetails.put("name", trimmed);
+            }
+        }
+        return suggestionDetails.isEmpty() ? null : Map.copyOf(suggestionDetails);
     }
 
     private ContributionFieldExtractionDto buildValueField(OcrResult ocr, ContributionMode mode, Integer score, Integer time) {
@@ -598,12 +621,72 @@ public class ContributorExtractionService {
         return cleaned.isEmpty() ? null : cleaned;
     }
 
-    private Player findExistingPlayer(String cleaned) {
-        if (cleaned == null || cleaned.isBlank()) {
+    private Player findExistingPlayer(String cleaned, Map<String, Player> knownPlayers) {
+        if (cleaned == null || knownPlayers == null || knownPlayers.isEmpty()) {
             return null;
         }
-        Optional<Player> existing = playerRepository.findByPlayerNameIgnoreCase(cleaned);
-        return existing.orElse(null);
+        String lookupKey = normalisePlayerLookupKey(cleaned);
+        if (lookupKey == null) {
+            return null;
+        }
+        return knownPlayers.get(lookupKey);
+    }
+
+    private Map<String, Player> indexPlayersByName(List<Player> players) {
+        if (players == null || players.isEmpty()) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Player> indexed = new LinkedHashMap<>();
+        for (Player player : players) {
+            if (player == null) {
+                continue;
+            }
+            String lookup = normalisePlayerLookupKey(player.getPlayerName());
+            if (lookup == null || indexed.containsKey(lookup)) {
+                continue;
+            }
+            indexed.put(lookup, player);
+        }
+        return indexed;
+    }
+
+    private String normalisePlayerLookupKey(String name) {
+        if (name == null) {
+            return null;
+        }
+        String trimmed = name.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private Player findPlayerSuggestion(String normalized, List<Player> knownPlayers) {
+        if (knownPlayers == null || knownPlayers.isEmpty()) {
+            return null;
+        }
+        String baseName = normalisePlayerName(normalized);
+        if (baseName == null) {
+            return null;
+        }
+        String base = baseName.toUpperCase(Locale.ROOT);
+        Player bestMatch = null;
+        double bestScore = -1.0d;
+        for (Player candidate : knownPlayers) {
+            if (candidate == null) {
+                continue;
+            }
+            String candidateName = normalisePlayerName(candidate.getPlayerName());
+            if (candidateName == null) {
+                continue;
+            }
+            double score = similarity.apply(base, candidateName.toUpperCase(Locale.ROOT));
+            if (score > bestScore) {
+                bestScore = score;
+                bestMatch = candidate;
+            }
+        }
+        return bestMatch;
     }
 
     private String formatTimeValue(Integer timeInSeconds) {
@@ -661,6 +744,8 @@ public class ContributorExtractionService {
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
             ContributionMode declaredMode, int expectedPlayerCount) {
         List<ContributionRunExtractionDto> result = new ArrayList<>();
+        List<Player> knownPlayers = playerRepository.listAll();
+        Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
         int slotCount = clampPlayerSlotCount(expectedPlayerCount);
 
         for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
@@ -674,8 +759,12 @@ public class ContributorExtractionService {
                 OcrResult playerOcr = runOcr(originalImage, preparedImage, playerRect, TessPageSegMode.PSM_SINGLE_LINE,
                         null);
                 String cleaned = normalisePlayerName(playerOcr.text());
-                Player existing = findExistingPlayer(cleaned);
-                playerFields.add(buildPlayerField(playerOcr, cleaned, existing));
+                Player existing = findExistingPlayer(cleaned, knownPlayersByName);
+                Player suggestion = null;
+                if (existing == null) {
+                    suggestion = findPlayerSuggestion(cleaned, knownPlayers);
+                }
+                playerFields.add(buildPlayerField(playerOcr, cleaned, existing, suggestion));
             }
 
             Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
