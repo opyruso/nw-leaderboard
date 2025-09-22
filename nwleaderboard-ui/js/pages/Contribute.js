@@ -142,14 +142,15 @@ function sameName(a, b) {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
-function getStatusClass(status) {
+function getStatusClass(status, confirmed = false) {
   if (!status) {
     return '';
   }
-  if (status.toLowerCase() === 'warning') {
-    return 'status-warning';
+  const normalized = status.toLowerCase();
+  if (normalized === 'warning') {
+    return confirmed ? 'status-success' : 'status-warning';
   }
-  if (status.toLowerCase() === 'success') {
+  if (normalized === 'success') {
     return 'status-success';
   }
   return '';
@@ -746,6 +747,12 @@ export default function Contribute() {
 
   const resolvedError = errorText || (errorKey && t[errorKey] ? t[errorKey] : '');
   const resolvedMessage = messageText || (messageKey && t[messageKey] ? t[messageKey] : '');
+  const weekStatusClass = getStatusClass(contextFields.weekField.status, contextFields.weekField.confirmed);
+  const dungeonStatusClass = getStatusClass(
+    contextFields.dungeonField.status,
+    contextFields.dungeonField.confirmed,
+  );
+  const modeStatusClass = getStatusClass(contextFields.modeField.status, contextFields.modeField.confirmed);
 
   return (
     <main className="page" aria-labelledby="contribute-title">
@@ -799,7 +806,7 @@ export default function Contribute() {
         <section className="form contribute-context" aria-live="polite">
           <h2 className="contribute-section-title">{t.contributeContextTitle}</h2>
           <div className="contribute-context-grid">
-            <div className={`contribute-context-item ${getStatusClass(contextFields.weekField.status)}`}>
+            <div className={`contribute-context-item ${weekStatusClass}`}>
               <span className="contribute-context-label">{t.contributeWeek}</span>
               {contextFields.weekField.crop ? (
                 <img
@@ -820,7 +827,7 @@ export default function Contribute() {
                 onChange={(event) => handleContextWeekChange(event.target.value)}
               />
             </div>
-            <div className={`contribute-context-item ${getStatusClass(contextFields.dungeonField.status)}`}>
+            <div className={`contribute-context-item ${dungeonStatusClass}`}>
               <span className="contribute-context-label">{t.contributeDungeon}</span>
               {contextFields.dungeonField.crop ? (
                 <img
@@ -868,7 +875,7 @@ export default function Contribute() {
                 </button>
               ) : null}
             </div>
-            <div className={`contribute-context-item ${getStatusClass(contextFields.modeField.status)}`}>
+            <div className={`contribute-context-item ${modeStatusClass}`}>
               <span className="contribute-context-label">{t.contributeMode}</span>
               {contextFields.modeField.crop ? (
                 <img
@@ -944,7 +951,9 @@ export default function Contribute() {
                   (run.score && run.score !== '') ||
                   (run.time && run.time !== ''),
               );
-              const valueStatusClass = hasValueField ? getStatusClass(run.valueField.status) : '';
+              const valueStatusClass = hasValueField
+                ? getStatusClass(run.valueField.status, run.valueField.confirmed)
+                : '';
               return (
                 <article key={run.id} className="contribute-run">
                   <header className="contribute-run-header">
@@ -1021,7 +1030,7 @@ export default function Contribute() {
                       {run.playerSlots.map((slot, playerIndex) => (
                         <li
                           key={slot.key || playerIndex}
-                          className={`contribute-player-slot ${getStatusClass(slot.status)}`}
+                          className={`contribute-player-slot ${getStatusClass(slot.status, slot.confirmed)}`}
                         >
                           {slot.crop ? (
                             <img
