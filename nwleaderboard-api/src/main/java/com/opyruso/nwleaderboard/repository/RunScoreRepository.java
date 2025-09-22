@@ -27,4 +27,19 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
                 .page(Page.ofSize(limit))
                 .list();
     }
+
+    /**
+     * Finds runs matching the provided dungeon, week and score.
+     *
+     * @param dungeonId identifier of the dungeon
+     * @param week week of the run
+     * @param score achieved score
+     * @return list of matching runs or an empty list when no run matches the criteria
+     */
+    public List<RunScore> listByDungeonWeekAndScore(Long dungeonId, Integer week, Integer score) {
+        if (dungeonId == null || week == null || score == null) {
+            return List.of();
+        }
+        return find("dungeon.id = ?1 AND week = ?2 AND score = ?3", dungeonId, week, score).list();
+    }
 }

@@ -63,9 +63,9 @@ public class ContributorExtractionService {
     private static final Rectangle WEEK_AREA = new Rectangle(2030, 790, 260, 30);
     private static final Rectangle SCORE_AREA = new Rectangle(1630, 420, 250, 100);
     private static final int PLAYER_BOX_WIDTH = 330;
-    private static final int PLAYER_BOX_HEIGHT = 37;
+    private static final int PLAYER_BOX_HEIGHT = 38;
     private static final int PLAYER_ROW_STEP = 134;
-    private static final int PLAYER_VERTICAL_OFFSET = -1;
+    private static final int PLAYER_VERTICAL_OFFSET = -3;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
