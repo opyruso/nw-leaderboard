@@ -685,24 +685,20 @@ public class ContributorExtractionService {
             LOG.debugf(e, "Unable to run OCR on area %s", bounded);
         }
 
-        try {
-            List<Word> words = tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_WORD);
-            if (words != null && !words.isEmpty()) {
-                double sum = 0d;
-                int count = 0;
-                for (Word word : words) {
-                    float wordConfidence = word.getConfidence();
-                    if (!Float.isNaN(wordConfidence) && wordConfidence >= 0) {
-                        sum += wordConfidence;
-                        count++;
-                    }
-                }
-                if (count > 0) {
-                    confidence = sum / count;
+        List<Word> words = tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_WORD);
+        if (words != null && !words.isEmpty()) {
+            double sum = 0d;
+            int count = 0;
+            for (Word word : words) {
+                float wordConfidence = word.getConfidence();
+                if (!Float.isNaN(wordConfidence) && wordConfidence >= 0) {
+                    sum += wordConfidence;
+                    count++;
                 }
             }
-        } catch (TesseractException e) {
-            LOG.debugf(e, "Unable to retrieve OCR confidence for area %s", bounded);
+            if (count > 0) {
+                confidence = sum / count;
+            }
         }
 
         if (text != null) {
