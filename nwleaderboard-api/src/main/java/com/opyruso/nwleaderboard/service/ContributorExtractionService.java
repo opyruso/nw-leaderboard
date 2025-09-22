@@ -63,7 +63,7 @@ public class ContributorExtractionService {
     private static final int PLAYER_BOX_WIDTH = 330;
     private static final int PLAYER_BOX_HEIGHT = 37;
     private static final int PLAYER_ROW_STEP = 134;
-    private static final int PLAYER_VERTICAL_OFFSET = 1;
+    private static final int PLAYER_VERTICAL_OFFSET = -1;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
