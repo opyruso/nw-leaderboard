@@ -56,6 +56,7 @@ const en = {
   contributePlayerSlotLabel: (slot) => `Player ${slot}`,
   contributeDetectedText: (text) => `OCR: ${text}`,
   contributeDetectedEmpty: 'OCR: —',
+  contributeConfidence: (value) => `Confidence: ${value}%`,
   contributeWarningConfirm: 'Mark as reviewed',
   contributeWarningConfirmed: 'Reviewed',
   contributeValueNeedsReview: 'Review the detected value before submitting.',

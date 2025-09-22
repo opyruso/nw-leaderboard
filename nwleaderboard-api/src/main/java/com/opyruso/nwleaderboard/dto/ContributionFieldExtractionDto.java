@@ -14,6 +14,7 @@ public record ContributionFieldExtractionDto(
         @JsonProperty("number") Integer number,
         @JsonProperty("id") Long id,
         @JsonProperty("crop") String crop,
+        @JsonProperty("confidence") Double confidence,
         @JsonProperty("status") String status,
         @JsonProperty("already_exists") Boolean alreadyExists,
         @JsonProperty("details") Map<String, Object> details) {

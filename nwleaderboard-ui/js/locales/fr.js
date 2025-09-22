@@ -57,6 +57,7 @@ const fr = {
   contributePlayerSlotLabel: (slot) => `Joueur ${slot}`,
   contributeDetectedText: (text) => `OCR : ${text}`,
   contributeDetectedEmpty: 'OCR : —',
+  contributeConfidence: (value) => `Confiance OCR : ${value}%`,
   contributeWarningConfirm: 'Marquer comme vérifié',
   contributeWarningConfirmed: 'Vérifié',
   contributeValueNeedsReview: 'Validez le score ou le temps avant l’envoi.',

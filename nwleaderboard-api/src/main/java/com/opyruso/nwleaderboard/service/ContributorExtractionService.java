@@ -291,7 +291,7 @@ public class ContributorExtractionService {
             String status, Boolean alreadyExists, Map<String, Object> details) {
         Map<String, Object> safeDetails = sanitiseDetails(details);
         if (ocr == null) {
-            return new ContributionFieldExtractionDto(null, normalized, number, id, null, status, alreadyExists,
+            return new ContributionFieldExtractionDto(null, normalized, number, id, null, null, status, alreadyExists,
                     safeDetails);
         }
         String text = ocr.text();
@@ -301,8 +301,17 @@ public class ContributorExtractionService {
                 text = null;
             }
         }
+        Double confidence = normaliseConfidence(ocr.confidence());
         return new ContributionFieldExtractionDto(text, normalized, number, id, encodeToDataUrl(ocr.preprocessed()),
-                status, alreadyExists, safeDetails);
+                confidence, status, alreadyExists, safeDetails);
+    }
+
+    private Double normaliseConfidence(Double confidence) {
+        if (confidence == null || confidence.isNaN()) {
+            return null;
+        }
+        double clamped = Math.max(0.0d, Math.min(100.0d, confidence));
+        return Math.round(clamped * 10.0d) / 10.0d;
     }
 
     private Map<String, Object> sanitiseDetails(Map<String, Object> details) {
@@ -331,14 +340,14 @@ public class ContributorExtractionService {
         while (rows.size() < RUNS_PER_IMAGE) {
             List<ContributionFieldExtractionDto> emptyPlayers = new ArrayList<>(slotCount);
             for (int i = 0; i < slotCount; i++) {
-                emptyPlayers.add(new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null));
+                emptyPlayers.add(new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null));
             }
             rows.add(new ContributionRunExtractionDto(
                     index.incrementAndGet(),
                     null,
                     null,
                     null,
-                    new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null),
+                    new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null),
                     emptyPlayers,
                     slotCount));
         }
@@ -643,7 +652,7 @@ public class ContributorExtractionService {
         BufferedImage reference = preparedImage != null ? preparedImage : originalImage;
         Rectangle bounded = clampToImage(area, reference);
         if (bounded.width <= 0 || bounded.height <= 0) {
-            return new OcrResult(bounded, null, null, null);
+            return new OcrResult(bounded, null, null, null, null);
         }
 
         BufferedImage originalRegion = originalImage != null ? crop(originalImage, bounded) : null;
@@ -654,7 +663,7 @@ public class ContributorExtractionService {
             baseRegion = originalRegion;
         }
         if (baseRegion == null) {
-            return new OcrResult(bounded, originalRegion, null, null);
+            return new OcrResult(bounded, originalRegion, null, null, null);
         }
 
         BufferedImage preprocessed = preprocessForOcr(baseRegion);
@@ -667,10 +676,16 @@ public class ContributorExtractionService {
         tesseract.setTessVariable("tessedit_char_whitelist", whitelist != null ? whitelist : DEFAULT_WHITELIST);
 
         String text = null;
+        Double confidence = null;
         try {
             text = tesseract.doOCR(preprocessed);
         } catch (TesseractException e) {
             LOG.debugf(e, "Unable to run OCR on area %s", bounded);
+        }
+
+        int meanConfidence = tesseract.getMeanConfidence();
+        if (meanConfidence >= 0) {
+            confidence = (double) meanConfidence;
         }
 
         if (text != null) {
@@ -680,7 +695,7 @@ public class ContributorExtractionService {
             }
         }
 
-        return new OcrResult(bounded, originalRegion, preprocessed, text);
+        return new OcrResult(bounded, originalRegion, preprocessed, text, confidence);
     }
 
     private Tesseract createEngine() {
@@ -826,7 +841,8 @@ public class ContributorExtractionService {
     private record DungeonMatch(Dungeon dungeon, String displayName) {
     }
 
-    private record OcrResult(Rectangle area, BufferedImage original, BufferedImage preprocessed, String text) {
+    private record OcrResult(Rectangle area, BufferedImage original, BufferedImage preprocessed, String text,
+            Double confidence) {
     }
 
     /**

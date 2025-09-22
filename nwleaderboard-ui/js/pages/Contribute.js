@@ -40,6 +40,26 @@ function formatTime(seconds) {
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+function normaliseConfidenceValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  const clamped = Math.max(0, Math.min(100, parsed));
+  const rounded = Math.round(clamped * 10) / 10;
+  if (!Number.isFinite(rounded)) {
+    return null;
+  }
+  const asInteger = Math.round(rounded);
+  if (Math.abs(rounded - asInteger) < 0.05) {
+    return asInteger;
+  }
+  return rounded;
+}
+
 function normaliseField(field) {
   if (!field || typeof field !== 'object') {
     return {
@@ -48,6 +68,7 @@ function normaliseField(field) {
       number: null,
       id: null,
       crop: '',
+      confidence: null,
       status: '',
       alreadyExists: null,
       details: null,
@@ -78,6 +99,7 @@ function normaliseField(field) {
   }
   const crop = typeof field.crop === 'string' ? field.crop : '';
   const status = typeof field.status === 'string' ? field.status.trim().toLowerCase() : '';
+  const confidence = normaliseConfidenceValue(field.confidence);
   let alreadyExists = null;
   if (typeof field.already_exists === 'boolean') {
     alreadyExists = field.already_exists;
@@ -97,7 +119,7 @@ function normaliseField(field) {
     }
   }
   const confirmed = status === 'warning' ? false : true;
-  return { text, normalized, number, id, crop, status, alreadyExists, details, confirmed };
+  return { text, normalized, number, id, crop, confidence, status, alreadyExists, details, confirmed };
 }
 
 function createEmptyContext() {
@@ -177,6 +199,7 @@ function createPlayerSlot(field, runIndex, slotIndex, seed) {
     confirmed: normalizedField.confirmed,
     details,
     crop: normalizedField.crop,
+    confidence: normalizedField.confidence,
   };
 }
 
@@ -273,6 +296,24 @@ export default function Contribute() {
   const [dungeons, setDungeons] = React.useState([]);
   const [loadingDungeons, setLoadingDungeons] = React.useState(false);
   const [dungeonError, setDungeonError] = React.useState(false);
+
+  const getConfidenceLabel = React.useCallback(
+    (confidence) => {
+      const normalized = normaliseConfidenceValue(confidence);
+      if (!Number.isFinite(normalized)) {
+        return '';
+      }
+      const formatted = Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(1);
+      if (typeof t.contributeConfidence === 'function') {
+        return t.contributeConfidence(formatted);
+      }
+      if (typeof t.contributeConfidence === 'string') {
+        return `${t.contributeConfidence}: ${formatted}%`;
+      }
+      return `Confidence: ${formatted}%`;
+    },
+    [t],
+  );
 
   const resetFeedback = React.useCallback(() => {
     setMessageKey('');
@@ -753,6 +794,9 @@ export default function Contribute() {
     contextFields.dungeonField.confirmed,
   );
   const modeStatusClass = getStatusClass(contextFields.modeField.status, contextFields.modeField.confirmed);
+  const weekConfidenceLabel = getConfidenceLabel(contextFields.weekField.confidence);
+  const dungeonConfidenceLabel = getConfidenceLabel(contextFields.dungeonField.confidence);
+  const modeConfidenceLabel = getConfidenceLabel(contextFields.modeField.confidence);
 
   return (
     <main className="page" aria-labelledby="contribute-title">
@@ -820,6 +864,9 @@ export default function Contribute() {
                   ? t.contributeDetectedText(contextFields.weekField.text)
                   : t.contributeDetectedEmpty}
               </p>
+              {weekConfidenceLabel ? (
+                <p className="contribute-confidence">{weekConfidenceLabel}</p>
+              ) : null}
               <input
                 type="number"
                 min="1"
@@ -841,6 +888,9 @@ export default function Contribute() {
                   ? t.contributeDetectedText(contextFields.dungeonField.text)
                   : t.contributeDetectedEmpty}
               </p>
+              {dungeonConfidenceLabel ? (
+                <p className="contribute-confidence">{dungeonConfidenceLabel}</p>
+              ) : null}
               <p className="contribute-context-info">
                 {typeof t.contributeDungeonExpectedPlayers === 'function'
                   ? t.contributeDungeonExpectedPlayers(contextFields.expectedPlayerCount)
@@ -889,6 +939,9 @@ export default function Contribute() {
                   ? t.contributeDetectedText(contextFields.modeField.text)
                   : t.contributeDetectedEmpty}
               </p>
+              {modeConfidenceLabel ? (
+                <p className="contribute-confidence">{modeConfidenceLabel}</p>
+              ) : null}
               <p className="contribute-context-mode">
                 {contextFields.mode === 'TIME'
                   ? t.contributeModeTime
@@ -954,6 +1007,7 @@ export default function Contribute() {
               const valueStatusClass = hasValueField
                 ? getStatusClass(run.valueField.status, run.valueField.confirmed)
                 : '';
+              const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
               return (
                 <article key={run.id} className="contribute-run">
                   <header className="contribute-run-header">
@@ -981,6 +1035,9 @@ export default function Contribute() {
                         ? t.contributeDetectedText(run.valueField.text)
                         : t.contributeDetectedEmpty}
                     </p>
+                    {valueConfidenceLabel ? (
+                      <p className="contribute-confidence">{valueConfidenceLabel}</p>
+                    ) : null}
                     {run.valueField.status === 'warning' && hasValueField ? (
                       <div className="contribute-field-warning">
                         <p className="form-hint">{t.contributeValueNeedsReview}</p>
@@ -1027,59 +1084,67 @@ export default function Contribute() {
                       <p className="form-hint">{t.contributePlayersHint}</p>
                     </div>
                     <ul className="contribute-player-grid">
-                      {run.playerSlots.map((slot, playerIndex) => (
-                        <li
-                          key={slot.key || playerIndex}
-                          className={`contribute-player-slot ${getStatusClass(slot.status, slot.confirmed)}`}
-                        >
-                          {slot.crop ? (
-                            <img
-                              className="contribute-crop-image"
-                              src={slot.crop}
-                              alt={t.contributePlayerSlotLabel(playerIndex + 1)}
-                            />
-                          ) : null}
-                          <p className="contribute-context-ocr">
-                            {slot.rawText
-                              ? t.contributeDetectedText(slot.rawText)
-                              : t.contributeDetectedEmpty}
-                          </p>
-                          {slot.status ? (
-                            <p className="contribute-player-status">
-                              {slot.status === 'success'
-                                ? t.contributePlayerExisting
-                                : t.contributePlayerNew}
+                      {run.playerSlots.map((slot, playerIndex) => {
+                        const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
+                        return (
+                          <li
+                            key={slot.key || playerIndex}
+                            className={`contribute-player-slot ${getStatusClass(slot.status, slot.confirmed)}`}
+                          >
+                            {slot.crop ? (
+                              <img
+                                className="contribute-crop-image"
+                                src={slot.crop}
+                                alt={t.contributePlayerSlotLabel(playerIndex + 1)}
+                              />
+                            ) : null}
+                            <p className="contribute-context-ocr">
+                              {slot.rawText
+                                ? t.contributeDetectedText(slot.rawText)
+                                : t.contributeDetectedEmpty}
                             </p>
-                          ) : null}
-                          <input
-                            type="text"
-                            value={slot.value || ''}
-                            placeholder={t.contributePlayerPlaceholder}
-                            onChange={(event) =>
-                              handlePlayerChange(runIndex, playerIndex, event.target.value)
-                            }
-                          />
-                          {slot.playerId ? (
-                            <span className="contribute-player-id">
-                              {typeof t.contributeKnownPlayer === 'function'
-                                ? t.contributeKnownPlayer(slot.playerId)
-                                : `ID: ${slot.playerId}`}
-                            </span>
-                          ) : null}
-                          {slot.status === 'warning' && slot.value && slot.value.trim() ? (
-                            <button
-                              type="button"
-                              className="status-action"
-                              onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
-                              disabled={slot.confirmed}
-                            >
-                              {slot.confirmed
-                                ? t.contributeWarningConfirmed
-                                : t.contributeWarningConfirm}
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
+                            {playerConfidenceLabel ? (
+                              <p className="contribute-confidence contribute-confidence--player">
+                                {playerConfidenceLabel}
+                              </p>
+                            ) : null}
+                            {slot.status ? (
+                              <p className="contribute-player-status">
+                                {slot.status === 'success'
+                                  ? t.contributePlayerExisting
+                                  : t.contributePlayerNew}
+                              </p>
+                            ) : null}
+                            <input
+                              type="text"
+                              value={slot.value || ''}
+                              placeholder={t.contributePlayerPlaceholder}
+                              onChange={(event) =>
+                                handlePlayerChange(runIndex, playerIndex, event.target.value)
+                              }
+                            />
+                            {slot.playerId ? (
+                              <span className="contribute-player-id">
+                                {typeof t.contributeKnownPlayer === 'function'
+                                  ? t.contributeKnownPlayer(slot.playerId)
+                                  : `ID: ${slot.playerId}`}
+                              </span>
+                            ) : null}
+                            {slot.status === 'warning' && slot.value && slot.value.trim() ? (
+                              <button
+                                type="button"
+                                className="status-action"
+                                onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
+                                disabled={slot.confirmed}
+                              >
+                                {slot.confirmed
+                                  ? t.contributeWarningConfirmed
+                                  : t.contributeWarningConfirm}
+                              </button>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 </article>
