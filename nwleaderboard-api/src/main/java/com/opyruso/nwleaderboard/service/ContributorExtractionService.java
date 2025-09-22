@@ -76,8 +76,6 @@ public class ContributorExtractionService {
     private static final int MAX_PLAYER_SLOTS = PLAYER_BASE_POSITIONS.size();
     private static final int CROP_UPSCALE_FACTOR = 4;
     private static final double GLOBAL_CONTRAST_FACTOR = 1.25d;
-    private static final double PLAYER_SUGGESTION_CONFIDENCE_THRESHOLD = 95.0d;
-    private static final double PLAYER_SUGGESTION_SIMILARITY_THRESHOLD = 0.85d;
 
     private static final String DEFAULT_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 _-:/().'";
 
@@ -673,7 +671,7 @@ public class ContributorExtractionService {
         }
         String base = baseName.toUpperCase(Locale.ROOT);
         Player bestMatch = null;
-        double bestScore = 0.0d;
+        double bestScore = -1.0d;
         for (Player candidate : knownPlayers) {
             if (candidate == null) {
                 continue;
@@ -688,10 +686,7 @@ public class ContributorExtractionService {
                 bestMatch = candidate;
             }
         }
-        if (bestMatch != null && bestScore >= PLAYER_SUGGESTION_SIMILARITY_THRESHOLD) {
-            return bestMatch;
-        }
-        return null;
+        return bestMatch;
     }
 
     private String formatTimeValue(Integer timeInSeconds) {
@@ -766,9 +761,7 @@ public class ContributorExtractionService {
                 String cleaned = normalisePlayerName(playerOcr.text());
                 Player existing = findExistingPlayer(cleaned, knownPlayersByName);
                 Player suggestion = null;
-                Double playerConfidence = normaliseConfidence(playerOcr.confidence());
-                if (existing == null && playerConfidence != null
-                        && playerConfidence < PLAYER_SUGGESTION_CONFIDENCE_THRESHOLD) {
+                if (existing == null) {
                     suggestion = findPlayerSuggestion(cleaned, knownPlayers);
                 }
                 playerFields.add(buildPlayerField(playerOcr, cleaned, existing, suggestion));
