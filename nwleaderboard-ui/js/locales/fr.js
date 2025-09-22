@@ -70,6 +70,8 @@ const fr = {
   contributePlayersExpected: (count) => `Joueurs (attendus ${count ?? '?'})`,
   contributePlayerExisting: 'Joueur existant détecté',
   contributePlayerNew: 'Nouveau joueur (sera créé)',
+  contributePlayerSuggestion: (name) => `Suggestion : ${name}`,
+  contributePlayerApplySuggestion: 'Appliquer la suggestion',
   contributeWarningsPending: 'Veuillez valider tous les avertissements avant l’envoi.',
   contributePlayerCountMismatch: 'Vérifiez le nombre de joueurs avant l’envoi.',
   language: 'Langue',

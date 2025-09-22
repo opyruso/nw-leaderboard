@@ -735,15 +735,24 @@ export default function Contribute() {
         const detailsName = slot.details && typeof slot.details.name === 'string' ? slot.details.name : '';
         const detailsId = slot.details && Number.isFinite(Number(slot.details.id)) ? Number(slot.details.id) : null;
         const matchesDetails = Boolean(detailsName) && sameName(detailsName, trimmed);
+        const suggestion =
+          slot.details && typeof slot.details.suggestion === 'object' ? slot.details.suggestion : null;
+        const suggestionName =
+          suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
+        const suggestionId =
+          suggestion && Number.isFinite(Number(suggestion.id)) ? Number(suggestion.id) : null;
+        const matchesSuggestion = Boolean(suggestionName) && sameName(suggestionName, trimmed);
         const matchesOriginal = sameName(slot.originalNormalized || '', trimmed);
         const playerId = matchesDetails
           ? (Number.isFinite(detailsId) ? detailsId : null)
+          : matchesSuggestion
+          ? (Number.isFinite(suggestionId) ? suggestionId : null)
           : matchesOriginal && Number.isFinite(slot.initialId)
           ? Number(slot.initialId)
           : null;
-        const status = trimmed ? (matchesDetails ? 'success' : 'warning') : '';
-        const alreadyExists = trimmed ? matchesDetails : null;
-        const confirmed = trimmed ? matchesDetails : true;
+        const status = trimmed ? (matchesDetails || matchesSuggestion ? 'success' : 'warning') : '';
+        const alreadyExists = trimmed ? matchesDetails || matchesSuggestion : null;
+        const confirmed = trimmed ? matchesDetails || matchesSuggestion : true;
         return {
           ...slot,
           value,
@@ -755,6 +764,25 @@ export default function Contribute() {
         };
       }),
     }));
+  };
+
+  const handlePlayerApplySuggestion = (runIndex, playerIndex) => {
+    const run = runs?.[runIndex];
+    if (!run) {
+      return;
+    }
+    const slot = Array.isArray(run.playerSlots) ? run.playerSlots[playerIndex] : null;
+    if (!slot) {
+      return;
+    }
+    const suggestion =
+      slot.details && typeof slot.details.suggestion === 'object' ? slot.details.suggestion : null;
+    const suggestionName =
+      suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
+    if (!suggestionName.trim()) {
+      return;
+    }
+    handlePlayerChange(runIndex, playerIndex, suggestionName);
   };
 
   const handleRunValueConfirm = (index) => {
@@ -1261,6 +1289,23 @@ export default function Contribute() {
                     <ul className="contribute-player-grid">
                       {run.playerSlots.map((slot, playerIndex) => {
                         const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
+                        const suggestion =
+                          slot.details && typeof slot.details.suggestion === 'object'
+                            ? slot.details.suggestion
+                            : null;
+                        const suggestionName =
+                          suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
+                        const suggestionLabel = suggestionName
+                          ? typeof t.contributePlayerSuggestion === 'function'
+                            ? t.contributePlayerSuggestion(suggestionName)
+                            : t.contributePlayerSuggestion
+                            ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
+                            : suggestionName
+                          : '';
+                        const suggestionActionLabel =
+                          typeof t.contributePlayerApplySuggestion === 'function'
+                            ? t.contributePlayerApplySuggestion(suggestionName)
+                            : t.contributePlayerApplySuggestion || 'Use suggestion';
                         return (
                           <li
                             key={slot.key || playerIndex}
@@ -1304,6 +1349,18 @@ export default function Contribute() {
                                   ? t.contributeKnownPlayer(slot.playerId)
                                   : `ID: ${slot.playerId}`}
                               </span>
+                            ) : null}
+                            {suggestionLabel && slot.status !== 'success' ? (
+                              <div className="contribute-player-suggestion">
+                                <p className="form-hint">{suggestionLabel}</p>
+                                <button
+                                  type="button"
+                                  className="status-action"
+                                  onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
+                                >
+                                  {suggestionActionLabel}
+                                </button>
+                              </div>
                             ) : null}
                             {slot.status === 'warning' && slot.value && slot.value.trim() ? (
                               <button

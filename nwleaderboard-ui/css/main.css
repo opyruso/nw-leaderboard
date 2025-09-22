@@ -623,6 +623,12 @@ body[data-theme='light'] .contribute-run {
   gap: 0.5rem;
 }
 
+.contribute-player-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .contribute-player-status {
   margin: 0;
   font-size: 0.9rem;

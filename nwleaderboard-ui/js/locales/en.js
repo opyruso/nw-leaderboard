@@ -69,6 +69,8 @@ const en = {
   contributePlayersExpected: (count) => `Players (expected ${count ?? '?'})`,
   contributePlayerExisting: 'Existing player detected',
   contributePlayerNew: 'New player (will be created)',
+  contributePlayerSuggestion: (name) => `Suggestion: ${name}`,
+  contributePlayerApplySuggestion: 'Apply suggestion',
   contributeWarningsPending: 'Please review all highlighted warnings before submitting.',
   contributePlayerCountMismatch: 'Verify the player count before submitting.',
   language: 'Language',
