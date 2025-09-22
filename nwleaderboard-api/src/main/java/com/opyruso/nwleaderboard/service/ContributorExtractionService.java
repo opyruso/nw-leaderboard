@@ -33,9 +33,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.sourceforge.tess4j.ITessAPI.TessOcrEngineMode;
+import net.sourceforge.tess4j.ITessAPI.TessPageIteratorLevel;
 import net.sourceforge.tess4j.ITessAPI.TessPageSegMode;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.TesseractException;
+import net.sourceforge.tess4j.Word;
 import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
@@ -683,9 +685,24 @@ public class ContributorExtractionService {
             LOG.debugf(e, "Unable to run OCR on area %s", bounded);
         }
 
-        int meanConfidence = tesseract.getMeanConfidence();
-        if (meanConfidence >= 0) {
-            confidence = (double) meanConfidence;
+        try {
+            List<Word> words = tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_WORD);
+            if (words != null && !words.isEmpty()) {
+                double sum = 0d;
+                int count = 0;
+                for (Word word : words) {
+                    float wordConfidence = word.getConfidence();
+                    if (!Float.isNaN(wordConfidence) && wordConfidence >= 0) {
+                        sum += wordConfidence;
+                        count++;
+                    }
+                }
+                if (count > 0) {
+                    confidence = sum / count;
+                }
+            }
+        } catch (TesseractException e) {
+            LOG.debugf(e, "Unable to retrieve OCR confidence for area %s", bounded);
         }
 
         if (text != null) {
