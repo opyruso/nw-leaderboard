@@ -84,6 +84,15 @@ public class ContributorSubmissionService {
             throw new ContributorSubmissionException("Unknown dungeon with id " + dungeonId);
         }
 
+        Integer expectedPlayerCount = dto.expectedPlayerCount();
+        if (expectedPlayerCount == null || expectedPlayerCount <= 0) {
+            throw new ContributorSubmissionException("Expected player count must be a positive integer");
+        }
+        Integer configuredCount = dungeon.getPlayerCount();
+        if (configuredCount != null && configuredCount > 0 && !configuredCount.equals(expectedPlayerCount)) {
+            throw new ContributorSubmissionException("Player count does not match dungeon configuration");
+        }
+
         Integer score = dto.score();
         Integer time = dto.time();
 
@@ -94,6 +103,11 @@ public class ContributorSubmissionService {
         List<ContributionPlayerDto> players = normalisePlayers(dto.players());
         if (players.isEmpty()) {
             throw new ContributorSubmissionException("At least one player is required for each run");
+        }
+
+        if (players.size() != expectedPlayerCount) {
+            throw new ContributorSubmissionException(
+                    "Run contains " + players.size() + " players but expected " + expectedPlayerCount);
         }
 
         if (score != null && score > 0) {

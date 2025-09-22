@@ -12,5 +12,6 @@ public record ContributionExtractionResponseDto(
         @JsonProperty("week") ContributionFieldExtractionDto week,
         @JsonProperty("dungeon") ContributionFieldExtractionDto dungeon,
         @JsonProperty("mode") ContributionFieldExtractionDto mode,
+        @JsonProperty("expected_player_count") Integer expectedPlayerCount,
         @JsonProperty("runs") List<ContributionRunExtractionDto> runs) {
 }

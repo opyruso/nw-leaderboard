@@ -4,7 +4,7 @@ const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\
 const MAX_FILES = 1;
 const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
-const PLAYER_SLOTS = 6;
+const DEFAULT_PLAYER_SLOTS = 6;
 const RUNS_PER_IMAGE = 5;
 
 function toLocaleHeader(lang) {
@@ -42,7 +42,17 @@ function formatTime(seconds) {
 
 function normaliseField(field) {
   if (!field || typeof field !== 'object') {
-    return { text: '', normalized: '', number: null, id: null, crop: '' };
+    return {
+      text: '',
+      normalized: '',
+      number: null,
+      id: null,
+      crop: '',
+      status: '',
+      alreadyExists: null,
+      details: null,
+      confirmed: true,
+    };
   }
   const text = typeof field.text === 'string' ? field.text.trim() : '';
   const normalized = typeof field.normalized === 'string' ? field.normalized.trim() : '';
@@ -67,7 +77,27 @@ function normaliseField(field) {
     }
   }
   const crop = typeof field.crop === 'string' ? field.crop : '';
-  return { text, normalized, number, id, crop };
+  const status = typeof field.status === 'string' ? field.status.trim().toLowerCase() : '';
+  let alreadyExists = null;
+  if (typeof field.already_exists === 'boolean') {
+    alreadyExists = field.already_exists;
+  } else if (typeof field.alreadyExists === 'boolean') {
+    alreadyExists = field.alreadyExists;
+  }
+  let details = null;
+  if (field.details && typeof field.details === 'object') {
+    details = {};
+    Object.entries(field.details).forEach(([key, value]) => {
+      if (key) {
+        details[key] = value;
+      }
+    });
+    if (!Object.keys(details).length) {
+      details = null;
+    }
+  }
+  const confirmed = status === 'warning' ? false : true;
+  return { text, normalized, number, id, crop, status, alreadyExists, details, confirmed };
 }
 
 function createEmptyContext() {
@@ -75,6 +105,7 @@ function createEmptyContext() {
     week: '',
     dungeon: '',
     mode: '',
+    expectedPlayerCount: DEFAULT_PLAYER_SLOTS,
     weekField: normaliseField(null),
     dungeonField: normaliseField(null),
     modeField: normaliseField(null),
@@ -90,10 +121,14 @@ function normaliseExtractionContext(data) {
   const week = toPositiveInteger(weekSource) ?? '';
   const dungeon = toPositiveInteger(dungeonSource) ?? '';
   const mode = (modeField.normalized || modeField.text || '').toUpperCase();
+  const responsePlayerCount = toPositiveInteger(data?.expected_player_count);
+  const dungeonDetailsCount = dungeonField.details && toPositiveInteger(dungeonField.details.player_count);
+  const expectedPlayerCount = responsePlayerCount ?? dungeonDetailsCount ?? DEFAULT_PLAYER_SLOTS;
   return {
     week,
     dungeon,
     mode,
+    expectedPlayerCount,
     weekField,
     dungeonField,
     modeField,
@@ -107,10 +142,26 @@ function sameName(a, b) {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+function getStatusClass(status) {
+  if (!status) {
+    return '';
+  }
+  if (status.toLowerCase() === 'warning') {
+    return 'status-warning';
+  }
+  if (status.toLowerCase() === 'success') {
+    return 'status-success';
+  }
+  return '';
+}
+
 function createPlayerSlot(field, runIndex, slotIndex, seed) {
   const normalizedField = normaliseField(field);
   const baseValue = normalizedField.normalized || normalizedField.text;
   const initialId = Number.isFinite(normalizedField.id) ? Number(normalizedField.id) : null;
+  const details = normalizedField.details ? { ...normalizedField.details } : null;
+  const status = normalizedField.status || '';
+  const alreadyExists = normalizedField.alreadyExists === true;
   return {
     key: `player-${seed}-${runIndex}-${slotIndex}-${Math.random().toString(36).slice(2, 8)}`,
     slotIndex,
@@ -120,6 +171,10 @@ function createPlayerSlot(field, runIndex, slotIndex, seed) {
     originalNormalized: normalizedField.normalized,
     initialId,
     playerId: initialId,
+    status,
+    alreadyExists,
+    confirmed: normalizedField.confirmed,
+    details,
     crop: normalizedField.crop,
   };
 }
@@ -127,15 +182,18 @@ function createPlayerSlot(field, runIndex, slotIndex, seed) {
 function buildRunsFromExtraction(data, context, seed = Date.now()) {
   const runsSource = Array.isArray(data?.runs) ? data.runs : [];
   const runs = [];
+  const defaultExpected = toPositiveInteger(context?.expectedPlayerCount) ?? DEFAULT_PLAYER_SLOTS;
   for (let index = 0; index < RUNS_PER_IMAGE; index += 1) {
     const runSource = runsSource[index] || {};
     const playersSource = Array.isArray(runSource.players) ? runSource.players : [];
-    const playerSlots = Array.from({ length: PLAYER_SLOTS }, (_, slotIndex) =>
+    const runExpected = toPositiveInteger(runSource?.expected_player_count) ?? defaultExpected;
+    const playerSlots = Array.from({ length: runExpected }, (_, slotIndex) =>
       createPlayerSlot(playersSource[slotIndex], index, slotIndex, seed),
     );
     const score = Number.isFinite(runSource?.score) ? Number(runSource.score) : null;
     const time = Number.isFinite(runSource?.time) ? Number(runSource.time) : null;
     const modeValue = typeof runSource?.mode === 'string' ? runSource.mode.toUpperCase() : '';
+    const valueField = normaliseField(runSource.value);
     runs.push({
       id: `run-${seed}-${index}`,
       index,
@@ -144,11 +202,28 @@ function buildRunsFromExtraction(data, context, seed = Date.now()) {
       score: score ?? '',
       time: time ?? '',
       mode: modeValue || context.mode || '',
-      valueField: normaliseField(runSource.value),
+      valueField,
       playerSlots,
+      expectedPlayerCount: runExpected,
     });
   }
   return runs;
+}
+
+function applyExpectedPlayerCountToRun(run, expectedCount, seed = Date.now()) {
+  const safeExpected = Number.isFinite(expectedCount) && expectedCount > 0 ? expectedCount : DEFAULT_PLAYER_SLOTS;
+  const existingSlots = Array.isArray(run?.playerSlots) ? run.playerSlots : [];
+  const trimmed = existingSlots.slice(0, safeExpected).map((slot, slotIndex) => ({
+    ...slot,
+    slotIndex,
+  }));
+  if (trimmed.length === safeExpected) {
+    return { ...run, expectedPlayerCount: safeExpected, playerSlots: trimmed };
+  }
+  const additions = Array.from({ length: safeExpected - trimmed.length }, (_, offset) =>
+    createPlayerSlot(null, run?.index ?? 0, trimmed.length + offset, seed),
+  );
+  return { ...run, expectedPlayerCount: safeExpected, playerSlots: trimmed.concat(additions) };
 }
 
 function readImageMeta(file) {
@@ -244,7 +319,8 @@ export default function Contribute() {
                   typeof item.name === 'string' && item.name.trim()
                     ? item.name.trim()
                     : String(identifier);
-                return { id: identifier, name: label };
+                const playerCount = Number.isFinite(item.player_count) ? Number(item.player_count) : null;
+                return { id: identifier, name: label, playerCount };
               })
               .filter(Boolean)
           : [];
@@ -386,14 +462,49 @@ export default function Contribute() {
 
   const handleContextDungeonChange = (value) => {
     const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
-    setContextFields((previous) => ({ ...previous, dungeon: resolved }));
-    setRuns((previous) => previous.map((run) => ({ ...run, dungeon: resolved })));
+    const selectedDungeon = dungeons.find((item) => String(item.id) === String(resolved));
+    const expectedFromSelection = Number.isFinite(selectedDungeon?.playerCount)
+      ? Number(selectedDungeon.playerCount)
+      : DEFAULT_PLAYER_SLOTS;
+    const timestamp = Date.now();
+    setContextFields((previous) => {
+      const currentDetails = previous.dungeonField.details ? { ...previous.dungeonField.details } : {};
+      if (expectedFromSelection) {
+        currentDetails.player_count = expectedFromSelection;
+      }
+      return {
+        ...previous,
+        dungeon: resolved,
+        expectedPlayerCount: expectedFromSelection,
+        dungeonField: {
+          ...previous.dungeonField,
+          status: resolved ? 'success' : previous.dungeonField.status,
+          confirmed: true,
+          details: Object.keys(currentDetails).length ? currentDetails : null,
+        },
+      };
+    });
+    setRuns((previous) =>
+      previous.map((run) =>
+        applyExpectedPlayerCountToRun(
+          {
+            ...run,
+            dungeon: resolved,
+          },
+          expectedFromSelection,
+          timestamp,
+        ),
+      ),
+    );
   };
 
   const handleScoreChange = (index, value) => {
     updateRun(index, (run) => ({
       ...run,
       score: value === '' ? '' : toPositiveInteger(value) ?? '',
+      valueField: run.valueField
+        ? { ...run.valueField, confirmed: false, status: 'warning' }
+        : run.valueField,
     }));
   };
 
@@ -401,27 +512,93 @@ export default function Contribute() {
     updateRun(index, (run) => ({
       ...run,
       time: value === '' ? '' : toPositiveInteger(value) ?? '',
+      valueField: run.valueField
+        ? { ...run.valueField, confirmed: false, status: 'warning' }
+        : run.valueField,
     }));
   };
 
   const handlePlayerChange = (runIndex, playerIndex, value) => {
     updateRun(runIndex, (run) => ({
       ...run,
+      playerSlots: run.playerSlots.map((slot, currentIndex) => {
+        if (currentIndex !== playerIndex) {
+          return slot;
+        }
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        const detailsName = slot.details && typeof slot.details.name === 'string' ? slot.details.name : '';
+        const detailsId = slot.details && Number.isFinite(Number(slot.details.id)) ? Number(slot.details.id) : null;
+        const matchesDetails = Boolean(detailsName) && sameName(detailsName, trimmed);
+        const matchesOriginal = sameName(slot.originalNormalized || '', trimmed);
+        const playerId = matchesDetails
+          ? (Number.isFinite(detailsId) ? detailsId : null)
+          : matchesOriginal && Number.isFinite(slot.initialId)
+          ? Number(slot.initialId)
+          : null;
+        const status = trimmed ? (matchesDetails ? 'success' : 'warning') : '';
+        const alreadyExists = trimmed ? matchesDetails : null;
+        const confirmed = trimmed ? matchesDetails : true;
+        return {
+          ...slot,
+          value,
+          normalized: trimmed,
+          playerId,
+          status,
+          alreadyExists,
+          confirmed,
+        };
+      }),
+    }));
+  };
+
+  const handleRunValueConfirm = (index) => {
+    updateRun(index, (run) => ({
+      ...run,
+      valueField: run.valueField ? { ...run.valueField, confirmed: true } : run.valueField,
+    }));
+  };
+
+  const handlePlayerConfirm = (runIndex, playerIndex) => {
+    updateRun(runIndex, (run) => ({
+      ...run,
       playerSlots: run.playerSlots.map((slot, currentIndex) =>
         currentIndex === playerIndex
           ? {
               ...slot,
-              value,
-              playerId: sameName(slot.originalNormalized || '', value || '') ? slot.initialId : null,
+              confirmed: true,
             }
           : slot,
       ),
     }));
   };
 
+  const handleContextFieldConfirm = (fieldKey) => {
+    setContextFields((previous) => {
+      if (!previous || !previous[fieldKey]) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [fieldKey]: {
+          ...previous[fieldKey],
+          confirmed: true,
+        },
+      };
+    });
+  };
+
+  const handleRemoveRun = (index) => {
+    const confirmationMessage = t.contributeRunRemoveConfirm || 'Remove this run?';
+    if (!window.confirm(confirmationMessage)) {
+      return;
+    }
+    setRuns((previous) => previous.filter((_, currentIndex) => currentIndex !== index));
+  };
+
   const handleSubmit = async () => {
     resetFeedback();
-    if (!runs.length) {
+    const runsWithContent = runs.filter((run) => hasRunContent(run));
+    if (!runsWithContent.length) {
       setErrorKey('contributeNoResults');
       return;
     }
@@ -429,11 +606,24 @@ export default function Contribute() {
       setErrorText('Missing API configuration.');
       return;
     }
-    const payload = runs.map((run) => {
+
+    const unresolvedContextWarnings = ['dungeonField', 'modeField'].some((fieldKey) => {
+      const field = contextFields?.[fieldKey];
+      return field && field.status === 'warning' && !field.confirmed;
+    });
+    if (unresolvedContextWarnings) {
+      setErrorKey('contributeWarningsPending');
+      return;
+    }
+
+    const preparedRuns = runsWithContent.map((run) => {
       const week = toPositiveInteger(run.week);
       const dungeon = toPositiveInteger(run.dungeon);
       const score = toPositiveInteger(run.score);
       const time = toPositiveInteger(run.time);
+      const expectedCount = Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
+        ? run.expectedPlayerCount
+        : contextFields.expectedPlayerCount || DEFAULT_PLAYER_SLOTS;
       const seen = new Set();
       const players = run.playerSlots
         .map((slot) => {
@@ -446,36 +636,74 @@ export default function Contribute() {
             return null;
           }
           seen.add(key);
-          const id = sameName(slot.originalNormalized || '', name) ? slot.initialId : null;
+          const id = Number.isFinite(slot.playerId) ? Number(slot.playerId) : null;
           return {
             player_name: name,
-            id_player: Number.isFinite(id) ? id : null,
+            id_player: id,
           };
         })
         .filter(Boolean);
       return {
+        run,
         week,
         dungeon,
         score,
         time,
         players,
+        expectedPlayerCount: expectedCount,
       };
     });
 
-    const invalid = payload.some((item) => {
-      if (!item.week || !item.dungeon) {
+    const invalid = preparedRuns.some(({ week, dungeon, score, time, players }) => {
+      if (!week || !dungeon) {
         return true;
       }
-      const hasValue = (item.score && item.score > 0) || (item.time && item.time > 0);
+      const hasValue = (score && score > 0) || (time && time > 0);
       if (!hasValue) {
         return true;
       }
-      return !item.players.length;
+      return !players.length;
     });
     if (invalid) {
       setErrorKey('contributeValidationError');
       return;
     }
+
+    const countMismatch = preparedRuns.some(({ players, expectedPlayerCount }) => players.length !== expectedPlayerCount);
+    if (countMismatch) {
+      setErrorKey('contributePlayerCountMismatch');
+      return;
+    }
+
+    const unresolvedRunWarnings = preparedRuns.some(({ run }) => {
+      const hasValueField = Boolean(
+        (run.valueField?.text && run.valueField.text.trim()) ||
+          (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+          (run.score && run.score !== '') ||
+          (run.time && run.time !== ''),
+      );
+      const valueWarning = Boolean(
+        run.valueField && run.valueField.status === 'warning' && !run.valueField.confirmed && hasValueField,
+      );
+      const playerWarning = run.playerSlots.some((slot) => {
+        const name = typeof slot.value === 'string' ? slot.value.trim() : '';
+        return slot.status === 'warning' && name && !slot.confirmed;
+      });
+      return valueWarning || playerWarning;
+    });
+    if (unresolvedRunWarnings) {
+      setErrorKey('contributeWarningsPending');
+      return;
+    }
+
+    const payload = preparedRuns.map(({ week, dungeon, score, time, players, expectedPlayerCount }) => ({
+      week,
+      dungeon,
+      score,
+      time,
+      expected_player_count: expectedPlayerCount,
+      players,
+    }));
 
     setStatus('submitting');
     try {
@@ -571,7 +799,7 @@ export default function Contribute() {
         <section className="form contribute-context" aria-live="polite">
           <h2 className="contribute-section-title">{t.contributeContextTitle}</h2>
           <div className="contribute-context-grid">
-            <div className="contribute-context-item">
+            <div className={`contribute-context-item ${getStatusClass(contextFields.weekField.status)}`}>
               <span className="contribute-context-label">{t.contributeWeek}</span>
               {contextFields.weekField.crop ? (
                 <img
@@ -592,7 +820,7 @@ export default function Contribute() {
                 onChange={(event) => handleContextWeekChange(event.target.value)}
               />
             </div>
-            <div className="contribute-context-item">
+            <div className={`contribute-context-item ${getStatusClass(contextFields.dungeonField.status)}`}>
               <span className="contribute-context-label">{t.contributeDungeon}</span>
               {contextFields.dungeonField.crop ? (
                 <img
@@ -606,6 +834,16 @@ export default function Contribute() {
                   ? t.contributeDetectedText(contextFields.dungeonField.text)
                   : t.contributeDetectedEmpty}
               </p>
+              <p className="contribute-context-info">
+                {typeof t.contributeDungeonExpectedPlayers === 'function'
+                  ? t.contributeDungeonExpectedPlayers(contextFields.expectedPlayerCount)
+                  : `${t.contributePlayers}: ${contextFields.expectedPlayerCount}`}
+              </p>
+              {contextFields.dungeonField.status === 'warning' ? (
+                <p className="contribute-context-warning">
+                  {t.contributeDungeonMissing || ''}
+                </p>
+              ) : null}
               <select
                 value={contextFields.dungeon === '' ? '' : String(contextFields.dungeon)}
                 onChange={(event) => handleContextDungeonChange(event.target.value)}
@@ -617,8 +855,20 @@ export default function Contribute() {
                   </option>
                 ))}
               </select>
+              {contextFields.dungeonField.status === 'warning' ? (
+                <button
+                  type="button"
+                  className="status-action"
+                  onClick={() => handleContextFieldConfirm('dungeonField')}
+                  disabled={contextFields.dungeonField.confirmed}
+                >
+                  {contextFields.dungeonField.confirmed
+                    ? t.contributeWarningConfirmed
+                    : t.contributeWarningConfirm}
+                </button>
+              ) : null}
             </div>
-            <div className="contribute-context-item">
+            <div className={`contribute-context-item ${getStatusClass(contextFields.modeField.status)}`}>
               <span className="contribute-context-label">{t.contributeMode}</span>
               {contextFields.modeField.crop ? (
                 <img
@@ -639,6 +889,18 @@ export default function Contribute() {
                   ? t.contributeModeScore
                   : t.contributeModeUnknown}
               </p>
+              {contextFields.modeField.status === 'warning' ? (
+                <button
+                  type="button"
+                  className="status-action"
+                  onClick={() => handleContextFieldConfirm('modeField')}
+                  disabled={contextFields.modeField.confirmed}
+                >
+                  {contextFields.modeField.confirmed
+                    ? t.contributeWarningConfirmed
+                    : t.contributeWarningConfirm}
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -672,13 +934,32 @@ export default function Contribute() {
                   : modeValue === 'SCORE'
                   ? t.contributeModeScore
                   : t.contributeModeUnknown;
+              const expectedPlayersLabel =
+                typeof t.contributePlayersExpected === 'function'
+                  ? t.contributePlayersExpected(run.expectedPlayerCount)
+                  : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
+              const hasValueField = Boolean(
+                (run.valueField?.text && run.valueField.text.trim()) ||
+                  (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+                  (run.score && run.score !== '') ||
+                  (run.time && run.time !== ''),
+              );
+              const valueStatusClass = hasValueField ? getStatusClass(run.valueField.status) : '';
               return (
                 <article key={run.id} className="contribute-run">
                   <header className="contribute-run-header">
                     <h3>{label}</h3>
                     <span className="contribute-run-mode">{modeLabel}</span>
+                    <button
+                      type="button"
+                      className="contribute-run-remove"
+                      onClick={() => handleRemoveRun(runIndex)}
+                      aria-label={t.contributeRunRemove || 'Remove run'}
+                    >
+                      ×
+                    </button>
                   </header>
-                  <div className="contribute-run-value">
+                  <div className={`contribute-run-value ${valueStatusClass}`}>
                     {run.valueField.crop ? (
                       <img
                         className="contribute-crop-image"
@@ -691,6 +972,21 @@ export default function Contribute() {
                         ? t.contributeDetectedText(run.valueField.text)
                         : t.contributeDetectedEmpty}
                     </p>
+                    {run.valueField.status === 'warning' && hasValueField ? (
+                      <div className="contribute-field-warning">
+                        <p className="form-hint">{t.contributeValueNeedsReview}</p>
+                        <button
+                          type="button"
+                          className="status-action"
+                          onClick={() => handleRunValueConfirm(runIndex)}
+                          disabled={run.valueField.confirmed}
+                        >
+                          {run.valueField.confirmed
+                            ? t.contributeWarningConfirmed
+                            : t.contributeWarningConfirm}
+                        </button>
+                      </div>
+                    ) : null}
                     <div className="contribute-run-value-inputs">
                       <label className="form-field">
                         <span>{t.contributeScore}</span>
@@ -718,12 +1014,15 @@ export default function Contribute() {
                   </div>
                   <div className="contribute-players">
                     <div className="contribute-players-header">
-                      <span>{t.contributePlayers}</span>
+                      <span>{expectedPlayersLabel}</span>
                       <p className="form-hint">{t.contributePlayersHint}</p>
                     </div>
                     <ul className="contribute-player-grid">
                       {run.playerSlots.map((slot, playerIndex) => (
-                        <li key={slot.key || playerIndex} className="contribute-player-slot">
+                        <li
+                          key={slot.key || playerIndex}
+                          className={`contribute-player-slot ${getStatusClass(slot.status)}`}
+                        >
                           {slot.crop ? (
                             <img
                               className="contribute-crop-image"
@@ -736,6 +1035,13 @@ export default function Contribute() {
                               ? t.contributeDetectedText(slot.rawText)
                               : t.contributeDetectedEmpty}
                           </p>
+                          {slot.status ? (
+                            <p className="contribute-player-status">
+                              {slot.status === 'success'
+                                ? t.contributePlayerExisting
+                                : t.contributePlayerNew}
+                            </p>
+                          ) : null}
                           <input
                             type="text"
                             value={slot.value || ''}
@@ -750,6 +1056,18 @@ export default function Contribute() {
                                 ? t.contributeKnownPlayer(slot.playerId)
                                 : `ID: ${slot.playerId}`}
                             </span>
+                          ) : null}
+                          {slot.status === 'warning' && slot.value && slot.value.trim() ? (
+                            <button
+                              type="button"
+                              className="status-action"
+                              onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
+                              disabled={slot.confirmed}
+                            >
+                              {slot.confirmed
+                                ? t.contributeWarningConfirmed
+                                : t.contributeWarningConfirm}
+                            </button>
                           ) : null}
                         </li>
                       ))}
