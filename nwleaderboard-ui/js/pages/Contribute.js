@@ -975,6 +975,7 @@ export default function Contribute() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             onChange={handleFileChange}
             disabled={status === 'validating' || status === 'extracting'}
           />
