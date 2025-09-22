@@ -25,12 +25,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jboss.logging.Logger;
 
 /**
  * Handles validation and persistence of contributor submissions once the extracted data has been reviewed by the user.
  */
 @ApplicationScoped
 public class ContributorSubmissionService {
+
+    private static final Logger LOG = Logger.getLogger(ContributorSubmissionService.class);
 
     @Inject
     DungeonRepository dungeonRepository;
@@ -117,17 +120,31 @@ public class ContributorSubmissionService {
 
         if (score != null && score > 0) {
             if (scoreRunAlreadyExists(week, dungeon, score, resolvedPlayers)) {
-                throw new ContributorSubmissionException("Duplicate score run detected");
+                LOG.infof("Skipping duplicate score run for dungeon %s (week %s, score %s, players: %s)",
+                        dungeon.getId(), week, score, describePlayers(resolvedPlayers));
+                return;
             }
             persistScoreRun(week, dungeon, score, resolvedPlayers);
         } else if (time != null && time > 0) {
             if (timeRunAlreadyExists(week, dungeon, time, resolvedPlayers)) {
-                throw new ContributorSubmissionException("Duplicate time run detected");
+                LOG.infof("Skipping duplicate time run for dungeon %s (week %s, time %s, players: %s)",
+                        dungeon.getId(), week, time, describePlayers(resolvedPlayers));
+                return;
             }
             persistTimeRun(week, dungeon, time, resolvedPlayers);
         } else {
             throw new ContributorSubmissionException("Run data is incomplete");
         }
+    }
+
+    private String describePlayers(List<Player> players) {
+        if (players == null || players.isEmpty()) {
+            return "[]";
+        }
+        return players.stream()
+                .map(player -> player != null ? player.getPlayerName() : "")
+                .filter(name -> name != null && !name.isBlank())
+                .collect(Collectors.joining(", ", "[", "]"));
     }
 
     private List<ContributionPlayerDto> normalisePlayers(List<ContributionPlayerDto> players) {

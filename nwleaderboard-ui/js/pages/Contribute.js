@@ -1,7 +1,7 @@
 import { LangContext } from '../i18n.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
-const MAX_FILES = 1;
+const MAX_FILES = 12;
 const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
 const DEFAULT_PLAYER_SLOTS = 6;
@@ -120,6 +120,131 @@ function normaliseField(field) {
   }
   const confirmed = status === 'warning' ? false : true;
   return { text, normalized, number, id, crop, confidence, status, alreadyExists, details, confirmed };
+}
+
+function cloneField(field) {
+  if (!field || typeof field !== 'object') {
+    return null;
+  }
+  const copy = { ...field };
+  if (field.details && typeof field.details === 'object') {
+    copy.details = { ...field.details };
+  }
+  return copy;
+}
+
+function mergeContextField(currentField, candidateField) {
+  const candidate = cloneField(candidateField);
+  if (!candidate) {
+    return currentField ? cloneField(currentField) : null;
+  }
+  const current = currentField ? cloneField(currentField) : null;
+  if (!current) {
+    return candidate;
+  }
+  const merged = { ...current };
+  if (!merged.text && candidate.text) {
+    merged.text = candidate.text;
+  }
+  if (!merged.normalized && candidate.normalized) {
+    merged.normalized = candidate.normalized;
+  }
+  if ((merged.number === null || merged.number === undefined) && candidate.number !== null && candidate.number !== undefined) {
+    merged.number = candidate.number;
+  }
+  if ((merged.id === null || merged.id === undefined) && candidate.id !== null && candidate.id !== undefined) {
+    merged.id = candidate.id;
+  }
+  if (!merged.crop && candidate.crop) {
+    merged.crop = candidate.crop;
+  }
+  if (
+    (merged.confidence === null || merged.confidence === undefined || Number.isNaN(merged.confidence)) &&
+    candidate.confidence !== null &&
+    candidate.confidence !== undefined &&
+    !Number.isNaN(candidate.confidence)
+  ) {
+    merged.confidence = candidate.confidence;
+  }
+  if (!merged.status && candidate.status) {
+    merged.status = candidate.status;
+  }
+  if (merged.status !== 'success' && candidate.status === 'success') {
+    merged.status = 'success';
+  } else if (merged.status !== 'success' && candidate.status === 'warning') {
+    merged.status = 'warning';
+  }
+  if (merged.alreadyExists !== true && candidate.alreadyExists === true) {
+    merged.alreadyExists = true;
+  } else if (
+    (merged.alreadyExists === null || merged.alreadyExists === undefined) &&
+    candidate.alreadyExists !== undefined &&
+    candidate.alreadyExists !== null
+  ) {
+    merged.alreadyExists = candidate.alreadyExists;
+  }
+  if (candidate.details) {
+    const mergedDetails = { ...(candidate.details || {}) };
+    if (merged.details) {
+      Object.entries(merged.details).forEach(([key, value]) => {
+        if (!mergedDetails.hasOwnProperty(key) || mergedDetails[key] === null || mergedDetails[key] === undefined) {
+          mergedDetails[key] = value;
+        }
+      });
+    }
+    merged.details = Object.keys(mergedDetails).length ? mergedDetails : null;
+  }
+  const currentConfirmed = merged.confirmed === undefined ? true : merged.confirmed;
+  const candidateConfirmed = candidate.confirmed === undefined ? true : candidate.confirmed;
+  merged.confirmed = Boolean(currentConfirmed && candidateConfirmed);
+  return merged;
+}
+
+function pickExpectedPlayerCount(current, candidate) {
+  const currentValid = Number.isFinite(current) && current > 0;
+  const candidateValid = Number.isFinite(candidate) && candidate > 0;
+  if (!currentValid && candidateValid) {
+    return candidate;
+  }
+  if (currentValid && candidateValid) {
+    if (current === DEFAULT_PLAYER_SLOTS && candidate !== DEFAULT_PLAYER_SLOTS) {
+      return candidate;
+    }
+    return current;
+  }
+  return currentValid ? current : candidateValid ? candidate : DEFAULT_PLAYER_SLOTS;
+}
+
+function mergeContexts(current, candidate) {
+  if (!candidate) {
+    return current ? {
+        ...current,
+        weekField: mergeContextField(current.weekField, null),
+        dungeonField: mergeContextField(current.dungeonField, null),
+        modeField: mergeContextField(current.modeField, null),
+      } : null;
+  }
+  if (!current) {
+    return {
+      week: candidate.week,
+      dungeon: candidate.dungeon,
+      mode: candidate.mode,
+      expectedPlayerCount: candidate.expectedPlayerCount,
+      weekField: mergeContextField(null, candidate.weekField),
+      dungeonField: mergeContextField(null, candidate.dungeonField),
+      modeField: mergeContextField(null, candidate.modeField),
+    };
+  }
+  const expectedPlayerCount = pickExpectedPlayerCount(current.expectedPlayerCount, candidate.expectedPlayerCount);
+  return {
+    week: current.week || candidate.week || '',
+    dungeon: current.dungeon || candidate.dungeon || '',
+    mode: (current.mode || candidate.mode || '').toUpperCase(),
+    expectedPlayerCount,
+    weekField: mergeContextField(current.weekField, candidate.weekField),
+    dungeonField: mergeContextField(current.dungeonField, candidate.dungeonField),
+    modeField: mergeContextField(current.modeField, candidate.modeField),
+  };
 }
 
 function createEmptyContext() {
@@ -285,7 +410,7 @@ function hasRunContent(run) {
 export default function Contribute() {
   const { t, lang } = React.useContext(LangContext);
   const fileInputRef = React.useRef(null);
-  const [selectedFile, setSelectedFile] = React.useState(null);
+  const [selectedFiles, setSelectedFiles] = React.useState(() => []);
   const [runs, setRuns] = React.useState([]);
   const [contextFields, setContextFields] = React.useState(() => createEmptyContext());
   const [status, setStatus] = React.useState('idle');
@@ -392,34 +517,44 @@ export default function Contribute() {
     setContextFields(createEmptyContext());
     resetFeedback();
     if (!files.length) {
-      setSelectedFile(null);
+      setSelectedFiles([]);
       return;
     }
     if (files.length > MAX_FILES) {
       setErrorKey('contributeTooMany');
-      setSelectedFile(null);
+      setSelectedFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       return;
     }
-    const [file] = files;
     setStatus('validating');
     try {
-      const meta = await readImageMeta(file);
-      if (meta.width !== EXPECTED_WIDTH || meta.height !== EXPECTED_HEIGHT) {
-        setSelectedFile(null);
+      const metadata = await Promise.all(files.map((file) => readImageMeta(file)));
+      const invalid = metadata.find((meta) => meta.width !== EXPECTED_WIDTH || meta.height !== EXPECTED_HEIGHT);
+      if (invalid) {
+        setSelectedFiles([]);
         setErrorKey('contributeResolutionError');
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
         return;
       }
-      setSelectedFile(meta);
-      setMessageKey('contributeFileReady');
+      setSelectedFiles(metadata);
+      if (metadata.length === 1) {
+        setMessageText('');
+        setMessageKey('contributeFileReady');
+      } else {
+        setMessageKey('');
+        const message =
+          typeof t.contributeFilesReady === 'function'
+            ? t.contributeFilesReady(metadata.length)
+            : `${metadata.length} ${t.contributeFilesReady || 'images ready for extraction.'}`;
+        setMessageText(message);
+      }
     } catch (error) {
       console.warn('Unable to inspect the selected images', error);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setErrorKey('contributeFileLoadError');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -430,7 +565,7 @@ export default function Contribute() {
   };
 
   const handleClearSelection = () => {
-    setSelectedFile(null);
+    setSelectedFiles([]);
     setRuns([]);
     setContextFields(createEmptyContext());
     resetFeedback();
@@ -445,7 +580,7 @@ export default function Contribute() {
 
   const handleExtract = async () => {
     resetFeedback();
-    if (!selectedFile) {
+    if (!selectedFiles.length) {
       setErrorKey('contributeNoFiles');
       return;
     }
@@ -455,41 +590,70 @@ export default function Contribute() {
     }
     setStatus('extracting');
     try {
-      const formData = new FormData();
-      formData.append('image', selectedFile.file, selectedFile.name || selectedFile.file.name);
-      const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
-        method: 'POST',
-        body: formData,
-      });
-      let data = null;
-      try {
-        data = await response.json();
-      } catch (error) {
-        data = null;
-      }
-      if (!response.ok) {
-        const apiMessage = data && data.message ? data.message : null;
-        if (apiMessage) {
-          setErrorText(apiMessage);
-        } else {
-          setErrorKey('contributeError');
+      setRuns([]);
+      setContextFields(createEmptyContext());
+      const aggregatedRuns = [];
+      let mergedContext = null;
+      const timestampBase = Date.now();
+
+      for (let index = 0; index < selectedFiles.length; index += 1) {
+        const meta = selectedFiles[index];
+        if (!meta || !meta.file) {
+          continue;
         }
-        setRuns([]);
-        setContextFields(createEmptyContext());
-        return;
+        const formData = new FormData();
+        const fileName = meta.name || meta.file.name || `image-${index + 1}`;
+        formData.append('image', meta.file, fileName);
+        const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
+          method: 'POST',
+          body: formData,
+        });
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (error) {
+          data = null;
+        }
+        if (!response.ok) {
+          const apiMessage = data && data.message ? data.message : null;
+          if (apiMessage) {
+            setErrorText(apiMessage);
+          } else {
+            setErrorKey('contributeError');
+          }
+          setRuns([]);
+          setContextFields(createEmptyContext());
+          return;
+        }
+
+        const context = normaliseExtractionContext(data || {});
+        mergedContext = mergeContexts(mergedContext, context) || context;
+        const runsForImage = buildRunsFromExtraction(data || {}, context, `${timestampBase}-${index}`);
+        aggregatedRuns.push(...runsForImage);
       }
-      const timestamp = Date.now();
-      const context = normaliseExtractionContext(data || {});
-      const mappedRuns = buildRunsFromExtraction(data || {}, context, timestamp);
-      setContextFields(context);
-      setRuns(mappedRuns);
-      if (mappedRuns.some((run) => hasRunContent(run))) {
+
+      const finalContext = mergedContext || createEmptyContext();
+      setContextFields(finalContext);
+      const runsWithContext = aggregatedRuns.map((run) => ({
+        ...run,
+        week: finalContext.week ?? run.week ?? '',
+        dungeon: finalContext.dungeon ?? run.dungeon ?? '',
+        mode: run.mode || finalContext.mode || '',
+        expectedPlayerCount:
+          Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
+            ? run.expectedPlayerCount
+            : finalContext.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
+      }));
+      setRuns(runsWithContext);
+      if (runsWithContext.some((run) => hasRunContent(run))) {
         setMessageKey('contributeExtractionReady');
+        setMessageText('');
       } else {
         setMessageKey('contributeNoResults');
+        setMessageText('');
       }
     } catch (error) {
-      console.warn('Unable to extract runs from the provided image', error);
+      console.warn('Unable to extract runs from the provided images', error);
       setErrorKey('contributeError');
     } finally {
       setStatus('idle');
@@ -773,7 +937,7 @@ export default function Contribute() {
       }
       setMessageKey('contributeSuccess');
       setRuns([]);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setContextFields(createEmptyContext());
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -816,14 +980,24 @@ export default function Contribute() {
           />
         </label>
         <p className="form-hint">{t.contributeUploadHint}</p>
-        {selectedFile ? (
+        {selectedFiles.length ? (
           <div className="contribute-files">
             <h2 className="contribute-section-title">{t.contributeImagesTitle}</h2>
             <ul className="contribute-file-list">
-              <li className="contribute-file-item">
-                <span className="contribute-file-name">{selectedFile.name}</span>
-                <span className="contribute-file-meta">{`${selectedFile.width}×${selectedFile.height}`}</span>
-              </li>
+              {selectedFiles.map((file, index) => {
+                const label =
+                  file.name ||
+                  (file.file && file.file.name) ||
+                  (typeof t.contributeImageFallback === 'function'
+                    ? t.contributeImageFallback(index + 1)
+                    : `Image ${index + 1}`);
+                return (
+                  <li key={`${label}-${index}`} className="contribute-file-item">
+                    <span className="contribute-file-name">{label}</span>
+                    <span className="contribute-file-meta">{`${file.width}×${file.height}`}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
@@ -831,7 +1005,7 @@ export default function Contribute() {
           <button
             type="button"
             onClick={handleExtract}
-            disabled={!selectedFile || status === 'extracting' || status === 'validating'}
+            disabled={!selectedFiles.length || status === 'extracting' || status === 'validating'}
           >
             {status === 'extracting' ? t.contributeExtracting : t.contributeExtract}
           </button>
@@ -839,7 +1013,7 @@ export default function Contribute() {
             type="button"
             className="secondary"
             onClick={handleClearSelection}
-            disabled={!selectedFile}
+            disabled={!selectedFiles.length}
           >
             {t.contributeClear}
           </button>

@@ -56,7 +56,7 @@ public class ContributorExtractionService {
 
     private static final int EXPECTED_WIDTH = 2560;
     private static final int EXPECTED_HEIGHT = 1440;
-    private static final int MAX_UPLOADS = 1;
+    private static final int MAX_UPLOADS = 12;
 
     private static final Rectangle DUNGEON_AREA = new Rectangle(700, 230, 1035, 50);
     private static final Rectangle MODE_AREA = new Rectangle(700, 300, 340, 40);
@@ -65,7 +65,7 @@ public class ContributorExtractionService {
     private static final int PLAYER_BOX_WIDTH = 330;
     private static final int PLAYER_BOX_HEIGHT = 38;
     private static final int PLAYER_ROW_STEP = 134;
-    private static final int PLAYER_VERTICAL_OFFSET = -3;
+    private static final int PLAYER_VERTICAL_OFFSET = 2;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
@@ -111,11 +111,45 @@ public class ContributorExtractionService {
             throw new ContributorRequestException("No valid image part found in request");
         }
 
-        if (images.size() > 1) {
-            throw new ContributorRequestException("Only one image can be processed at a time");
+        ContributionFieldExtractionDto mergedWeek = null;
+        ContributionFieldExtractionDto mergedDungeon = null;
+        ContributionFieldExtractionDto mergedMode = null;
+        Integer mergedExpectedPlayerCount = null;
+        List<ContributionRunExtractionDto> aggregatedRuns = new ArrayList<>();
+
+        for (ImagePayload image : images) {
+            ContributionExtractionResponseDto partial = processImage(image);
+            if (partial == null) {
+                continue;
+            }
+
+            mergedWeek = mergeField(mergedWeek, partial.week());
+            mergedDungeon = mergeField(mergedDungeon, partial.dungeon());
+            mergedMode = mergeField(mergedMode, partial.mode());
+            mergedExpectedPlayerCount = mergeExpectedPlayerCount(mergedExpectedPlayerCount,
+                    partial.expectedPlayerCount());
+
+            List<ContributionRunExtractionDto> runs = partial.runs();
+            if (runs == null || runs.isEmpty()) {
+                continue;
+            }
+            int baseIndex = aggregatedRuns.size();
+            for (int index = 0; index < runs.size(); index++) {
+                ContributionRunExtractionDto run = runs.get(index);
+                aggregatedRuns.add(new ContributionRunExtractionDto(baseIndex + index + 1, run.mode(), run.score(),
+                        run.time(), run.value(), run.players(), run.expectedPlayerCount()));
+            }
         }
 
-        return processImage(images.get(0));
+        if (aggregatedRuns.isEmpty()) {
+            ensureRowCount(aggregatedRuns,
+                    mergedExpectedPlayerCount != null ? mergedExpectedPlayerCount : MAX_PLAYER_SLOTS);
+        }
+
+        int resolvedExpected = clampPlayerSlotCount(
+                mergedExpectedPlayerCount != null ? mergedExpectedPlayerCount : MAX_PLAYER_SLOTS);
+        return new ContributionExtractionResponseDto(mergedWeek, mergedDungeon, mergedMode, resolvedExpected,
+                aggregatedRuns);
     }
 
     private List<ImagePayload> collectImages(MultipartFormDataInput input) throws ContributorRequestException {
@@ -143,7 +177,8 @@ public class ContributorExtractionService {
         }
 
         if (imageParts.size() > MAX_UPLOADS) {
-            throw new ContributorRequestException("Only one image can be processed per request");
+            throw new ContributorRequestException(
+                    "A maximum of " + MAX_UPLOADS + " images can be processed per request");
         }
 
         List<ImagePayload> result = new ArrayList<>();
@@ -327,6 +362,78 @@ public class ContributorExtractionService {
             }
         }
         return filtered.isEmpty() ? null : Map.copyOf(filtered);
+    }
+
+    private ContributionFieldExtractionDto mergeField(ContributionFieldExtractionDto current,
+            ContributionFieldExtractionDto candidate) {
+        if (candidate == null) {
+            return current;
+        }
+        if (current == null) {
+            return candidate;
+        }
+
+        String text = firstNonBlank(current.text(), candidate.text());
+        String normalized = firstNonBlank(current.normalized(), candidate.normalized());
+        Integer number = current.number() != null ? current.number() : candidate.number();
+        Long id = current.id() != null ? current.id() : candidate.id();
+        String crop = current.crop() != null ? current.crop() : candidate.crop();
+        Double confidence = current.confidence() != null ? current.confidence() : candidate.confidence();
+        String status = mergeStatus(current.status(), candidate.status());
+        Boolean alreadyExists = current.alreadyExists() != null ? current.alreadyExists() : candidate.alreadyExists();
+        Map<String, Object> details = mergeDetails(current.details(), candidate.details());
+
+        return new ContributionFieldExtractionDto(text, normalized, number, id, crop, confidence, status, alreadyExists,
+                details);
+    }
+
+    private Integer mergeExpectedPlayerCount(Integer current, Integer candidate) {
+        if (candidate == null || candidate <= 0) {
+            return current;
+        }
+        int clampedCandidate = clampPlayerSlotCount(candidate);
+        if (current == null || current <= 0 || current == MAX_PLAYER_SLOTS) {
+            return clampedCandidate;
+        }
+        return current;
+    }
+
+    private String mergeStatus(String current, String candidate) {
+        String lowerCurrent = current != null ? current.toLowerCase(Locale.ROOT) : null;
+        String lowerCandidate = candidate != null ? candidate.toLowerCase(Locale.ROOT) : null;
+        if ("success".equals(lowerCurrent) || "success".equals(lowerCandidate)) {
+            return "success";
+        }
+        if ("warning".equals(lowerCurrent) || "warning".equals(lowerCandidate)) {
+            return "warning";
+        }
+        return current != null ? current : candidate;
+    }
+
+    private Map<String, Object> mergeDetails(Map<String, Object> current, Map<String, Object> candidate) {
+        if ((current == null || current.isEmpty()) && (candidate == null || candidate.isEmpty())) {
+            return null;
+        }
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (current != null) {
+            merged.putAll(current);
+        }
+        if (candidate != null) {
+            for (Map.Entry<String, Object> entry : candidate.entrySet()) {
+                merged.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+        }
+        return merged.isEmpty() ? null : Map.copyOf(merged);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
     }
 
     private void ensureRowCount(List<ContributionRunExtractionDto> rows, int expectedPlayerCount) {
