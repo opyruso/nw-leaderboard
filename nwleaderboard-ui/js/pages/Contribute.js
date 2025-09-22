@@ -282,6 +282,47 @@ function hasRunContent(run) {
   return Boolean(hasScore || hasTime || hasPlayers || hasValue);
 }
 
+function runHasPendingValidation(run) {
+  if (!run) {
+    return false;
+  }
+  const hasValueField = Boolean(
+    (run.valueField?.text && run.valueField.text.trim()) ||
+      (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+      (run.score && run.score !== '') ||
+      (run.time && run.time !== ''),
+  );
+  const valueWarning = Boolean(
+    run.valueField &&
+      run.valueField.status === 'warning' &&
+      hasValueField &&
+      !run.valueField.confirmed,
+  );
+  const playerWarning = Array.isArray(run.playerSlots)
+    ? run.playerSlots.some((slot) => {
+        const name = typeof slot.value === 'string' ? slot.value.trim() : '';
+        return slot.status === 'warning' && !slot.confirmed && name;
+      })
+    : false;
+  return valueWarning || playerWarning;
+}
+
+function resultHasPendingValidation(result) {
+  if (!result || typeof result !== 'object') {
+    return false;
+  }
+  const context = result?.context ? result.context : createEmptyContext();
+  const contextWarning = ['weekField', 'dungeonField', 'modeField'].some((fieldKey) => {
+    const field = context[fieldKey];
+    return field && field.status === 'warning' && !field.confirmed;
+  });
+  if (contextWarning) {
+    return true;
+  }
+  const runs = Array.isArray(result.runs) ? result.runs : [];
+  return runs.some((run) => runHasPendingValidation(run));
+}
+
 export default function Contribute() {
   const { t, lang } = React.useContext(LangContext);
   const fileInputRef = React.useRef(null);
@@ -295,6 +336,7 @@ export default function Contribute() {
   const [dungeons, setDungeons] = React.useState([]);
   const [loadingDungeons, setLoadingDungeons] = React.useState(false);
   const [dungeonError, setDungeonError] = React.useState(false);
+  const [showSuccess, setShowSuccess] = React.useState(true);
 
   const getConfidenceLabel = React.useCallback(
     (confidence) => {
@@ -1088,8 +1130,23 @@ export default function Contribute() {
           </p>
         ) : null}
         {orderedResults.length ? (
-          <div className="form contribute-results">
-            <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
+          <div
+            className={`form contribute-results${showSuccess ? '' : ' contribute-results--hide-success'}`}
+          >
+            <div className="contribute-results-top">
+              <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
+              <label className="contribute-toggle-success">
+                <input
+                  type="checkbox"
+                  className="contribute-toggle-success-input"
+                  checked={showSuccess}
+                  onChange={(event) => setShowSuccess(event.target.checked)}
+                />
+                <span className="contribute-toggle-success-text">
+                  {t.contributeToggleSuccessLabel}
+                </span>
+              </label>
+            </div>
             {orderedResults.map((result, groupIndex) => {
               const fileIndex = selectedFiles.findIndex((file) => file.id === result.id);
               const displayIndex = fileIndex >= 0 ? fileIndex : groupIndex;
@@ -1111,8 +1168,16 @@ export default function Contribute() {
               const weekConfidenceLabel = getConfidenceLabel(context.weekField.confidence);
               const dungeonConfidenceLabel = getConfidenceLabel(context.dungeonField.confidence);
               const modeConfidenceLabel = getConfidenceLabel(context.modeField.confidence);
+              const hasPendingValidation = resultHasPendingValidation(result);
+              const hasAnyRunContent = Array.isArray(result.runs)
+                ? result.runs.some((run) => hasRunContent(run))
+                : false;
+              const readyForSubmission = hasAnyRunContent && !hasPendingValidation;
               return (
-                <article key={result.id} className="contribute-file-result">
+                <article
+                  key={result.id}
+                  className={`contribute-file-result${readyForSubmission ? ' contribute-file-result--ready' : ''}`}
+                >
                   <header className="contribute-file-result-header">
                     <h3>{fileLabel}</h3>
                     {fileMeta ? (
@@ -1121,6 +1186,9 @@ export default function Contribute() {
                       </span>
                     ) : null}
                   </header>
+                  {readyForSubmission ? (
+                    <p className="contribute-ready-message">{t.contributeReadyForSubmission}</p>
+                  ) : null}
                   <div className="contribute-context-grid">
                     <div className={`contribute-context-item ${weekStatusClass}`}>
                       <span className="contribute-context-label">{t.contributeWeek}</span>

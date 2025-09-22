@@ -32,6 +32,8 @@ const en = {
   contributeExtracting: 'Extracting…',
   contributeClear: 'Clear selection',
   contributeResultsTitle: 'Detected runs',
+  contributeToggleSuccessLabel: 'Show validated items',
+  contributeReadyForSubmission: 'Ready to submit.',
   contributeRunLabel: (index) => `Run ${index}`,
   contributeExtractionReady: 'Runs extracted. Review them below before saving.',
   contributeNoResults: 'No run detected on this screenshot.',

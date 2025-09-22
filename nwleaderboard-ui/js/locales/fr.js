@@ -33,6 +33,8 @@ const fr = {
   contributeExtracting: 'Extraction…',
   contributeClear: 'Effacer la sélection',
   contributeResultsTitle: 'Runs détectés',
+  contributeToggleSuccessLabel: 'Afficher les éléments validés',
+  contributeReadyForSubmission: 'Prêt pour envoi.',
   contributeRunLabel: (index) => `Run n°${index}`,
   contributeExtractionReady: 'Runs extraits. Vérifiez-les avant de valider.',
   contributeNoResults: 'Aucun run détecté sur cette capture.',
