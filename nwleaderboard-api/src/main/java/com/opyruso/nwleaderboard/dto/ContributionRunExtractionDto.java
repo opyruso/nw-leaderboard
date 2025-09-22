@@ -14,5 +14,6 @@ public record ContributionRunExtractionDto(
         @JsonProperty("score") Integer score,
         @JsonProperty("time") Integer time,
         @JsonProperty("value") ContributionFieldExtractionDto value,
-        @JsonProperty("players") List<ContributionFieldExtractionDto> players) {
+        @JsonProperty("players") List<ContributionFieldExtractionDto> players,
+        @JsonProperty("expected_player_count") Integer expectedPlayerCount) {
 }

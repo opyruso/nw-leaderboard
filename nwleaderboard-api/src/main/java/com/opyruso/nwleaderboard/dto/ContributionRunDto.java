@@ -13,5 +13,6 @@ public record ContributionRunDto(
         @JsonProperty("dungeon") Long dungeonId,
         @JsonProperty("score") Integer score,
         @JsonProperty("time") Integer time,
+        @JsonProperty("expected_player_count") Integer expectedPlayerCount,
         @JsonProperty("players") List<ContributionPlayerDto> players) {
 }

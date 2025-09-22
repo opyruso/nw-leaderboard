@@ -21,13 +21,19 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.jboss.logging.Logger;
 
 /**
  * Handles validation and persistence of contributor submissions once the extracted data has been reviewed by the user.
  */
 @ApplicationScoped
 public class ContributorSubmissionService {
+
+    private static final Logger LOG = Logger.getLogger(ContributorSubmissionService.class);
 
     @Inject
     DungeonRepository dungeonRepository;
@@ -84,6 +90,15 @@ public class ContributorSubmissionService {
             throw new ContributorSubmissionException("Unknown dungeon with id " + dungeonId);
         }
 
+        Integer expectedPlayerCount = dto.expectedPlayerCount();
+        if (expectedPlayerCount == null || expectedPlayerCount <= 0) {
+            throw new ContributorSubmissionException("Expected player count must be a positive integer");
+        }
+        Integer configuredCount = dungeon.getPlayerCount();
+        if (configuredCount != null && configuredCount > 0 && !configuredCount.equals(expectedPlayerCount)) {
+            throw new ContributorSubmissionException("Player count does not match dungeon configuration");
+        }
+
         Integer score = dto.score();
         Integer time = dto.time();
 
@@ -96,13 +111,40 @@ public class ContributorSubmissionService {
             throw new ContributorSubmissionException("At least one player is required for each run");
         }
 
+        if (players.size() != expectedPlayerCount) {
+            throw new ContributorSubmissionException(
+                    "Run contains " + players.size() + " players but expected " + expectedPlayerCount);
+        }
+
+        List<Player> resolvedPlayers = resolvePlayers(players);
+
         if (score != null && score > 0) {
-            persistScoreRun(week, dungeon, score, players);
+            if (scoreRunAlreadyExists(week, dungeon, score, resolvedPlayers)) {
+                LOG.infof("Skipping duplicate score run for dungeon %s (week %s, score %s, players: %s)",
+                        dungeon.getId(), week, score, describePlayers(resolvedPlayers));
+                return;
+            }
+            persistScoreRun(week, dungeon, score, resolvedPlayers);
         } else if (time != null && time > 0) {
-            persistTimeRun(week, dungeon, time, players);
+            if (timeRunAlreadyExists(week, dungeon, time, resolvedPlayers)) {
+                LOG.infof("Skipping duplicate time run for dungeon %s (week %s, time %s, players: %s)",
+                        dungeon.getId(), week, time, describePlayers(resolvedPlayers));
+                return;
+            }
+            persistTimeRun(week, dungeon, time, resolvedPlayers);
         } else {
             throw new ContributorSubmissionException("Run data is incomplete");
         }
+    }
+
+    private String describePlayers(List<Player> players) {
+        if (players == null || players.isEmpty()) {
+            return "[]";
+        }
+        return players.stream()
+                .map(player -> player != null ? player.getPlayerName() : "")
+                .filter(name -> name != null && !name.isBlank())
+                .collect(Collectors.joining(", ", "[", "]"));
     }
 
     private List<ContributionPlayerDto> normalisePlayers(List<ContributionPlayerDto> players) {
@@ -131,7 +173,101 @@ public class ContributorSubmissionService {
         return cleaned.isEmpty() ? null : cleaned;
     }
 
-    private void persistScoreRun(Integer week, Dungeon dungeon, Integer score, List<ContributionPlayerDto> players)
+    private List<Player> resolvePlayers(List<ContributionPlayerDto> players) throws ContributorSubmissionException {
+        List<Player> resolved = new ArrayList<>(players.size());
+        for (ContributionPlayerDto dto : players) {
+            resolved.add(resolvePlayer(dto));
+        }
+        return resolved;
+    }
+
+    private boolean scoreRunAlreadyExists(Integer week, Dungeon dungeon, Integer score, List<Player> players) {
+        if (week == null || dungeon == null || score == null || players == null || players.isEmpty()) {
+            return false;
+        }
+
+        List<RunScore> candidates = runScoreRepository.listByDungeonWeekAndScore(dungeon.getId(), week, score);
+        if (candidates.isEmpty()) {
+            return false;
+        }
+
+        Set<Long> expectedPlayerIds = players.stream().map(Player::getId).collect(Collectors.toSet());
+        if (expectedPlayerIds.contains(null) || expectedPlayerIds.size() != players.size()) {
+            return false;
+        }
+
+        List<Long> runIds = candidates.stream()
+                .map(RunScore::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+        if (runIds.isEmpty()) {
+            return false;
+        }
+
+        Map<Long, List<RunScorePlayer>> associations = runScorePlayerRepository.listWithPlayersByRunIds(runIds).stream()
+                .collect(Collectors.groupingBy(rsp -> rsp.getRunScore().getId()));
+
+        for (Long runId : runIds) {
+            List<RunScorePlayer> links = associations.get(runId);
+            if (links == null || links.size() != expectedPlayerIds.size()) {
+                continue;
+            }
+
+            Set<Long> candidatePlayerIds = links.stream()
+                    .map(link -> link.getPlayer() != null ? link.getPlayer().getId() : null)
+                    .collect(Collectors.toSet());
+            if (!candidatePlayerIds.contains(null) && candidatePlayerIds.equals(expectedPlayerIds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean timeRunAlreadyExists(Integer week, Dungeon dungeon, Integer time, List<Player> players) {
+        if (week == null || dungeon == null || time == null || players == null || players.isEmpty()) {
+            return false;
+        }
+
+        List<RunTime> candidates = runTimeRepository.listByDungeonWeekAndTime(dungeon.getId(), week, time);
+        if (candidates.isEmpty()) {
+            return false;
+        }
+
+        Set<Long> expectedPlayerIds = players.stream().map(Player::getId).collect(Collectors.toSet());
+        if (expectedPlayerIds.contains(null) || expectedPlayerIds.size() != players.size()) {
+            return false;
+        }
+
+        List<Long> runIds = candidates.stream()
+                .map(RunTime::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+        if (runIds.isEmpty()) {
+            return false;
+        }
+
+        Map<Long, List<RunTimePlayer>> associations = runTimePlayerRepository.listWithPlayersByRunIds(runIds).stream()
+                .collect(Collectors.groupingBy(rtp -> rtp.getRunTime().getId()));
+
+        for (Long runId : runIds) {
+            List<RunTimePlayer> links = associations.get(runId);
+            if (links == null || links.size() != expectedPlayerIds.size()) {
+                continue;
+            }
+
+            Set<Long> candidatePlayerIds = links.stream()
+                    .map(link -> link.getPlayer() != null ? link.getPlayer().getId() : null)
+                    .collect(Collectors.toSet());
+            if (!candidatePlayerIds.contains(null) && candidatePlayerIds.equals(expectedPlayerIds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void persistScoreRun(Integer week, Dungeon dungeon, Integer score, List<Player> players)
             throws ContributorSubmissionException {
         RunScore run = new RunScore();
         run.setWeek(week);
@@ -139,8 +275,7 @@ public class ContributorSubmissionService {
         run.setScore(score);
         runScoreRepository.persistAndFlush(run);
 
-        for (ContributionPlayerDto dto : players) {
-            Player player = resolvePlayer(dto);
+        for (Player player : players) {
             RunScorePlayer association = new RunScorePlayer();
             association.setRunScore(run);
             association.setPlayer(player);
@@ -149,7 +284,7 @@ public class ContributorSubmissionService {
         }
     }
 
-    private void persistTimeRun(Integer week, Dungeon dungeon, Integer time, List<ContributionPlayerDto> players)
+    private void persistTimeRun(Integer week, Dungeon dungeon, Integer time, List<Player> players)
             throws ContributorSubmissionException {
         RunTime run = new RunTime();
         run.setWeek(week);
@@ -157,8 +292,7 @@ public class ContributorSubmissionService {
         run.setTimeInSecond(time);
         runTimeRepository.persistAndFlush(run);
 
-        for (ContributionPlayerDto dto : players) {
-            Player player = resolvePlayer(dto);
+        for (Player player : players) {
             RunTimePlayer association = new RunTimePlayer();
             association.setRunTime(run);
             association.setPlayer(player);

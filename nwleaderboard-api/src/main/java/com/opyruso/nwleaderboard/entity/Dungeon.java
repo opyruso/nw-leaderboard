@@ -43,6 +43,9 @@ public class Dungeon extends Auditable {
     @Column(name = "name_local_pt", nullable = false)
     private String nameLocalPt;
 
+    @Column(name = "nbr_player_count", nullable = false, columnDefinition = "INT DEFAULT 5")
+    private Integer playerCount = 5;
+
     public Long getId() {
         return id;
     }
@@ -113,5 +116,13 @@ public class Dungeon extends Auditable {
 
     public void setNameLocalPt(String nameLocalPt) {
         this.nameLocalPt = nameLocalPt;
+    }
+
+    public Integer getPlayerCount() {
+        return playerCount;
+    }
+
+    public void setPlayerCount(Integer playerCount) {
+        this.playerCount = playerCount;
     }
 }

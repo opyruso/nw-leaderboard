@@ -567,7 +567,7 @@ body[data-theme='light'] .contribute-run {
 .contribute-run-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -623,6 +623,12 @@ body[data-theme='light'] .contribute-run {
   gap: 0.5rem;
 }
 
+.contribute-player-status {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
 .contribute-player-slot input {
   width: 100%;
 }
@@ -655,6 +661,18 @@ body[data-theme='light'] .contribute-run {
   gap: 0.5rem;
 }
 
+.contribute-context-info {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.contribute-context-warning {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 183, 77, 0.85);
+}
+
 .contribute-context-label {
   font-weight: 600;
 }
@@ -663,6 +681,17 @@ body[data-theme='light'] .contribute-run {
   margin: 0;
   font-size: 0.9rem;
   opacity: 0.7;
+}
+
+.contribute-confidence {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.contribute-confidence--player {
+  margin-top: 0.15rem;
+  margin-bottom: 0.5rem;
 }
 
 .contribute-context-mode {
@@ -686,6 +715,102 @@ body[data-theme='light'] .contribute-crop-image {
 .contribute-context-item input,
 .contribute-player-slot input {
   width: 100%;
+}
+
+.status-success {
+  border: 1px solid rgba(110, 231, 183, 0.45);
+  background: rgba(110, 231, 183, 0.08);
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+
+.status-warning {
+  border: 1px solid rgba(255, 183, 77, 0.6);
+  background: rgba(255, 183, 77, 0.12);
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+
+.contribute-player-slot.status-success,
+.contribute-player-slot.status-warning {
+  padding: 0.85rem;
+}
+
+.contribute-run-value.status-success,
+.contribute-run-value.status-warning {
+  padding: 1rem;
+}
+
+body[data-theme='light'] .status-success {
+  border-color: rgba(76, 175, 80, 0.45);
+  background: rgba(76, 175, 80, 0.12);
+}
+
+body[data-theme='light'] .status-warning {
+  border-color: rgba(255, 152, 0, 0.5);
+  background: rgba(255, 152, 0, 0.16);
+}
+
+.status-action {
+  align-self: flex-start;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.status-action:hover,
+.status-action:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  outline: none;
+}
+
+.status-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+body[data-theme='light'] .status-action {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+body[data-theme='light'] .status-action:hover,
+body[data-theme='light'] .status-action:focus-visible {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.contribute-field-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.contribute-run-remove {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.contribute-run-remove:hover,
+.contribute-run-remove:focus-visible {
+  color: #ff6b6b;
+  outline: none;
+}
+
+body[data-theme='light'] .contribute-run-remove:hover,
+body[data-theme='light'] .contribute-run-remove:focus-visible {
+  color: #c62828;
 }
 
 @media (max-width: 768px) {

@@ -27,4 +27,19 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
                 .page(Page.ofSize(limit))
                 .list();
     }
+
+    /**
+     * Finds runs matching the provided dungeon, week and time.
+     *
+     * @param dungeonId identifier of the dungeon
+     * @param week week of the run
+     * @param time duration in seconds
+     * @return list of matching runs or an empty list when no run matches the criteria
+     */
+    public List<RunTime> listByDungeonWeekAndTime(Long dungeonId, Integer week, Integer time) {
+        if (dungeonId == null || week == null || time == null) {
+            return List.of();
+        }
+        return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+    }
 }
