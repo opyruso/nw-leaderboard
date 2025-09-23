@@ -3,17 +3,20 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
 import com.opyruso.nwleaderboard.dto.ContributionRunDto;
+import com.opyruso.nwleaderboard.dto.ContributorWeeklyRunsResponse;
 import com.opyruso.nwleaderboard.dto.UpdateDungeonHighlightsRequest;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService.ContributorSubmissionException;
+import com.opyruso.nwleaderboard.service.ContributorStatisticsService;
 import com.opyruso.nwleaderboard.service.DungeonService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -52,6 +55,9 @@ public class ContributorResource {
 
     @Inject
     DungeonService dungeonService;
+
+    @Inject
+    ContributorStatisticsService statisticsService;
 
     @POST
     @Path("/extract")
@@ -124,6 +130,25 @@ public class ContributorResource {
             LOG.error("Unable to update highlighted dungeons", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to update dungeon highlights", null))
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/runs/weekly")
+    public Response listRunsByWeek() {
+        if (!hasContributorRole()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(new ApiMessageResponse("Contributor role required", null))
+                    .build();
+        }
+        try {
+            List<ContributorWeeklyRunsResponse> summaries = statisticsService.listRunsByWeek();
+            return Response.ok(summaries).build();
+        } catch (Exception e) {
+            LOG.error("Unable to load contributor run statistics", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to load run statistics", null))
                     .build();
         }
     }

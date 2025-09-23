@@ -258,6 +258,72 @@ body[data-theme='light'] .form-field-floating input:not(:placeholder-shown) + sp
   display: flex;
 }
 
+.contribute-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.contribute-stats-table-container {
+  background: var(--surface-dark);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-elevated);
+  padding: 1.5rem;
+  backdrop-filter: blur(18px);
+  overflow-x: auto;
+}
+
+body[data-theme='light'] .contribute-stats-table-container {
+  background: var(--surface-light);
+  box-shadow: none;
+}
+
+.contribute-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 320px;
+  font-variant-numeric: tabular-nums;
+}
+
+.contribute-stats-table th,
+.contribute-stats-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-dark);
+  text-align: left;
+}
+
+body[data-theme='light'] .contribute-stats-table th,
+body[data-theme='light'] .contribute-stats-table td {
+  border-bottom-color: var(--border-light);
+}
+
+.contribute-stats-table thead th {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.contribute-stats-table tbody tr:last-child th,
+.contribute-stats-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.contribute-stats-table tbody tr:hover {
+  background: rgba(124, 92, 255, 0.08);
+}
+
+body[data-theme='light'] .contribute-stats-table tbody tr:hover {
+  background: rgba(124, 92, 255, 0.14);
+}
+
+.contribute-stats-table th[scope='col']:nth-child(2),
+.contribute-stats-table th[scope='col']:nth-child(3),
+.contribute-stats-table td:nth-child(2),
+.contribute-stats-table td:nth-child(3) {
+  text-align: right;
+}
+
 .contribute-dungeon-checkbox {
   display: flex;
   align-items: flex-start;

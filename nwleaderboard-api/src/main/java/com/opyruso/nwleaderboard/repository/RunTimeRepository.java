@@ -4,7 +4,10 @@ import com.opyruso.nwleaderboard.entity.RunTime;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.persistence.NoResultException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Repository for {@link RunTime} entities extracted from contributor uploads.
@@ -71,5 +74,44 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
                                 + "ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC",
                         playerId)
                 .list();
+    }
+
+    /** Returns the highest recorded week for time runs or {@code null} when none exist. */
+    public Integer findHighestWeek() {
+        try {
+            return getEntityManager()
+                    .createQuery("SELECT MAX(run.week) FROM RunTime run", Integer.class)
+                    .getSingleResult();
+        } catch (NoResultException ignored) {
+            return null;
+        }
+    }
+
+    /** Returns a map containing the number of time runs grouped by week. */
+    public Map<Integer, Long> countRunsGroupedByWeek() {
+        List<Object[]> rows = getEntityManager()
+                .createQuery("SELECT run.week, COUNT(run) FROM RunTime run GROUP BY run.week", Object[].class)
+                .getResultList();
+        Map<Integer, Long> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Object weekValue = row[0];
+            Object countValue = row[1];
+            if (!(weekValue instanceof Integer) || countValue == null) {
+                continue;
+            }
+            long count;
+            if (countValue instanceof Long longValue) {
+                count = longValue;
+            } else if (countValue instanceof Number number) {
+                count = number.longValue();
+            } else {
+                continue;
+            }
+            result.put((Integer) weekValue, count);
+        }
+        return result;
     }
 }
