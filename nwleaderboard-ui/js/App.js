@@ -11,6 +11,7 @@ import Password from './pages/Password.js';
 import Contribute from './pages/Contribute.js';
 import ContributeDungeons from './pages/ContributeDungeons.js';
 import ContributeImport from './pages/ContributeImport.js';
+import ContributeStats from './pages/ContributeStats.js';
 import Player from './pages/Player.js';
 import VersionChecker from './VersionChecker.js';
 import {
@@ -107,6 +108,7 @@ export default function App() {
           >
             <Route index element={<ContributeDungeons />} />
             <Route path="import" element={<ContributeImport />} />
+            <Route path="stats" element={<ContributeStats />} />
             <Route path="*" element={<Navigate to="." replace />} />
           </Route>
           <Route path="/player/:playerId?" element={<Player />} />

@@ -39,8 +39,17 @@ const fr = {
   contributeMenuLabel: 'Sections contributeur',
   contributeMenuDungeons: 'Donjons',
   contributeMenuImport: 'Importer',
+  contributeMenuStats: 'Statistiques',
   contributeDungeonsDescription:
     'Sélectionnez les donjons mis en avant sur la page d’accueil. Seuls les donjons cochés apparaîtront dans les faits marquants.',
+  contributeStatsDescription:
+    'Consultez le nombre de runs score et temps enregistrés chaque semaine.',
+  contributeStatsLoading: 'Chargement des statistiques…',
+  contributeStatsError: 'Impossible de charger les statistiques des runs.',
+  contributeStatsEmpty: 'Aucun run enregistré pour le moment.',
+  contributeStatsWeek: 'Semaine',
+  contributeStatsScoreRuns: 'Runs score',
+  contributeStatsTimeRuns: 'Runs temps',
   contributeHighlightsSave: 'Enregistrer la sélection',
   contributeHighlightsSaving: 'Enregistrement…',
   contributeHighlightsSaved: 'Faits marquants mis à jour.',

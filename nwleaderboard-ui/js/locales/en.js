@@ -38,8 +38,17 @@ const en = {
   contributeMenuLabel: 'Contributor sections',
   contributeMenuDungeons: 'Dungeons',
   contributeMenuImport: 'Import',
+  contributeMenuStats: 'Weekly runs',
   contributeDungeonsDescription:
     'Choose which dungeons are highlighted on the home page. Only selected dungeons will appear in the highlights.',
+  contributeStatsDescription:
+    'Review how many score and time runs have been submitted each week.',
+  contributeStatsLoading: 'Loading run statistics…',
+  contributeStatsError: 'Unable to load run statistics.',
+  contributeStatsEmpty: 'No runs recorded yet.',
+  contributeStatsWeek: 'Week',
+  contributeStatsScoreRuns: 'Score runs',
+  contributeStatsTimeRuns: 'Time runs',
   contributeHighlightsSave: 'Save selection',
   contributeHighlightsSaving: 'Saving…',
   contributeHighlightsSaved: 'Highlighted dungeons updated.',
