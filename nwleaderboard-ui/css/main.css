@@ -887,12 +887,7 @@ body[data-theme='light'] .individual-table tbody tr:hover {
   font-weight: 600;
 }
 
-.individual-table th[scope='col']:nth-child(3),
-.individual-table th[scope='col']:nth-child(4),
-.individual-table th[scope='col']:nth-child(5),
-.individual-table td:nth-child(3),
-.individual-table td:nth-child(4),
-.individual-table td:nth-child(5) {
+.individual-table .numeric-cell {
   text-align: right;
 }
 

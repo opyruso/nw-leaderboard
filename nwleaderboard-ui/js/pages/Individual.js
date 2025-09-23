@@ -112,9 +112,13 @@ export default function Individual() {
                 <tr>
                   <th scope="col">{t.individualRankHeader}</th>
                   <th scope="col">{t.individualPlayerHeader}</th>
-                  <th scope="col">{t.individualPointsHeader}</th>
-                  <th scope="col">{t.individualScorePointsHeader}</th>
-                  <th scope="col">{t.individualTimePointsHeader}</th>
+                  <th scope="col" className="numeric-cell">
+                    {mode === 'score'
+                      ? t.individualScorePointsHeader
+                      : mode === 'time'
+                      ? t.individualTimePointsHeader
+                      : t.individualPointsHeader}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -123,9 +127,11 @@ export default function Individual() {
                   const playerId = entry?.playerId;
                   const rawName = typeof entry?.playerName === 'string' ? entry.playerName.trim() : '';
                   const displayName = rawName || t.leaderboardUnknownPlayer;
-                  const points = Number.isFinite(entry?.points) ? entry.points : 0;
+                  const basePoints = Number.isFinite(entry?.points) ? entry.points : 0;
                   const scorePoints = Number.isFinite(entry?.scorePoints) ? entry.scorePoints : 0;
                   const timePoints = Number.isFinite(entry?.timePoints) ? entry.timePoints : 0;
+                  const pointsForMode =
+                    mode === 'score' ? scorePoints : mode === 'time' ? timePoints : basePoints;
                   return (
                     <tr key={playerId ?? `${displayName}-${rank}`}>
                       <th scope="row">{rank}</th>
@@ -141,9 +147,7 @@ export default function Individual() {
                           <span className="individual-player-name">{displayName}</span>
                         )}
                       </td>
-                      <td>{formatPoints(points)}</td>
-                      <td>{formatPoints(scorePoints)}</td>
-                      <td>{formatPoints(timePoints)}</td>
+                      <td className="numeric-cell">{formatPoints(pointsForMode)}</td>
                     </tr>
                   );
                 })}
