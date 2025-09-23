@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import PageSubmenu from './PageSubmenu.js';
 
 const { NavLink } = ReactRouterDOM;
 
@@ -7,7 +8,7 @@ export default function HomeMenu() {
   const highlightsLabel = t.highlights || t.leaderboardTitle;
 
   return (
-    <nav className="page-submenu" aria-label={t.leaderboardMenuTitle}>
+    <PageSubmenu aria-label={t.leaderboardMenuTitle}>
       <NavLink
         className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
         to="/"
@@ -33,7 +34,7 @@ export default function HomeMenu() {
       >
         {t.individual}
       </NavLink>
-    </nav>
+    </PageSubmenu>
   );
 }
 

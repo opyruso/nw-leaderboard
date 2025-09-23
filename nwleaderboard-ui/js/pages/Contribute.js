@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import PageSubmenu from '../components/PageSubmenu.js';
 
 const { NavLink, Outlet } = ReactRouterDOM;
 
@@ -11,7 +12,7 @@ export default function Contribute() {
       <h1 id="contribute-title" className="page-title">
         {t.contributeTitle}
       </h1>
-      <nav className="page-submenu" aria-label={menuLabel}>
+      <PageSubmenu aria-label={menuLabel}>
         <NavLink
           to="/contribute"
           end
@@ -29,7 +30,7 @@ export default function Contribute() {
         >
           {t.contributeMenuImport || t.contribute}
         </NavLink>
-      </nav>
+      </PageSubmenu>
       <Outlet />
     </main>
   );
