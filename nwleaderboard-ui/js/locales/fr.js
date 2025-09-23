@@ -4,6 +4,7 @@ const fr = {
   score: 'Score',
   time: 'Temps',
   individual: 'Individuel',
+  player: 'Joueur',
   login: 'Connexion',
   logout: 'Déconnexion',
   register: "Créer un compte",
@@ -169,6 +170,9 @@ const fr = {
   leaderboardUnknownPlayer: 'Joueur inconnu',
   playerLoadingTitle: 'Chargement du joueur…',
   playerNotFoundTitle: 'Joueur indisponible',
+  playerBrowseTitle: 'Profils des joueurs',
+  playerBrowsePrompt:
+    'Sélectionnez un joueur depuis les highlights ou les classements pour afficher son profil.',
   playerLoading: 'Chargement du profil joueur…',
   playerError: 'Impossible de charger ce joueur pour le moment.',
   playerNoRuns: 'Aucune run enregistrée pour ce joueur pour le moment.',

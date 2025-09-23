@@ -107,16 +107,26 @@ function formatTimeValue(value) {
 export default function Player() {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
+  const normalisedPlayerId = React.useMemo(() => {
+    if (playerId === undefined || playerId === null) {
+      return '';
+    }
+    if (typeof playerId === 'string') {
+      return playerId.trim();
+    }
+    return String(playerId);
+  }, [playerId]);
+  const hasPlayerId = normalisedPlayerId.length > 0;
   const [profile, setProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
 
   React.useEffect(() => {
-    if (!playerId) {
+    if (!hasPlayerId) {
       setProfile(null);
-      setError(true);
+      setError(false);
       setLoading(false);
-      return;
+      return undefined;
     }
 
     let active = true;
@@ -125,7 +135,9 @@ export default function Player() {
     setError(false);
     setProfile(null);
 
-    fetch(`${API_BASE_URL}/player/${encodeURIComponent(playerId)}`, { signal: controller.signal })
+    fetch(`${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}`, {
+      signal: controller.signal,
+    })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to load player: ${response.status}`);
@@ -152,7 +164,7 @@ export default function Player() {
       active = false;
       controller.abort();
     };
-  }, [playerId]);
+  }, [hasPlayerId, normalisedPlayerId]);
 
   const preparedDungeons = React.useMemo(() => {
     if (!profile || !Array.isArray(profile.dungeons)) {
@@ -171,7 +183,9 @@ export default function Player() {
     return sortDungeons(base, lang);
   }, [profile, lang]);
 
-  const heading = profile?.playerName
+  const heading = !hasPlayerId
+    ? t.playerBrowseTitle
+    : profile?.playerName
     ? profile.playerName
     : loading
     ? t.playerLoadingTitle
@@ -194,7 +208,9 @@ export default function Player() {
         {heading}
       </h1>
       <section className="player-dungeon-section" aria-live="polite">
-        {loading ? (
+        {!hasPlayerId ? (
+          <p className="leaderboard-status">{t.playerBrowsePrompt}</p>
+        ) : loading ? (
           <p className="leaderboard-status">{t.playerLoading}</p>
         ) : error ? (
           <p className="leaderboard-status error">{t.playerError}</p>

@@ -34,6 +34,12 @@ export default function HomeMenu() {
       >
         {t.individual}
       </NavLink>
+      <NavLink
+        className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
+        to="/player"
+      >
+        {t.player}
+      </NavLink>
     </PageSubmenu>
   );
 }
