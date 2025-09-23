@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonNameForLang, sortDungeons } from '../dungeons.js';
+import HomeMenu from '../components/HomeMenu.js';
 
 const { useParams } = ReactRouterDOM;
 
@@ -207,6 +208,7 @@ export default function Player() {
       <h1 id="player-title" className="page-title">
         {heading}
       </h1>
+      <HomeMenu />
       <section className="player-dungeon-section" aria-live="polite">
         {!hasPlayerId ? (
           <p className="leaderboard-status">{t.playerBrowsePrompt}</p>
