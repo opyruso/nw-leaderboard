@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword.js';
 import Preferences from './pages/Preferences.js';
 import Password from './pages/Password.js';
 import Contribute from './pages/Contribute.js';
+import Player from './pages/Player.js';
 import VersionChecker from './VersionChecker.js';
 import {
   storeTokens,
@@ -102,6 +103,7 @@ export default function App() {
               )
             }
           />
+          <Route path="/player/:playerId" element={<Player />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <BottomNav

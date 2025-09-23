@@ -1,6 +1,7 @@
 package com.opyruso.nwleaderboard.service;
 
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
@@ -50,7 +51,7 @@ public class LeaderboardService {
         if (runs.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<String>> playersByRun = loadPlayersForScoreRuns(runs);
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (RunScore run : runs) {
             Long runId = run.getId();
@@ -76,7 +77,7 @@ public class LeaderboardService {
         if (runs.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<String>> playersByRun = loadPlayersForTimeRuns(runs);
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (RunTime run : runs) {
             Long runId = run.getId();
@@ -92,7 +93,7 @@ public class LeaderboardService {
         return List.copyOf(responses);
     }
 
-    private Map<Long, List<String>> loadPlayersForScoreRuns(List<RunScore> runs) {
+    private Map<Long, List<LeaderboardPlayerResponse>> loadPlayersForScoreRuns(List<RunScore> runs) {
         List<Long> runIds = runs.stream()
                 .map(RunScore::getId)
                 .filter(Objects::nonNull)
@@ -104,12 +105,13 @@ public class LeaderboardService {
         List<PlayerAssignment> assignments = runScorePlayerRepository.listWithPlayersByRunIds(runIds).stream()
                 .map(association -> new PlayerAssignment(
                         association.getRunScore() != null ? association.getRunScore().getId() : null,
+                        association.getPlayer() != null ? association.getPlayer().getId() : null,
                         association.getPlayer() != null ? association.getPlayer().getPlayerName() : null))
                 .toList();
         return organisePlayers(runIds, assignments);
     }
 
-    private Map<Long, List<String>> loadPlayersForTimeRuns(List<RunTime> runs) {
+    private Map<Long, List<LeaderboardPlayerResponse>> loadPlayersForTimeRuns(List<RunTime> runs) {
         List<Long> runIds = runs.stream()
                 .map(RunTime::getId)
                 .filter(Objects::nonNull)
@@ -121,16 +123,17 @@ public class LeaderboardService {
         List<PlayerAssignment> assignments = runTimePlayerRepository.listWithPlayersByRunIds(runIds).stream()
                 .map(association -> new PlayerAssignment(
                         association.getRunTime() != null ? association.getRunTime().getId() : null,
+                        association.getPlayer() != null ? association.getPlayer().getId() : null,
                         association.getPlayer() != null ? association.getPlayer().getPlayerName() : null))
                 .toList();
         return organisePlayers(runIds, assignments);
     }
 
-    private Map<Long, List<String>> organisePlayers(List<Long> runIds, List<PlayerAssignment> assignments) {
+    private Map<Long, List<LeaderboardPlayerResponse>> organisePlayers(List<Long> runIds, List<PlayerAssignment> assignments) {
         if (runIds.isEmpty()) {
             return Map.of();
         }
-        LinkedHashMap<Long, List<String>> playersByRun = runIds.stream()
+        LinkedHashMap<Long, List<PlayerAssignment>> playersByRun = runIds.stream()
                 .collect(Collectors.toMap(id -> id, id -> new ArrayList<>(), (left, right) -> left, LinkedHashMap::new));
         for (PlayerAssignment assignment : assignments) {
             if (assignment == null) {
@@ -140,34 +143,34 @@ public class LeaderboardService {
             if (runId == null) {
                 continue;
             }
-            List<String> bucket = playersByRun.get(runId);
+            List<PlayerAssignment> bucket = playersByRun.get(runId);
             if (bucket == null) {
                 continue;
             }
-            String name = assignment.playerName();
-            if (name != null) {
-                bucket.add(name);
-            }
+            bucket.add(assignment);
         }
-        playersByRun.replaceAll((runId, names) -> normalisePlayerNames(names));
-        return Collections.unmodifiableMap(playersByRun);
+        LinkedHashMap<Long, List<LeaderboardPlayerResponse>> normalised = new LinkedHashMap<>();
+        playersByRun.forEach((runId, players) -> normalised.put(runId, normalisePlayerAssignments(players)));
+        return Collections.unmodifiableMap(normalised);
     }
 
-    private List<String> normalisePlayerNames(List<String> names) {
-        if (names == null || names.isEmpty()) {
+    private List<LeaderboardPlayerResponse> normalisePlayerAssignments(List<PlayerAssignment> assignments) {
+        if (assignments == null || assignments.isEmpty()) {
             return List.of();
         }
-        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
-        for (String name : names) {
-            if (name == null) {
+        LinkedHashMap<String, LeaderboardPlayerResponse> unique = new LinkedHashMap<>();
+        for (PlayerAssignment assignment : assignments) {
+            if (assignment == null) {
                 continue;
             }
-            String trimmed = name.strip();
-            if (trimmed.isEmpty()) {
+            Long playerId = assignment.playerId();
+            String name = assignment.playerName();
+            String trimmed = name != null ? name.strip() : null;
+            if ((playerId == null || playerId < 0) && (trimmed == null || trimmed.isEmpty())) {
                 continue;
             }
-            String key = trimmed.toLowerCase(Locale.ROOT);
-            unique.putIfAbsent(key, trimmed);
+            String key = playerId != null ? "id:" + playerId : "name:" + trimmed.toLowerCase(Locale.ROOT);
+            unique.putIfAbsent(key, new LeaderboardPlayerResponse(playerId, trimmed));
         }
         return List.copyOf(unique.values());
     }
@@ -179,6 +182,6 @@ public class LeaderboardService {
         return Math.min(limit, MAX_LIMIT);
     }
 
-    private record PlayerAssignment(Long runId, String playerName) {
+    private record PlayerAssignment(Long runId, Long playerId, String playerName) {
     }
 }

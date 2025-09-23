@@ -1,132 +1,10 @@
 import { LangContext } from '../i18n.js';
+import HomeMenu from '../components/HomeMenu.js';
+import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
+
+const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
-const DUNGEON_LANG_CODES = ['en', 'de', 'fr', 'es', 'esmx', 'it', 'pl', 'pt'];
-
-function normaliseLanguageKey(key) {
-  if (key === undefined || key === null) {
-    return null;
-  }
-  const lower = String(key).toLowerCase();
-  if (lower === 'es-mx' || lower === 'es_mx') {
-    return 'esmx';
-  }
-  if (DUNGEON_LANG_CODES.includes(lower)) {
-    return lower;
-  }
-  return null;
-}
-
-function safeString(value) {
-  if (typeof value !== 'string') {
-    return '';
-  }
-  const trimmed = value.trim();
-  return trimmed;
-}
-
-function toLocaleCode(lang) {
-  return lang === 'esmx' ? 'es-MX' : lang || 'en';
-}
-
-function normaliseDungeonNames(dungeon) {
-  const result = {};
-  if (!dungeon || typeof dungeon !== 'object') {
-    return result;
-  }
-  const { names } = dungeon;
-  if (names && typeof names === 'object') {
-    Object.entries(names).forEach(([key, value]) => {
-      const normalisedKey = normaliseLanguageKey(key);
-      if (!normalisedKey) {
-        return;
-      }
-      const text = safeString(value);
-      if (text) {
-        result[normalisedKey] = text;
-      }
-    });
-  }
-  return result;
-}
-
-function deriveFallbackName(dungeon, names, id) {
-  const candidates = [
-    names.en,
-    safeString(dungeon?.name),
-    safeString(dungeon?.label),
-    safeString(dungeon?.title),
-    safeString(dungeon?.displayName),
-    safeString(dungeon?.slug),
-    safeString(dungeon?.code),
-    safeString(dungeon?.identifier),
-  ];
-  for (const candidate of candidates) {
-    if (candidate) {
-      return candidate;
-    }
-  }
-  return String(id);
-}
-
-function getDungeonNameForLang(dungeon, lang) {
-  if (!dungeon || typeof dungeon !== 'object') {
-    return '';
-  }
-  const { names = {}, fallbackName = '', id = '' } = dungeon;
-  const requested = normaliseLanguageKey(lang);
-  const priorities = [];
-  if (requested) {
-    priorities.push(requested);
-    if (requested === 'esmx') {
-      priorities.push('es');
-    }
-  }
-  if (!priorities.includes('en')) {
-    priorities.push('en');
-  }
-  DUNGEON_LANG_CODES.forEach((code) => {
-    if (!priorities.includes(code)) {
-      priorities.push(code);
-    }
-  });
-  for (const code of priorities) {
-    const value = safeString(names[code]);
-    if (value) {
-      return value;
-    }
-  }
-  const fallback = safeString(fallbackName);
-  if (fallback) {
-    return fallback;
-  }
-  return String(id || '');
-}
-
-function sortDungeons(list, lang) {
-  if (!Array.isArray(list)) {
-    return [];
-  }
-  const copy = list.slice();
-  let collator;
-  try {
-    collator = new Intl.Collator(toLocaleCode(lang), { sensitivity: 'base', usage: 'sort' });
-  } catch (error) {
-    collator = new Intl.Collator('en', { sensitivity: 'base', usage: 'sort' });
-  }
-  copy.sort((a, b) => {
-    const nameA = getDungeonNameForLang(a, lang);
-    const nameB = getDungeonNameForLang(b, lang);
-    const comparison = collator.compare(nameA, nameB);
-    if (comparison !== 0) {
-      return comparison;
-    }
-    const orderA = typeof a.order === 'number' ? a.order : 0;
-    const orderB = typeof b.order === 'number' ? b.order : 0;
-    return orderA - orderB;
-  });
-  return copy;
-}
 
 function normalisePlayers(entry) {
   const { players, members, team, squad, group, party } = entry || {};
@@ -135,19 +13,72 @@ function normalisePlayers(entry) {
   if (!source) {
     return [];
   }
+
+  const collected = [];
+  const pushPlayer = (id, name) => {
+    const safeId = id !== undefined && id !== null ? String(id) : null;
+    const safeName = typeof name === 'string' ? name.trim() : '';
+    if (!safeId && !safeName) {
+      return;
+    }
+    collected.push({ id: safeId, name: safeName });
+  };
+
   if (Array.isArray(source)) {
-    return source
-      .map((value) => (typeof value === 'string' ? value.trim() : value))
-      .filter((value) => Boolean(value && String(value).length))
-      .map((value) => String(value));
-  }
-  if (typeof source === 'string') {
-    return source
+    source.forEach((value) => {
+      if (!value) {
+        return;
+      }
+      if (typeof value === 'string') {
+        pushPlayer(null, value);
+        return;
+      }
+      if (typeof value === 'object') {
+        const id =
+          value.id ??
+          value.playerId ??
+          value.player_id ??
+          value.id_player ??
+          value.identifier ??
+          value.ref ??
+          value.key ??
+          null;
+        const name =
+          value.name ??
+          value.playerName ??
+          value.player_name ??
+          value.label ??
+          value.displayName ??
+          value.username ??
+          value.fullName ??
+          value.text ??
+          '';
+        pushPlayer(id, name);
+      }
+    });
+  } else if (typeof source === 'string') {
+    source
       .split(/[,;\n]/)
       .map((value) => value.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .forEach((value) => pushPlayer(null, value));
   }
-  return [];
+
+  if (collected.length === 0) {
+    return [];
+  }
+
+  const unique = [];
+  const seen = new Set();
+  collected.forEach((player) => {
+    const key = player.id ? `id:${player.id}` : player.name ? `name:${player.name.toLowerCase()}` : null;
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    unique.push(player);
+  });
+  return unique;
 }
 
 function deriveWeek(entry) {
@@ -156,38 +87,6 @@ function deriveWeek(entry) {
   }
   const { week, period, season, date, label, title, range } = entry;
   return week ?? period ?? season ?? date ?? label ?? title ?? range ?? '';
-}
-
-function normaliseDungeons(data) {
-  if (!Array.isArray(data)) {
-    return [];
-  }
-  return data
-    .map((dungeon, index) => {
-      if (!dungeon || typeof dungeon !== 'object') {
-        return null;
-      }
-      const identifier =
-        dungeon.id ??
-        dungeon.slug ??
-        dungeon.code ??
-        dungeon.key ??
-        dungeon.identifier ??
-        dungeon.ref ??
-        dungeon.name ??
-        index;
-      if (identifier === undefined || identifier === null) {
-        return null;
-      }
-      const id = String(identifier);
-      const names = normaliseDungeonNames(dungeon);
-      const fallbackName = deriveFallbackName(dungeon, names, id);
-      if (!names.en && fallbackName) {
-        names.en = fallbackName;
-      }
-      return { id, names, fallbackName, order: index };
-    })
-    .filter(Boolean);
 }
 
 export default function LeaderboardPage({
@@ -361,6 +260,7 @@ export default function LeaderboardPage({
       <h1 id={`${mode}-title`} className="page-title">
         {pageTitle}
       </h1>
+      <HomeMenu />
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
           <h2 className="leaderboard-sidebar-title">{t.dungeonSelectorTitle}</h2>
@@ -403,16 +303,40 @@ export default function LeaderboardPage({
           ) : (
             <ul className="leaderboard-list">
               {sortedEntries.map((entry) => {
-                const playersText = entry.players.length
-                  ? entry.players.join(', ')
-                  : t.leaderboardUnknownPlayers;
                 const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                 const valueDisplay = formatValue(entry.value, entry.raw);
                 return (
-                  <li key={entry.id} className="leaderboard-row">
-                    <span className="leaderboard-week">{weekDisplay}</span>
-                    <span className="leaderboard-players">{playersText}</span>
-                    <span className="leaderboard-value">{valueDisplay}</span>
+                  <li key={entry.id} className="leaderboard-run">
+                    <div className="leaderboard-run-header">
+                      <span className="leaderboard-week">{weekDisplay}</span>
+                      <span className="leaderboard-value">{valueDisplay}</span>
+                    </div>
+                    <ul className="leaderboard-player-grid">
+                      {entry.players.length === 0 ? (
+                        <li className="leaderboard-player">
+                          <span className="leaderboard-player-name">{t.leaderboardUnknownPlayers}</span>
+                        </li>
+                      ) : (
+                        entry.players.map((player, index) => {
+                          const displayName = player.name || t.leaderboardUnknownPlayer;
+                          const playerKey = player.id ?? player.name ?? `player-${index}`;
+                          return (
+                            <li key={playerKey} className="leaderboard-player">
+                              {player.id ? (
+                                <Link
+                                  to={`/player/${encodeURIComponent(player.id)}`}
+                                  className="leaderboard-player-link"
+                                >
+                                  {displayName}
+                                </Link>
+                              ) : (
+                                <span className="leaderboard-player-name">{displayName}</span>
+                              )}
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
                   </li>
                 );
               })}

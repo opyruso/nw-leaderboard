@@ -68,7 +68,7 @@ body[data-theme='light'] {
     clamp(5rem, 12vw, 7rem);
   overflow-y: auto;
   box-sizing: border-box;
-  width: min(100%, 800px);
+  width: min(100%, 1024px);
   margin: 0 auto;
 }
 
@@ -401,43 +401,159 @@ body[data-theme='light'] .bottom-nav {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
-.leaderboard-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) minmax(120px, 1fr);
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1rem 1.5rem;
+.leaderboard-run {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
   border-radius: 18px;
   background: var(--surface-dark);
   box-shadow: var(--shadow-elevated);
   border: 1px solid var(--border-dark);
 }
 
-body[data-theme='light'] .leaderboard-row {
+body[data-theme='light'] .leaderboard-run {
   background: var(--surface-light);
   box-shadow: 0 18px 35px rgba(15, 23, 42, 0.12);
   border-color: var(--border-light);
 }
 
+.leaderboard-run-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .leaderboard-week {
   font-weight: 600;
   letter-spacing: 0.5px;
-}
-
-.leaderboard-players {
-  text-align: left;
-  line-height: 1.35;
-  word-break: break-word;
+  text-transform: uppercase;
+  font-size: 0.95rem;
 }
 
 .leaderboard-value {
-  text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-align: right;
+}
+
+.leaderboard-player-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+.leaderboard-player {
+  flex: 1 1 calc(50% - 0.75rem);
+  min-width: 140px;
+}
+
+.leaderboard-player-link,
+.leaderboard-player-name {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+}
+
+.leaderboard-player-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.leaderboard-player-link:hover,
+.leaderboard-player-link:focus-visible {
+  color: var(--color-accent);
+  border-color: rgba(124, 92, 255, 0.6);
+  outline: none;
+}
+
+.leaderboard-player-name {
+  opacity: 0.85;
+}
+
+.player-dungeon-section {
+  margin-top: 2rem;
+}
+
+.player-dungeon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.player-dungeon-card {
+  background: var(--surface-dark);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+body[data-theme='light'] .player-dungeon-card {
+  background: var(--surface-light);
+  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.12);
+  border-color: var(--border-light);
+}
+
+.player-dungeon-name {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.4px;
+}
+
+.player-dungeon-stats {
+  display: grid;
+  gap: 1rem;
+}
+
+.player-dungeon-stat {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.player-dungeon-stat dt {
+  font-size: 0.9rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.player-dungeon-stat dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.player-dungeon-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-dungeon-week {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.player-dungeon-empty {
+  opacity: 0.65;
 }
 
 .leaderboard-status {
@@ -1143,26 +1259,31 @@ body[data-theme='light'] .version-banner {
 }
 
 @media (max-width: 720px) {
-  .leaderboard-row {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'week'
-      'players'
-      'value';
-    gap: 0.75rem;
+  .leaderboard-run {
+    padding: 1rem 1.25rem;
   }
 
-  .leaderboard-week {
-    grid-area: week;
-  }
-
-  .leaderboard-players {
-    grid-area: players;
+  .leaderboard-run-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .leaderboard-value {
-    grid-area: value;
     text-align: left;
+  }
+
+  .leaderboard-player {
+    flex: 1 1 100%;
+  }
+}
+
+@media (min-width: 720px) {
+  .player-dungeon-list {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  .player-dungeon-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
