@@ -3,6 +3,8 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
+import com.opyruso.nwleaderboard.dto.IndividualRankingEntryResponse;
+import com.opyruso.nwleaderboard.service.IndividualRankingService;
 import com.opyruso.nwleaderboard.service.LeaderboardService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -23,6 +25,9 @@ public class LeaderboardResource {
 
     @Inject
     LeaderboardService leaderboardService;
+
+    @Inject
+    IndividualRankingService individualRankingService;
 
     @GET
     @Path("/score")
@@ -53,5 +58,13 @@ public class LeaderboardResource {
     public Response getHighlights() {
         List<HighlightResponse> highlights = leaderboardService.getHighlights();
         return Response.ok(highlights).build();
+    }
+
+    @GET
+    @Path("/individual")
+    public Response getIndividualRanking(@QueryParam("mode") String modeParam) {
+        IndividualRankingService.Mode mode = IndividualRankingService.Mode.fromQuery(modeParam);
+        List<IndividualRankingEntryResponse> entries = individualRankingService.getRanking(mode);
+        return Response.ok(entries).build();
     }
 }
