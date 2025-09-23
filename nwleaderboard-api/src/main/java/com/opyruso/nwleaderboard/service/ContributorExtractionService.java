@@ -82,6 +82,7 @@ public class ContributorExtractionService {
     private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)(?:week|semaine)?\\s*(\\d{1,3})");
     private static final Pattern TIME_PATTERN = Pattern.compile("(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})");
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d[\\d,. ]*)");
+    private static final double PLAYER_SUGGESTION_THRESHOLD = 0.9d;
 
     private static final List<String> IMAGE_FIELD_NAMES = List.of("image", "images", "file", "files", "upload", "uploads");
 
@@ -686,7 +687,10 @@ public class ContributorExtractionService {
                 bestMatch = candidate;
             }
         }
-        return bestMatch;
+        if (bestMatch != null && bestScore >= PLAYER_SUGGESTION_THRESHOLD) {
+            return bestMatch;
+        }
+        return null;
     }
 
     private String formatTimeValue(Integer timeInSeconds) {
@@ -894,6 +898,13 @@ public class ContributorExtractionService {
             }
             if (count > 0) {
                 confidence = sum / count;
+            }
+        }
+
+        float meanConfidence = tesseract.getMeanConfidence();
+        if (!Float.isNaN(meanConfidence) && meanConfidence >= 0) {
+            if (confidence == null || meanConfidence > confidence) {
+                confidence = (double) meanConfidence;
             }
         }
 

@@ -122,6 +122,26 @@ function normaliseField(field) {
   return { text, normalized, number, id, crop, confidence, status, alreadyExists, details, confirmed };
 }
 
+function shouldAutoConfirmField(field, threshold = 95) {
+  if (!field || typeof field !== 'object') {
+    return false;
+  }
+  if (field.status !== 'warning') {
+    return false;
+  }
+  const rawConfidence = field.confidence;
+  const numericConfidence =
+    typeof rawConfidence === 'number' && Number.isFinite(rawConfidence)
+      ? rawConfidence
+      : typeof rawConfidence === 'string'
+      ? Number.parseFloat(rawConfidence)
+      : null;
+  if (!Number.isFinite(numericConfidence)) {
+    return false;
+  }
+  return numericConfidence >= threshold;
+}
+
 function createEmptyContext() {
   return {
     week: '',
@@ -185,6 +205,7 @@ function createPlayerSlot(field, runIndex, slotIndex, seed) {
   const details = normalizedField.details ? { ...normalizedField.details } : null;
   const status = normalizedField.status || '';
   const alreadyExists = normalizedField.alreadyExists === true;
+  const autoConfirmed = shouldAutoConfirmField(normalizedField);
   return {
     key: `player-${seed}-${runIndex}-${slotIndex}-${Math.random().toString(36).slice(2, 8)}`,
     slotIndex,
@@ -196,7 +217,7 @@ function createPlayerSlot(field, runIndex, slotIndex, seed) {
     playerId: initialId,
     status,
     alreadyExists,
-    confirmed: normalizedField.confirmed,
+    confirmed: autoConfirmed ? true : normalizedField.confirmed,
     details,
     crop: normalizedField.crop,
     confidence: normalizedField.confidence,
@@ -217,7 +238,10 @@ function buildRunsFromExtraction(data, context, seed = Date.now()) {
     const score = Number.isFinite(runSource?.score) ? Number(runSource.score) : null;
     const time = Number.isFinite(runSource?.time) ? Number(runSource.time) : null;
     const modeValue = typeof runSource?.mode === 'string' ? runSource.mode.toUpperCase() : '';
-    const valueField = normaliseField(runSource.value);
+    let valueField = normaliseField(runSource.value);
+    if (shouldAutoConfirmField(valueField)) {
+      valueField = { ...valueField, confirmed: true };
+    }
     runs.push({
       id: `run-${seed}-${index}`,
       index,
