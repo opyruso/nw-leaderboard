@@ -82,6 +82,7 @@ public class ContributorExtractionService {
     private static final Pattern WEEK_PATTERN = Pattern.compile("(?i)(?:week|semaine)?\\s*(\\d{1,3})");
     private static final Pattern TIME_PATTERN = Pattern.compile("(?:(\\d{1,2}):)?(\\d{1,2}):(\\d{2})");
     private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d[\\d,. ]*)");
+    private static final double PLAYER_SUGGESTION_THRESHOLD = 0.9d;
 
     private static final List<String> IMAGE_FIELD_NAMES = List.of("image", "images", "file", "files", "upload", "uploads");
 
@@ -686,7 +687,10 @@ public class ContributorExtractionService {
                 bestMatch = candidate;
             }
         }
-        return bestMatch;
+        if (bestMatch != null && bestScore >= PLAYER_SUGGESTION_THRESHOLD) {
+            return bestMatch;
+        }
+        return null;
     }
 
     private String formatTimeValue(Integer timeInSeconds) {
@@ -881,19 +885,15 @@ public class ContributorExtractionService {
             LOG.debugf(e, "Unable to run OCR on area %s", bounded);
         }
 
-        List<Word> words = tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_WORD);
-        if (words != null && !words.isEmpty()) {
-            double sum = 0d;
-            int count = 0;
-            for (Word word : words) {
-                float wordConfidence = word.getConfidence();
-                if (!Float.isNaN(wordConfidence) && wordConfidence >= 0) {
-                    sum += wordConfidence;
-                    count++;
-                }
-            }
-            if (count > 0) {
-                confidence = sum / count;
+        Double wordConfidence = averageConfidence(tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_WORD));
+        if (wordConfidence != null) {
+            confidence = wordConfidence;
+        }
+
+        if (confidence == null || confidence <= 0d) {
+            Double symbolConfidence = averageConfidence(tesseract.getWords(preprocessed, TessPageIteratorLevel.RIL_SYMBOL));
+            if (symbolConfidence != null && (confidence == null || symbolConfidence > confidence)) {
+                confidence = symbolConfidence;
             }
         }
 
@@ -905,6 +905,28 @@ public class ContributorExtractionService {
         }
 
         return new OcrResult(bounded, originalRegion, preprocessed, text, confidence);
+    }
+
+    private Double averageConfidence(List<Word> words) {
+        if (words == null || words.isEmpty()) {
+            return null;
+        }
+        double sum = 0d;
+        int count = 0;
+        for (Word word : words) {
+            if (word == null) {
+                continue;
+            }
+            float wordConfidence = word.getConfidence();
+            if (!Float.isNaN(wordConfidence) && wordConfidence >= 0) {
+                sum += wordConfidence;
+                count++;
+            }
+        }
+        if (count <= 0) {
+            return null;
+        }
+        return sum / count;
     }
 
     private Tesseract createEngine() {
