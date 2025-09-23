@@ -109,7 +109,7 @@ export default function App() {
             <Route path="import" element={<ContributeImport />} />
             <Route path="*" element={<Navigate to="." replace />} />
           </Route>
-          <Route path="/player/:playerId" element={<Player />} />
+          <Route path="/player/:playerId?" element={<Player />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <BottomNav
