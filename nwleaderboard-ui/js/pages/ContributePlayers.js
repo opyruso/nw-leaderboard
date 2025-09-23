@@ -8,6 +8,23 @@ function normalisePlayer(player) {
   }
   const idValue = Number(player.id);
   const id = Number.isFinite(idValue) ? idValue : null;
+  const parseCount = (value) => {
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+  };
+  const scoreRuns = parseCount(
+    player.score_run_count ?? player.scoreRuns ?? player.score_runCount ?? player.scoreRun_count,
+  );
+  const timeRuns = parseCount(
+    player.time_run_count ?? player.timeRuns ?? player.time_runCount ?? player.timeRun_count,
+  );
+  const totalCandidate = parseCount(
+    player.total_run_count ?? player.totalRuns ?? player.total_runCount ?? player.totalRun_count,
+  );
+  const totalRuns = totalCandidate > 0 ? totalCandidate : scoreRuns + timeRuns;
   return {
     id,
     playerName:
@@ -17,6 +34,9 @@ function normalisePlayer(player) {
         ? player.playerName
         : '',
     valid: Boolean(player.valid),
+    scoreRuns,
+    timeRuns,
+    totalRuns,
   };
 }
 
@@ -38,6 +58,19 @@ export default function ContributePlayers() {
   const [editingName, setEditingName] = React.useState('');
   const [pendingIds, setPendingIds] = React.useState(() => new Set());
   const [feedback, setFeedback] = React.useState({ type: '', text: '' });
+
+  const formatRunCounts = React.useCallback(
+    (total, score, time) => {
+      const totalDisplay = Number.isFinite(total) ? total.toLocaleString() : '0';
+      const scoreDisplay = Number.isFinite(score) ? score.toLocaleString() : '0';
+      const timeDisplay = Number.isFinite(time) ? time.toLocaleString() : '0';
+      if (typeof t.contributePlayerRunsValue === 'function') {
+        return t.contributePlayerRunsValue(totalDisplay, scoreDisplay, timeDisplay);
+      }
+      return `${totalDisplay} (score ${scoreDisplay} · time ${timeDisplay})`;
+    },
+    [t],
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -332,6 +365,12 @@ export default function ContributePlayers() {
               const active = editingId === player.id;
               const pending = isPending(player.id);
               const statusClass = player.valid ? 'status-success' : 'status-warning';
+              const scoreRuns = Number.isFinite(player.scoreRuns) ? player.scoreRuns : 0;
+              const timeRuns = Number.isFinite(player.timeRuns) ? player.timeRuns : 0;
+              const totalRuns = Number.isFinite(player.totalRuns)
+                ? player.totalRuns
+                : scoreRuns + timeRuns;
+              const runsText = formatRunCounts(totalRuns, scoreRuns, timeRuns);
               return (
                 <li
                   key={player.id}
@@ -353,6 +392,14 @@ export default function ContributePlayers() {
                     ) : (
                       <span>{player.playerName}</span>
                     )}
+                  </div>
+                  <div className="contribute-player-card-stats">
+                    <span className="contribute-player-card-label">
+                      {t.contributePlayerRunsLabel || 'Runs'}
+                    </span>
+                    <span className="contribute-player-card-runs" title={runsText}>
+                      {runsText}
+                    </span>
                   </div>
                   <div className="contribute-player-card-valid">
                     <span className="contribute-player-card-label">

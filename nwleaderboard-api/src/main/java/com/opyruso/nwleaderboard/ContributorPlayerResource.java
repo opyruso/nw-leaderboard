@@ -8,6 +8,7 @@ import com.opyruso.nwleaderboard.dto.UpdatePlayerValidityRequest;
 import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.service.ContributorPlayerService;
 import com.opyruso.nwleaderboard.service.ContributorPlayerService.ContributorPlayerException;
+import com.opyruso.nwleaderboard.service.ContributorPlayerService.PlayerWithRuns;
 import com.opyruso.nwleaderboard.service.ContributorPlayerService.RenameResult;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -64,7 +65,7 @@ public class ContributorPlayerResource {
         }
         boolean valid = request != null && Boolean.TRUE.equals(request.valid());
         try {
-            Player updated = playerService.updateValidity(playerId, valid);
+            PlayerWithRuns updated = playerService.updateValidity(playerId, valid);
             ContributorPlayerResponse response = toResponse(updated);
             return Response.ok(new ContributorPlayerUpdateResponse(response, null)).build();
         } catch (ContributorPlayerException e) {
@@ -88,8 +89,16 @@ public class ContributorPlayerResource {
         }
     }
 
-    private ContributorPlayerResponse toResponse(Player player) {
-        return new ContributorPlayerResponse(player.getId(), player.getPlayerName(), player.isValid());
+    private ContributorPlayerResponse toResponse(PlayerWithRuns summary) {
+        if (summary == null || summary.player() == null) {
+            return new ContributorPlayerResponse(null, null, false, 0L, 0L, 0L);
+        }
+        Player player = summary.player();
+        long scoreRuns = summary.scoreRunCount();
+        long timeRuns = summary.timeRunCount();
+        long totalRuns = scoreRuns + timeRuns;
+        return new ContributorPlayerResponse(
+                player.getId(), player.getPlayerName(), player.isValid(), scoreRuns, timeRuns, totalRuns);
     }
 
     private Response forbidden() {

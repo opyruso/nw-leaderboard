@@ -1405,7 +1405,7 @@ body[data-theme='light'] .contribute-run {
   padding: 0;
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
 }
 
 .contribute-players {
@@ -1450,6 +1450,20 @@ body[data-theme='light'] .contribute-run {
 
 .contribute-player-card-name input {
   width: 100%;
+}
+
+.contribute-player-card-stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.contribute-player-card-runs {
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: right;
 }
 
 .contribute-player-card-valid {

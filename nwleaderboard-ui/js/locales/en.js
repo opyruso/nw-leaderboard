@@ -48,6 +48,8 @@ const en = {
   contributePlayersHideValid: 'Hide valid players',
   contributePlayersEditHint: 'Double-click a player to rename it.',
   contributePlayerValidLabel: 'Valid',
+  contributePlayerRunsLabel: 'Runs',
+  contributePlayerRunsValue: (total, score, time) => `${total} (score ${score} · time ${time})`,
   contributePlayerMergeConfirm: (source, target) => `Merge ${source} into ${target}?`,
   contributePlayerRenamePlaceholder: 'Player name',
   contributePlayerUpdateError: 'Unable to update this player.',

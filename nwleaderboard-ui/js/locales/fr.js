@@ -48,6 +48,8 @@ const fr = {
   contributePlayersHideValid: 'Masquer les joueurs valides',
   contributePlayersEditHint: 'Double-cliquez sur un joueur pour modifier son nom.',
   contributePlayerValidLabel: 'Valide',
+  contributePlayerRunsLabel: 'Runs',
+  contributePlayerRunsValue: (total, score, time) => `${total} (score ${score} · temps ${time})`,
   contributePlayerMergeConfirm: (source, target) => `Fusionner ${source} dans ${target} ?`,
   contributePlayerRenamePlaceholder: 'Nom du joueur',
   contributePlayerUpdateError: 'Impossible de mettre à jour ce joueur.',

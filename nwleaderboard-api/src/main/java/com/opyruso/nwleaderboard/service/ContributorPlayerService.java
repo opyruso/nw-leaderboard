@@ -13,9 +13,11 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service exposing player management operations for contributors.
@@ -38,8 +40,9 @@ public class ContributorPlayerService {
      * @return ordered list of players
      */
     @Transactional
-    public List<Player> listPlayers() {
-        return playerRepository.listAllOrderedByName();
+    public List<PlayerWithRuns> listPlayers() {
+        List<Player> players = playerRepository.listAllOrderedByName();
+        return attachRunCounts(players);
     }
 
     /**
@@ -50,10 +53,10 @@ public class ContributorPlayerService {
      * @return updated player entity
      */
     @Transactional
-    public Player updateValidity(Long playerId, boolean valid) {
+    public PlayerWithRuns updateValidity(Long playerId, boolean valid) {
         Player player = requirePlayer(playerId);
         player.setValid(valid);
-        return player;
+        return buildSummary(player);
     }
 
     /**
@@ -73,7 +76,7 @@ public class ContributorPlayerService {
 
         if (player.getPlayerName() != null && player.getPlayerName().equalsIgnoreCase(cleaned)) {
             player.setPlayerName(cleaned);
-            return new RenameResult(player, null);
+            return new RenameResult(buildSummary(player), null);
         }
 
         Optional<Player> duplicate = playerRepository.findByPlayerNameIgnoreCase(cleaned);
@@ -81,14 +84,14 @@ public class ContributorPlayerService {
             Player target = duplicate.get();
             if (Objects.equals(target.getId(), player.getId())) {
                 player.setPlayerName(cleaned);
-                return new RenameResult(player, null);
+                return new RenameResult(buildSummary(player), null);
             }
             mergePlayers(player, target);
-            return new RenameResult(target, player.getId());
+            return new RenameResult(buildSummary(target), player.getId());
         }
 
         player.setPlayerName(cleaned);
-        return new RenameResult(player, null);
+        return new RenameResult(buildSummary(player), null);
     }
 
     private void mergePlayers(Player source, Player target) {
@@ -96,6 +99,34 @@ public class ContributorPlayerService {
         mergeTimeAssociations(source, target);
         playerRepository.delete(source);
         playerRepository.flush();
+    }
+
+    private List<PlayerWithRuns> attachRunCounts(List<Player> players) {
+        if (players == null || players.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = players.stream()
+                .map(Player::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        Map<Long, Long> scoreCounts = runScorePlayerRepository.countByPlayerIds(ids);
+        Map<Long, Long> timeCounts = runTimePlayerRepository.countByPlayerIds(ids);
+        return players.stream()
+                .map(player -> {
+                    long scoreRuns = scoreCounts.getOrDefault(player.getId(), 0L);
+                    long timeRuns = timeCounts.getOrDefault(player.getId(), 0L);
+                    return new PlayerWithRuns(player, scoreRuns, timeRuns);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private PlayerWithRuns buildSummary(Player player) {
+        if (player == null) {
+            throw new ContributorPlayerException("Player not found");
+        }
+        long scoreRuns = runScorePlayerRepository.countByPlayerId(player.getId());
+        long timeRuns = runTimePlayerRepository.countByPlayerId(player.getId());
+        return new PlayerWithRuns(player, scoreRuns, timeRuns);
     }
 
     private void mergeScoreAssociations(Player source, Player target) {
@@ -182,5 +213,7 @@ public class ContributorPlayerService {
      * @param player resulting player entity
      * @param removedPlayerId identifier of the removed player when a merge occurred
      */
-    public record RenameResult(Player player, Long removedPlayerId) {}
+    public record PlayerWithRuns(Player player, long scoreRunCount, long timeRunCount) {}
+
+    public record RenameResult(PlayerWithRuns player, Long removedPlayerId) {}
 }
