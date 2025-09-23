@@ -2,7 +2,7 @@ import { LangContext } from '../i18n.js';
 import { getDungeonNameForLang, sortDungeons } from '../dungeons.js';
 import HomeMenu from '../components/HomeMenu.js';
 
-const { useParams } = ReactRouterDOM;
+const { Link, useNavigate, useParams } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -108,6 +108,7 @@ function formatTimeValue(value) {
 export default function Player() {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
+  const navigate = useNavigate();
   const normalisedPlayerId = React.useMemo(() => {
     if (playerId === undefined || playerId === null) {
       return '';
@@ -121,6 +122,109 @@ export default function Player() {
   const [profile, setProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [searchResults, setSearchResults] = React.useState([]);
+  const [searchLoading, setSearchLoading] = React.useState(false);
+  const [searchError, setSearchError] = React.useState(false);
+  const searchInputId = React.useId();
+
+  React.useEffect(() => {
+    if (hasPlayerId) {
+      setSearchTerm('');
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(false);
+    }
+  }, [hasPlayerId]);
+
+  React.useEffect(() => {
+    if (hasPlayerId) {
+      return undefined;
+    }
+
+    const trimmed = searchTerm.trim();
+
+    if (trimmed.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(false);
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    setSearchLoading(true);
+    setSearchError(false);
+    setSearchResults([]);
+
+    fetch(`${API_BASE_URL}/player?q=${encodeURIComponent(trimmed)}&limit=8`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to search players: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+
+        const list = Array.isArray(data) ? data : [];
+        const mapped = [];
+        const seen = new Set();
+
+        list.forEach((entry) => {
+          if (!entry) {
+            return;
+          }
+
+          const idCandidate =
+            entry.id ?? entry.playerId ?? entry.player_id ?? entry.id_player ?? null;
+          const nameCandidate =
+            entry.name ??
+            entry.playerName ??
+            entry.player_name ??
+            entry.label ??
+            entry.displayName ??
+            entry.username ??
+            entry.fullName ??
+            '';
+
+          const id = idCandidate !== undefined && idCandidate !== null ? String(idCandidate) : null;
+          const name = typeof nameCandidate === 'string' ? nameCandidate.trim() : '';
+
+          if (!id || !name) {
+            return;
+          }
+
+          const key = `id:${id}`;
+          if (seen.has(key)) {
+            return;
+          }
+          seen.add(key);
+          mapped.push({ id, name });
+        });
+
+        setSearchResults(mapped);
+        setSearchLoading(false);
+      })
+      .catch((searchErrorInstance) => {
+        if (!active || searchErrorInstance.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to search players', searchErrorInstance);
+        setSearchError(true);
+        setSearchLoading(false);
+        setSearchResults([]);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [hasPlayerId, searchTerm]);
 
   React.useEffect(() => {
     if (!hasPlayerId) {
@@ -184,6 +288,54 @@ export default function Player() {
     return sortDungeons(base, lang);
   }, [profile, lang]);
 
+  const playerDisplayName = React.useMemo(() => {
+    if (profile && typeof profile.playerName === 'string') {
+      const trimmed = profile.playerName.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+    return '';
+  }, [profile]);
+
+  const playerIdentifier = React.useMemo(() => {
+    if (profile && profile.playerId !== undefined && profile.playerId !== null) {
+      return String(profile.playerId);
+    }
+    if (hasPlayerId && normalisedPlayerId) {
+      return normalisedPlayerId;
+    }
+    return '';
+  }, [profile, hasPlayerId, normalisedPlayerId]);
+
+  const handleSearchChange = React.useCallback((event) => {
+    setSearchTerm(event.target.value);
+  }, []);
+
+  const trimmedSearch = React.useMemo(() => searchTerm.trim(), [searchTerm]);
+
+  const handleSearchSubmit = React.useCallback(
+    (event) => {
+      event.preventDefault();
+      if (!trimmedSearch) {
+        return;
+      }
+      if (searchResults.length > 0) {
+        navigate(`/player/${encodeURIComponent(searchResults[0].id)}`);
+        return;
+      }
+      if (/^\d+$/.test(trimmedSearch)) {
+        navigate(`/player/${encodeURIComponent(trimmedSearch)}`);
+      }
+    },
+    [navigate, searchResults, trimmedSearch],
+  );
+
+  const showSearchResults =
+    !searchLoading && !searchError && trimmedSearch.length >= 2 && searchResults.length > 0;
+  const showSearchNoResults =
+    !searchLoading && !searchError && trimmedSearch.length >= 2 && searchResults.length === 0;
+
   const heading = !hasPlayerId
     ? t.playerBrowseTitle
     : profile?.playerName
@@ -210,8 +362,84 @@ export default function Player() {
       </h1>
       <HomeMenu />
       <section className="player-dungeon-section" aria-live="polite">
+        {hasPlayerId && (playerDisplayName || playerIdentifier) ? (
+          <header className="player-profile-header">
+            <h2 className="player-profile-name">
+              {playerDisplayName
+                || (playerIdentifier
+                  ? typeof t.playerIdLabel === 'function'
+                    ? t.playerIdLabel(playerIdentifier)
+                    : `ID #${playerIdentifier}`
+                  : '')}
+            </h2>
+            {playerDisplayName && playerIdentifier ? (
+              <p className="player-profile-identifier">
+                {typeof t.playerIdLabel === 'function'
+                  ? t.playerIdLabel(playerIdentifier)
+                  : `ID #${playerIdentifier}`}
+              </p>
+            ) : null}
+          </header>
+        ) : null}
         {!hasPlayerId ? (
-          <p className="leaderboard-status">{t.playerBrowsePrompt}</p>
+          <div className="player-search-container">
+            <p className="leaderboard-status">{t.playerBrowsePrompt}</p>
+            <form
+              className="player-search-form"
+              onSubmit={handleSearchSubmit}
+              role="search"
+              aria-label={t.playerSearchLabel || undefined}
+            >
+              <label className="player-search-label" htmlFor={searchInputId}>
+                {t.playerSearchLabel}
+              </label>
+              <input
+                id={searchInputId}
+                className="player-search-input"
+                type="search"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder={t.playerSearchPlaceholder}
+                autoComplete="off"
+                spellCheck="false"
+              />
+              {t.playerSearchHint ? (
+                <p className="player-search-hint">{t.playerSearchHint}</p>
+              ) : null}
+            </form>
+            {searchLoading ? (
+              <p className="player-search-status">{t.playerSearchLoading}</p>
+            ) : searchError ? (
+              <p className="player-search-status error">{t.playerSearchError}</p>
+            ) : showSearchNoResults ? (
+              <p className="player-search-status">{t.playerSearchNoResults}</p>
+            ) : showSearchResults ? (
+              <ul className="player-search-results">
+                {searchResults.map((player) => {
+                  const label =
+                    typeof t.playerSearchOpenProfile === 'function'
+                      ? t.playerSearchOpenProfile(player.name)
+                      : undefined;
+                  const identifierLabel =
+                    typeof t.playerIdLabel === 'function'
+                      ? t.playerIdLabel(player.id)
+                      : `ID #${player.id}`;
+                  return (
+                    <li key={player.id} className="player-search-result">
+                      <Link
+                        className="player-search-result-link"
+                        to={`/player/${encodeURIComponent(player.id)}`}
+                        aria-label={label}
+                      >
+                        <span className="player-search-result-name">{player.name}</span>
+                        <span className="player-search-result-id">{identifierLabel}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
         ) : loading ? (
           <p className="leaderboard-status">{t.playerLoading}</p>
         ) : error ? (
