@@ -1,6 +1,7 @@
 package com.opyruso.nwleaderboard;
 
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
+import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.service.LeaderboardService;
 import jakarta.inject.Inject;
@@ -45,5 +46,12 @@ public class LeaderboardResource {
         }
         List<LeaderboardEntryResponse> entries = leaderboardService.getTimeEntries(dungeonId, limit);
         return Response.ok(entries).build();
+    }
+
+    @GET
+    @Path("/highlights")
+    public Response getHighlights() {
+        List<HighlightResponse> highlights = leaderboardService.getHighlights();
+        return Response.ok(highlights).build();
     }
 }

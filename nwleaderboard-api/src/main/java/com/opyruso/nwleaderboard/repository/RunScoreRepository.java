@@ -29,6 +29,16 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /**
+     * Returns the single best score recorded for the provided dungeon or {@code null} when none is available.
+     */
+    public RunScore findBestByDungeon(Long dungeonId) {
+        if (dungeonId == null) {
+            return null;
+        }
+        return find("dungeon.id = ?1 ORDER BY score DESC, week DESC, id ASC", dungeonId).firstResult();
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and score.
      *
      * @param dungeonId identifier of the dungeon

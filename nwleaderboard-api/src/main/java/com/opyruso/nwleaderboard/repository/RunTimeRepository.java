@@ -29,6 +29,16 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     /**
+     * Returns the fastest run recorded for the provided dungeon or {@code null} when none is available.
+     */
+    public RunTime findBestByDungeon(Long dungeonId) {
+        if (dungeonId == null) {
+            return null;
+        }
+        return find("dungeon.id = ?1 ORDER BY timeInSecond ASC, week DESC, id ASC", dungeonId).firstResult();
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and time.
      *
      * @param dungeonId identifier of the dungeon

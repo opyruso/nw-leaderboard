@@ -7,18 +7,28 @@ export default function HomeMenu() {
   const highlightsLabel = t.highlights || t.leaderboardTitle;
 
   return (
-    <nav className="home-menu" aria-label={t.leaderboardMenuTitle}>
-      <NavLink className={({ isActive }) => (isActive ? 'home-menu-link active' : 'home-menu-link')} to="/" end>
+    <nav className="page-submenu" aria-label={t.leaderboardMenuTitle}>
+      <NavLink
+        className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
+        to="/"
+        end
+      >
         {highlightsLabel}
       </NavLink>
-      <NavLink className={({ isActive }) => (isActive ? 'home-menu-link active' : 'home-menu-link')} to="/score">
+      <NavLink
+        className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
+        to="/score"
+      >
         {t.score}
       </NavLink>
-      <NavLink className={({ isActive }) => (isActive ? 'home-menu-link active' : 'home-menu-link')} to="/time">
+      <NavLink
+        className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
+        to="/time"
+      >
         {t.time}
       </NavLink>
       <NavLink
-        className={({ isActive }) => (isActive ? 'home-menu-link active' : 'home-menu-link')}
+        className={({ isActive }) => (isActive ? 'page-submenu-link active' : 'page-submenu-link')}
         to="/individual"
       >
         {t.individual}

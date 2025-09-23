@@ -1,9 +1,13 @@
 package com.opyruso.nwleaderboard.service;
 
+import com.opyruso.nwleaderboard.dto.HighlightMetricResponse;
+import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
+import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunTime;
+import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
@@ -11,6 +15,7 @@ import com.opyruso.nwleaderboard.repository.RunTimeRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -40,6 +45,9 @@ public class LeaderboardService {
 
     @Inject
     RunTimePlayerRepository runTimePlayerRepository;
+
+    @Inject
+    DungeonRepository dungeonRepository;
 
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<LeaderboardEntryResponse> getScoreEntries(Long dungeonId, Integer limit) {
@@ -90,6 +98,73 @@ public class LeaderboardService {
                     time,
                     playersByRun.getOrDefault(runId, List.of())));
         }
+        return List.copyOf(responses);
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public List<HighlightResponse> getHighlights() {
+        List<Dungeon> highlighted = dungeonRepository.listHighlighted();
+        if (highlighted.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashMap<Long, RunScore> bestScoresByDungeon = new LinkedHashMap<>();
+        LinkedHashMap<Long, RunTime> bestTimesByDungeon = new LinkedHashMap<>();
+        List<RunScore> scoreRuns = new ArrayList<>();
+        List<RunTime> timeRuns = new ArrayList<>();
+
+        for (Dungeon dungeon : highlighted) {
+            if (dungeon == null || dungeon.getId() == null) {
+                continue;
+            }
+            Long dungeonId = dungeon.getId();
+            RunScore bestScore = runScoreRepository.findBestByDungeon(dungeonId);
+            if (bestScore != null) {
+                bestScoresByDungeon.put(dungeonId, bestScore);
+                scoreRuns.add(bestScore);
+            }
+            RunTime bestTime = runTimeRepository.findBestByDungeon(dungeonId);
+            if (bestTime != null) {
+                bestTimesByDungeon.put(dungeonId, bestTime);
+                timeRuns.add(bestTime);
+            }
+        }
+
+        Map<Long, List<LeaderboardPlayerResponse>> scorePlayersByRun = loadPlayersForScoreRuns(scoreRuns);
+        Map<Long, List<LeaderboardPlayerResponse>> timePlayersByRun = loadPlayersForTimeRuns(timeRuns);
+
+        List<HighlightResponse> responses = new ArrayList<>();
+        for (Dungeon dungeon : highlighted) {
+            if (dungeon == null || dungeon.getId() == null) {
+                continue;
+            }
+            Long dungeonId = dungeon.getId();
+            RunScore bestScore = bestScoresByDungeon.get(dungeonId);
+            RunTime bestTime = bestTimesByDungeon.get(dungeonId);
+            HighlightMetricResponse scoreMetric = bestScore != null
+                    ? new HighlightMetricResponse(
+                            bestScore.getScore(),
+                            bestScore.getWeek(),
+                            scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()))
+                    : null;
+            HighlightMetricResponse timeMetric = bestTime != null
+                    ? new HighlightMetricResponse(
+                            bestTime.getTimeInSecond(),
+                            bestTime.getWeek(),
+                            timePlayersByRun.getOrDefault(bestTime.getId(), List.of()))
+                    : null;
+            Map<String, String> names = buildNameMap(dungeon);
+            String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon.getNameLocalEn()));
+            responses.add(new HighlightResponse(dungeonId, fallbackName, names, dungeon.getPlayerCount(), scoreMetric, timeMetric));
+        }
+
+        Collator collator = Collator.getInstance(Locale.ENGLISH);
+        collator.setStrength(Collator.PRIMARY);
+        responses.sort((left, right) -> {
+            String leftName = left.name() != null ? left.name() : "";
+            String rightName = right.name() != null ? right.name() : "";
+            return collator.compare(leftName, rightName);
+        });
         return List.copyOf(responses);
     }
 
@@ -180,6 +255,30 @@ public class LeaderboardService {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    private Map<String, String> buildNameMap(Dungeon dungeon) {
+        if (dungeon == null) {
+            return Map.of();
+        }
+        Map<String, String> names = new LinkedHashMap<>();
+        names.put("en", valueOrEmpty(dungeon.getNameLocalEn()));
+        names.put("de", valueOrEmpty(dungeon.getNameLocalDe()));
+        names.put("fr", valueOrEmpty(dungeon.getNameLocalFr()));
+        names.put("es", valueOrEmpty(dungeon.getNameLocalEs()));
+        names.put("esmx", valueOrEmpty(dungeon.getNameLocalEsmx()));
+        names.put("it", valueOrEmpty(dungeon.getNameLocalIt()));
+        names.put("pl", valueOrEmpty(dungeon.getNameLocalPl()));
+        names.put("pt", valueOrEmpty(dungeon.getNameLocalPt()));
+        return Map.copyOf(names);
+    }
+
+    private String valueOrEmpty(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.strip();
+        return trimmed.isEmpty() ? "" : trimmed;
     }
 
     private record PlayerAssignment(Long runId, Long playerId, String playerName) {

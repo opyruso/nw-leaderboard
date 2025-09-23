@@ -151,8 +151,53 @@ export function normaliseDungeons(data) {
       if (!names.en && fallbackName) {
         names.en = fallbackName;
       }
-      return { id, names, fallbackName, order: index };
+      const playerCountValue =
+        dungeon.player_count ?? dungeon.playerCount ?? dungeon.players ?? dungeon.expectedPlayerCount;
+      const parsedPlayerCount = toPositiveInteger(playerCountValue);
+      const highlightedValue =
+        dungeon.highlighted ??
+        dungeon.is_highlighted ??
+        dungeon.isHighlighted ??
+        dungeon.featured ??
+        dungeon.isFeatured;
+      const highlighted = parseBoolean(highlightedValue);
+      return {
+        id,
+        names,
+        fallbackName,
+        order: index,
+        highlighted,
+        playerCount: parsedPlayerCount,
+      };
     })
     .filter(Boolean);
+}
+
+export function parseBoolean(value) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value > 0;
+  }
+  const text = String(value).trim().toLowerCase();
+  if (!text) {
+    return false;
+  }
+  return text === 'true' || text === '1' || text === 'yes' || text === 'y';
+}
+
+export function toPositiveInteger(value) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  const numeric = typeof value === 'number' ? value : Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+  return Math.trunc(numeric);
 }
 

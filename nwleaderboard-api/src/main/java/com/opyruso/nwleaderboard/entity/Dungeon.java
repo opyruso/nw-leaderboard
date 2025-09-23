@@ -46,6 +46,9 @@ public class Dungeon extends Auditable {
     @Column(name = "nbr_player_count", nullable = false, columnDefinition = "INT DEFAULT 5")
     private Integer playerCount = 5;
 
+    @Column(name = "is_highlighted", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean highlighted;
+
     public Long getId() {
         return id;
     }
@@ -124,5 +127,13 @@ public class Dungeon extends Auditable {
 
     public void setPlayerCount(Integer playerCount) {
         this.playerCount = playerCount;
+    }
+
+    public boolean isHighlighted() {
+        return highlighted;
+    }
+
+    public void setHighlighted(boolean highlighted) {
+        this.highlighted = highlighted;
     }
 }

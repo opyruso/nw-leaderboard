@@ -15,4 +15,5 @@ public record DungeonResponse(
         Long id,
         String name,
         Map<String, String> names,
-        @JsonProperty("player_count") Integer playerCount) {}
+        @JsonProperty("player_count") Integer playerCount,
+        @JsonProperty("highlighted") boolean highlighted) {}

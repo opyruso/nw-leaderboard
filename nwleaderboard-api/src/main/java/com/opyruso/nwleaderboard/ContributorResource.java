@@ -3,16 +3,19 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
 import com.opyruso.nwleaderboard.dto.ContributionRunDto;
+import com.opyruso.nwleaderboard.dto.UpdateDungeonHighlightsRequest;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService.ContributorSubmissionException;
+import com.opyruso.nwleaderboard.service.DungeonService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
@@ -46,6 +49,9 @@ public class ContributorResource {
 
     @Inject
     ContributorSubmissionService submissionService;
+
+    @Inject
+    DungeonService dungeonService;
 
     @POST
     @Path("/extract")
@@ -97,6 +103,27 @@ public class ContributorResource {
             LOG.error("Unexpected error while storing contributor data", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to store contributor data", null))
+                    .build();
+        }
+    }
+
+    @PUT
+    @Path("/dungeons/highlights")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response updateDungeonHighlights(UpdateDungeonHighlightsRequest request) {
+        if (!hasContributorRole()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(new ApiMessageResponse("Contributor role required", null))
+                    .build();
+        }
+        try {
+            List<Long> dungeonIds = request != null ? request.highlightedIds() : List.of();
+            dungeonService.updateHighlightedDungeons(dungeonIds);
+            return Response.ok(new ApiMessageResponse("Highlights updated", null)).build();
+        } catch (Exception e) {
+            LOG.error("Unable to update highlighted dungeons", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to update dungeon highlights", null))
                     .build();
         }
     }

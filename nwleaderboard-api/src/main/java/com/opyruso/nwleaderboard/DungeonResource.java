@@ -42,7 +42,12 @@ public class DungeonResource {
                 .map(dungeon -> {
                     Map<String, String> names = buildNameMap(dungeon);
                     String resolvedName = resolveName(dungeon, acceptable, displayLocale);
-                    return new DungeonResponse(dungeon.getId(), resolvedName, names, dungeon.getPlayerCount());
+                    return new DungeonResponse(
+                            dungeon.getId(),
+                            resolvedName,
+                            names,
+                            dungeon.getPlayerCount(),
+                            dungeon.isHighlighted());
                 })
                 .sorted(Comparator.comparing(DungeonResponse::name, collator))
                 .toList();
