@@ -55,10 +55,9 @@ public class RunTimePlayerRepository implements PanacheRepository<RunTimePlayer>
         if (playerId == null) {
             return Set.of();
         }
-        return find("SELECT rtp.runTime.id FROM RunTimePlayer rtp WHERE rtp.player.id = ?1", playerId)
-                .list()
+        return list("player.id", playerId)
                 .stream()
-                .map(result -> (Long) result)
+                .map(association -> association.getRunTime().getId())
                 .collect(Collectors.toSet());
     }
 }

@@ -55,10 +55,9 @@ public class RunScorePlayerRepository implements PanacheRepository<RunScorePlaye
         if (playerId == null) {
             return Set.of();
         }
-        return find("SELECT rsp.runScore.id FROM RunScorePlayer rsp WHERE rsp.player.id = ?1", playerId)
-                .list()
+        return list("player.id", playerId)
                 .stream()
-                .map(result -> (Long) result)
+                .map(association -> association.getRunScore().getId())
                 .collect(Collectors.toSet());
     }
 }
