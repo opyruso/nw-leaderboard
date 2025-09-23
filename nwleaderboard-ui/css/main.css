@@ -1408,6 +1408,62 @@ body[data-theme='light'] .contribute-run {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
+.contribute-players {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.contribute-players-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.contribute-players-hint {
+  margin: 0;
+}
+
+.contribute-players-grid {
+  margin: 0;
+}
+
+.contribute-player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: default;
+  transition: opacity 0.2s ease;
+}
+
+.contribute-player-card.is-pending {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.contribute-player-card-name {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.contribute-player-card-name input {
+  width: 100%;
+}
+
+.contribute-player-card-valid {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contribute-player-card-label {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
 .contribute-player-slot {
   display: flex;
   flex-direction: column;

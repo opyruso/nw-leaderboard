@@ -38,6 +38,14 @@ export default function Contribute() {
         >
           {t.contributeMenuStats || 'Weekly runs'}
         </NavLink>
+        <NavLink
+          to="/contribute/players"
+          className={({ isActive }) =>
+            isActive ? 'page-submenu-link active' : 'page-submenu-link'
+          }
+        >
+          {t.contributeMenuPlayers || t.contributePlayers || 'Players'}
+        </NavLink>
       </PageSubmenu>
       <Outlet />
     </main>

@@ -60,4 +60,13 @@ public class PlayerRepository implements PanacheRepository<Player> {
                 .range(0, safeLimit - 1)
                 .list());
     }
+
+    /**
+     * Lists all players ordered alphabetically by name.
+     *
+     * @return ordered list of players
+     */
+    public List<Player> listAllOrderedByName() {
+        return list("ORDER BY LOWER(playerName) ASC");
+    }
 }

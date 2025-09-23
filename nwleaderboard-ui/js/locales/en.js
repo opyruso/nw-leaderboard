@@ -39,6 +39,18 @@ const en = {
   contributeMenuDungeons: 'Dungeons',
   contributeMenuImport: 'Import',
   contributeMenuStats: 'Weekly runs',
+  contributeMenuPlayers: 'Players',
+  contributePlayersManageDescription:
+    'Manage player names and validity for leaderboard submissions.',
+  contributePlayersLoading: 'Loading players…',
+  contributePlayersError: 'Unable to load players.',
+  contributePlayersEmpty: 'No players found.',
+  contributePlayersHideValid: 'Hide valid players',
+  contributePlayersEditHint: 'Double-click a player to rename it.',
+  contributePlayerValidLabel: 'Valid',
+  contributePlayerMergeConfirm: (source, target) => `Merge ${source} into ${target}?`,
+  contributePlayerRenamePlaceholder: 'Player name',
+  contributePlayerUpdateError: 'Unable to update this player.',
   contributeDungeonsDescription:
     'Choose which dungeons are highlighted on the home page. Only selected dungeons will appear in the highlights.',
   contributeStatsDescription:

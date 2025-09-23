@@ -22,6 +22,9 @@ public class Player extends Auditable {
     @Column(name = "playername", nullable = false, unique = true)
     private String playerName;
 
+    @Column(name = "is_valid", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private boolean valid = false;
+
     public Long getId() {
         return id;
     }
@@ -36,5 +39,13 @@ public class Player extends Auditable {
 
     public void setPlayerName(String playerName) {
         this.playerName = playerName;
+    }
+
+    public boolean isValid() {
+        return valid;
+    }
+
+    public void setValid(boolean valid) {
+        this.valid = valid;
     }
 }
