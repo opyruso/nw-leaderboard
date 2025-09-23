@@ -1,0 +1,160 @@
+package com.opyruso.nwleaderboard.service;
+
+import com.opyruso.nwleaderboard.dto.PlayerDungeonBestResponse;
+import com.opyruso.nwleaderboard.dto.PlayerProfileResponse;
+import com.opyruso.nwleaderboard.entity.Dungeon;
+import com.opyruso.nwleaderboard.entity.Player;
+import com.opyruso.nwleaderboard.entity.RunScore;
+import com.opyruso.nwleaderboard.entity.RunTime;
+import com.opyruso.nwleaderboard.repository.PlayerRepository;
+import com.opyruso.nwleaderboard.repository.RunScoreRepository;
+import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Aggregates leaderboard information for a single player.
+ */
+@ApplicationScoped
+public class PlayerProfileService {
+
+    @Inject
+    PlayerRepository playerRepository;
+
+    @Inject
+    RunScoreRepository runScoreRepository;
+
+    @Inject
+    RunTimeRepository runTimeRepository;
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public Optional<PlayerProfileResponse> getProfile(Long playerId) {
+        if (playerId == null) {
+            return Optional.empty();
+        }
+        Player player = playerRepository.findById(playerId);
+        if (player == null) {
+            return Optional.empty();
+        }
+
+        LinkedHashMap<Long, PlayerDungeonAggregate> aggregates = new LinkedHashMap<>();
+
+        List<RunScore> scoreRuns = runScoreRepository.listBestByPlayer(playerId);
+        for (RunScore run : scoreRuns) {
+            if (run == null) {
+                continue;
+            }
+            Dungeon dungeon = run.getDungeon();
+            Long dungeonId = dungeon != null ? dungeon.getId() : null;
+            if (dungeonId == null) {
+                continue;
+            }
+            PlayerDungeonAggregate aggregate =
+                    aggregates.computeIfAbsent(dungeonId, id -> new PlayerDungeonAggregate(dungeon));
+            if (aggregate.bestScore == null) {
+                aggregate.bestScore = run;
+            }
+        }
+
+        List<RunTime> timeRuns = runTimeRepository.listBestByPlayer(playerId);
+        for (RunTime run : timeRuns) {
+            if (run == null) {
+                continue;
+            }
+            Dungeon dungeon = run.getDungeon();
+            Long dungeonId = dungeon != null ? dungeon.getId() : null;
+            if (dungeonId == null) {
+                continue;
+            }
+            PlayerDungeonAggregate aggregate =
+                    aggregates.computeIfAbsent(dungeonId, id -> new PlayerDungeonAggregate(dungeon));
+            if (aggregate.bestTime == null) {
+                aggregate.bestTime = run;
+            }
+        }
+
+        List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates);
+
+        PlayerProfileResponse response =
+                new PlayerProfileResponse(player.getId(), player.getPlayerName(), dungeonSummaries);
+        return Optional.of(response);
+    }
+
+    private List<PlayerDungeonBestResponse> buildDungeonSummaries(Map<Long, PlayerDungeonAggregate> aggregates) {
+        if (aggregates == null || aggregates.isEmpty()) {
+            return List.of();
+        }
+        List<PlayerDungeonBestResponse> summaries = new ArrayList<>(aggregates.size());
+        for (PlayerDungeonAggregate aggregate : aggregates.values()) {
+            if (aggregate == null || aggregate.dungeon == null || aggregate.dungeon.getId() == null) {
+                continue;
+            }
+            summaries.add(createSummary(aggregate));
+        }
+        Collator collator = Collator.getInstance(Locale.ENGLISH);
+        collator.setStrength(Collator.PRIMARY);
+        summaries.sort((left, right) -> {
+            String leftName = left.fallbackName() != null ? left.fallbackName() : "";
+            String rightName = right.fallbackName() != null ? right.fallbackName() : "";
+            return collator.compare(leftName, rightName);
+        });
+        return List.copyOf(summaries);
+    }
+
+    private PlayerDungeonBestResponse createSummary(PlayerDungeonAggregate aggregate) {
+        Dungeon dungeon = aggregate.dungeon;
+        Map<String, String> names = buildNameMap(dungeon);
+        String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon != null ? dungeon.getNameLocalEn() : null));
+        RunScore bestScore = aggregate.bestScore;
+        RunTime bestTime = aggregate.bestTime;
+        Integer scoreValue = bestScore != null ? bestScore.getScore() : null;
+        Integer scoreWeek = bestScore != null ? bestScore.getWeek() : null;
+        Integer timeValue = bestTime != null ? bestTime.getTimeInSecond() : null;
+        Integer timeWeek = bestTime != null ? bestTime.getWeek() : null;
+        Long dungeonId = dungeon != null ? dungeon.getId() : null;
+        return new PlayerDungeonBestResponse(dungeonId, fallbackName, names, scoreValue, scoreWeek, timeValue, timeWeek);
+    }
+
+    private Map<String, String> buildNameMap(Dungeon dungeon) {
+        if (dungeon == null) {
+            return Map.of();
+        }
+        Map<String, String> names = new LinkedHashMap<>();
+        names.put("en", valueOrEmpty(dungeon.getNameLocalEn()));
+        names.put("de", valueOrEmpty(dungeon.getNameLocalDe()));
+        names.put("fr", valueOrEmpty(dungeon.getNameLocalFr()));
+        names.put("es", valueOrEmpty(dungeon.getNameLocalEs()));
+        names.put("esmx", valueOrEmpty(dungeon.getNameLocalEsmx()));
+        names.put("it", valueOrEmpty(dungeon.getNameLocalIt()));
+        names.put("pl", valueOrEmpty(dungeon.getNameLocalPl()));
+        names.put("pt", valueOrEmpty(dungeon.getNameLocalPt()));
+        return Map.copyOf(names);
+    }
+
+    private String valueOrEmpty(String value) {
+        if (value == null) {
+            return "";
+        }
+        String trimmed = value.strip();
+        return trimmed.isEmpty() ? "" : trimmed;
+    }
+
+    private static final class PlayerDungeonAggregate {
+        private final Dungeon dungeon;
+        private RunScore bestScore;
+        private RunTime bestTime;
+
+        private PlayerDungeonAggregate(Dungeon dungeon) {
+            this.dungeon = dungeon;
+        }
+    }
+}
+

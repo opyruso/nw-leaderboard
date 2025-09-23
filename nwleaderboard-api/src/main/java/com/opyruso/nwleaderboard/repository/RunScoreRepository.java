@@ -29,6 +29,16 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /**
+     * Returns the single best score recorded for the provided dungeon or {@code null} when none is available.
+     */
+    public RunScore findBestByDungeon(Long dungeonId) {
+        if (dungeonId == null) {
+            return null;
+        }
+        return find("dungeon.id = ?1 ORDER BY score DESC, week DESC, id ASC", dungeonId).firstResult();
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and score.
      *
      * @param dungeonId identifier of the dungeon
@@ -41,5 +51,25 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
             return List.of();
         }
         return find("dungeon.id = ?1 AND week = ?2 AND score = ?3", dungeonId, week, score).list();
+    }
+
+    /**
+     * Returns runs involving the provided player ordered with the best scores first.
+     *
+     * @param playerId identifier of the player
+     * @return list of runs sorted by score descending and week descending
+     */
+    public List<RunScore> listBestByPlayer(Long playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return find(
+                        "SELECT DISTINCT run FROM RunScorePlayer rsp "
+                                + "JOIN rsp.runScore run "
+                                + "JOIN FETCH run.dungeon dungeon "
+                                + "WHERE rsp.player.id = ?1 "
+                                + "ORDER BY run.score DESC, run.week DESC, run.id ASC",
+                        playerId)
+                .list();
     }
 }

@@ -29,6 +29,16 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     /**
+     * Returns the fastest run recorded for the provided dungeon or {@code null} when none is available.
+     */
+    public RunTime findBestByDungeon(Long dungeonId) {
+        if (dungeonId == null) {
+            return null;
+        }
+        return find("dungeon.id = ?1 ORDER BY timeInSecond ASC, week DESC, id ASC", dungeonId).firstResult();
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and time.
      *
      * @param dungeonId identifier of the dungeon
@@ -41,5 +51,25 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
             return List.of();
         }
         return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+    }
+
+    /**
+     * Returns runs involving the provided player ordered with the fastest times first.
+     *
+     * @param playerId identifier of the player
+     * @return list of runs sorted by duration ascending and week descending
+     */
+    public List<RunTime> listBestByPlayer(Long playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return find(
+                        "SELECT DISTINCT run FROM RunTimePlayer rtp "
+                                + "JOIN rtp.runTime run "
+                                + "JOIN FETCH run.dungeon dungeon "
+                                + "WHERE rtp.player.id = ?1 "
+                                + "ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC",
+                        playerId)
+                .list();
     }
 }

@@ -9,6 +9,9 @@ import ForgotPassword from './pages/ForgotPassword.js';
 import Preferences from './pages/Preferences.js';
 import Password from './pages/Password.js';
 import Contribute from './pages/Contribute.js';
+import ContributeDungeons from './pages/ContributeDungeons.js';
+import ContributeImport from './pages/ContributeImport.js';
+import Player from './pages/Player.js';
 import VersionChecker from './VersionChecker.js';
 import {
   storeTokens,
@@ -93,7 +96,7 @@ export default function App() {
             }
           />
           <Route
-            path="/contribute"
+            path="/contribute/*"
             element={
               authenticated && authState.canContribute ? (
                 <Contribute />
@@ -101,7 +104,12 @@ export default function App() {
                 <Navigate to="/" replace />
               )
             }
-          />
+          >
+            <Route index element={<ContributeDungeons />} />
+            <Route path="import" element={<ContributeImport />} />
+            <Route path="*" element={<Navigate to="." replace />} />
+          </Route>
+          <Route path="/player/:playerId" element={<Player />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <BottomNav

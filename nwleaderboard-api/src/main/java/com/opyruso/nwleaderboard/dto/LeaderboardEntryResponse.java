@@ -11,7 +11,7 @@ public record LeaderboardEntryResponse(
         Integer value,
         Integer score,
         Integer time,
-        List<String> players) {
+        List<LeaderboardPlayerResponse> players) {
 
     public LeaderboardEntryResponse {
         players = players == null ? List.of() : List.copyOf(players);
