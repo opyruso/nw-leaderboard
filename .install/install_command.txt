@@ -59,6 +59,8 @@ After=network.target
 [Service]
 User=$BOT_USER
 WorkingDirectory=$BOT_DIR
+Environment="LD_LIBRARY_PATH=/usr/lib64"
+Environment="TESSDATA_PREFIX=/usr/share/tesseract/tessdata"
 ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
 SuccessExitStatus=143
 Restart=on-failure
@@ -119,6 +121,8 @@ After=network.target
 [Service]
 User=$BOT_USER
 WorkingDirectory=$BOT_DIR
+Environment="LD_LIBRARY_PATH=/usr/lib64"
+Environment="TESSDATA_PREFIX=/usr/share/tesseract/tessdata"
 ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
 SuccessExitStatus=143
 Restart=on-failure
@@ -179,6 +183,8 @@ After=network.target
 [Service]
 User=$BOT_USER
 WorkingDirectory=$BOT_DIR
+Environment="LD_LIBRARY_PATH=/usr/lib64"
+Environment="TESSDATA_PREFIX=/usr/share/tesseract/tessdata"
 ExecStart=/usr/bin/java -jar $BOT_DIR/$JAR_NAME
 SuccessExitStatus=143
 Restart=on-failure
