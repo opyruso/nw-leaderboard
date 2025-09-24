@@ -799,7 +799,7 @@ public class ContributorExtractionService {
             if (currentOffset >= maxOffset) {
                 break;
             }
-            int nextOffset = Math.min(maxOffset, currentOffset + 2);
+            int nextOffset = Math.min(maxOffset, currentOffset + 4);
             if (nextOffset == currentOffset) {
                 break;
             }
