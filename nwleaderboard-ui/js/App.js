@@ -98,7 +98,7 @@ export default function App() {
             }
           />
           <Route
-            path="/contribute/*"
+            path="/contribute"
             element={
               authenticated && authState.canContribute ? (
                 <Contribute />
