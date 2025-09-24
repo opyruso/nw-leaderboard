@@ -780,6 +780,9 @@ public class ContributorExtractionService {
                     knownPlayers, knownPlayersByName, currentOffset, 0, 1);
             double attemptAverage = attempt.averageConfidence();
             List<ContributionRunExtractionDto> attemptRows = attempt.rows();
+            String playerSummary = summariseFirstRowPlayers(attemptRows);
+            LOG.infof("Row scan offset %d: avg confidence %.2f, players=%s", currentOffset, attemptAverage,
+                    playerSummary);
             if (!attemptRows.isEmpty() && (attemptAverage > bestAverage || bestFirstRow == null)) {
                 bestAverage = attemptAverage;
                 bestOffset = currentOffset;
@@ -824,6 +827,39 @@ public class ContributorExtractionService {
         }
 
         return rows;
+    }
+
+    private String summariseFirstRowPlayers(List<ContributionRunExtractionDto> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return "<none>";
+        }
+        ContributionRunExtractionDto firstRow = rows.get(0);
+        if (firstRow == null) {
+            return "<none>";
+        }
+        List<ContributionFieldExtractionDto> players = firstRow.players();
+        if (players == null || players.isEmpty()) {
+            return "<none>";
+        }
+        List<String> names = new ArrayList<>(players.size());
+        for (ContributionFieldExtractionDto player : players) {
+            if (player == null) {
+                names.add("<null>");
+                continue;
+            }
+            String value = player.normalized();
+            if (value == null || value.isBlank()) {
+                value = player.text();
+            }
+            if (value != null) {
+                value = value.strip();
+            }
+            if (value == null || value.isEmpty()) {
+                value = "<empty>";
+            }
+            names.add(value);
+        }
+        return String.join(", ", names);
     }
 
     private OffsetBounds computeOffsetBounds(BufferedImage image, int slotCount, int rowsToConsider) {
