@@ -747,13 +747,50 @@ public class ContributorExtractionService {
 
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
             ContributionMode declaredMode, int expectedPlayerCount) {
-        List<ContributionRunExtractionDto> result = new ArrayList<>();
         List<Player> knownPlayers = playerRepository.listAll();
         Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
         int slotCount = clampPlayerSlotCount(expectedPlayerCount);
 
+        RowsExtractionAttempt bestAttempt = null;
+        double bestAverage = Double.NEGATIVE_INFINITY;
+
+        int baseOffset = -10;
+        while (true) {
+            RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, baseOffset);
+            double attemptAverage = attempt.averageConfidence();
+            if (attemptAverage > bestAverage) {
+                bestAverage = attemptAverage;
+                bestAttempt = attempt;
+            }
+            if (attemptAverage >= 95.0d) {
+                break;
+            }
+            if (baseOffset >= 135) {
+                break;
+            }
+            int nextOffset = baseOffset + 2;
+            if (nextOffset > 135) {
+                nextOffset = 135;
+            }
+            if (nextOffset == baseOffset) {
+                break;
+            }
+            baseOffset = nextOffset;
+        }
+
+        return bestAttempt != null ? bestAttempt.rows() : List.of();
+    }
+
+    private RowsExtractionAttempt extractRowsForOffset(BufferedImage originalImage, BufferedImage preparedImage,
+            ContributionMode declaredMode, int slotCount, List<Player> knownPlayers,
+            Map<String, Player> knownPlayersByName, int baseVerticalOffset) {
+        List<ContributionRunExtractionDto> result = new ArrayList<>();
+        double confidenceSum = 0d;
+        int confidenceCount = 0;
+
         for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
-            int yOffset = rowIndex * PLAYER_ROW_STEP;
+            int yOffset = baseVerticalOffset + rowIndex * PLAYER_ROW_STEP;
             List<ContributionFieldExtractionDto> playerFields = new ArrayList<>(slotCount);
 
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++) {
@@ -768,10 +805,14 @@ public class ContributorExtractionService {
                 if (existing == null) {
                     suggestion = findPlayerSuggestion(cleaned, knownPlayers);
                 }
-                playerFields.add(buildPlayerField(playerOcr, cleaned, existing, suggestion));
+                ContributionFieldExtractionDto playerField = buildPlayerField(playerOcr, cleaned, existing, suggestion);
+                playerFields.add(playerField);
+                confidenceSum += fieldConfidenceOrZero(playerField);
+                confidenceCount++;
             }
 
-            Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
+            Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width,
+                    SCORE_AREA.height);
             OcrResult valueOcr = runOcr(originalImage, preparedImage, valueRect, TessPageSegMode.PSM_SINGLE_LINE,
                     "0123456789:");
 
@@ -783,6 +824,8 @@ public class ContributorExtractionService {
             Integer time = mode == ContributionMode.TIME ? timeCandidate : null;
 
             ContributionFieldExtractionDto valueField = buildValueField(valueOcr, mode, score, time);
+            confidenceSum += fieldConfidenceOrZero(valueField);
+            confidenceCount++;
 
             result.add(new ContributionRunExtractionDto(
                     rowIndex + 1,
@@ -794,7 +837,19 @@ public class ContributorExtractionService {
                     slotCount));
         }
 
-        return result;
+        double average = confidenceCount > 0 ? confidenceSum / confidenceCount : 0d;
+        return new RowsExtractionAttempt(result, average);
+    }
+
+    private double fieldConfidenceOrZero(ContributionFieldExtractionDto field) {
+        if (field == null) {
+            return 0d;
+        }
+        Double confidence = field.confidence();
+        if (confidence == null || confidence.isNaN()) {
+            return 0d;
+        }
+        return confidence;
     }
 
     private Integer parseScore(String raw) {
@@ -1070,6 +1125,9 @@ public class ContributorExtractionService {
     }
 
     private record DungeonMatch(Dungeon dungeon, String displayName) {
+    }
+
+    private record RowsExtractionAttempt(List<ContributionRunExtractionDto> rows, double averageConfidence) {
     }
 
     private record OcrResult(Rectangle area, BufferedImage original, BufferedImage preprocessed, String text,
