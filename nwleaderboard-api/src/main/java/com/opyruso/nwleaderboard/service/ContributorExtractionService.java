@@ -66,8 +66,8 @@ public class ContributorExtractionService {
     private static final int PLAYER_ROW_STEP = 134;
     private static final int PLAYER_VERTICAL_OFFSET = -3;
     private static final int ROW_SCAN_START_OFFSET = -16;
-    private static final int ROW_SCAN_RANGE = 80;
-    private static final int ROW_SCAN_STEP = 8;
+    private static final int ROW_SCAN_MAX_OFFSET = 135;
+    private static final int ROW_SCAN_STEP = 4;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
@@ -761,7 +761,7 @@ public class ContributorExtractionService {
         if (minOffset > allowedMax) {
             minOffset = allowedMax;
         }
-        int maxOffset = Math.min(allowedMax, minOffset + ROW_SCAN_RANGE);
+        int maxOffset = Math.min(allowedMax, ROW_SCAN_MAX_OFFSET);
         if (maxOffset < minOffset) {
             maxOffset = minOffset;
         }
