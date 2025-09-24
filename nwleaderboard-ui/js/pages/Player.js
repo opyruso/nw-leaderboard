@@ -394,8 +394,18 @@ export default function Player() {
       const value = toSeconds(dungeon.bestTime);
       const min = toSeconds(dungeon.minTime);
       const max = toSeconds(dungeon.maxTime);
-      const percent = calculatePercentage(value, min, max);
-      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : 0;
+      if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max)) {
+        return 0;
+      }
+      if (max === min) {
+        return 100;
+      }
+      const boundedValue = Math.min(Math.max(value, min), max);
+      const percent = ((max - boundedValue) / (max - min)) * 100;
+      if (!Number.isFinite(percent)) {
+        return 0;
+      }
+      return Math.round(Math.max(0, Math.min(100, percent)) * 10) / 10;
     });
     const actualValues = preparedDungeons.map((dungeon) => formatTimeValue(dungeon.bestTime));
     const options = {
