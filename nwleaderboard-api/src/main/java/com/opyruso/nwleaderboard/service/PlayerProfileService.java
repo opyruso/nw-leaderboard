@@ -81,6 +81,26 @@ public class PlayerProfileService {
             }
         }
 
+        Map<Long, Integer> minScores = runScoreRepository.findMinimumScoresByDungeonIds(aggregates.keySet());
+        Map<Long, Integer> maxScores = runScoreRepository.findMaximumScoresByDungeonIds(aggregates.keySet());
+        Map<Long, Integer> minTimes = runTimeRepository.findMinimumTimesByDungeonIds(aggregates.keySet());
+        Map<Long, Integer> maxTimes = runTimeRepository.findMaximumTimesByDungeonIds(aggregates.keySet());
+
+        for (Map.Entry<Long, PlayerDungeonAggregate> entry : aggregates.entrySet()) {
+            if (entry == null) {
+                continue;
+            }
+            Long dungeonId = entry.getKey();
+            PlayerDungeonAggregate aggregate = entry.getValue();
+            if (dungeonId == null || aggregate == null) {
+                continue;
+            }
+            aggregate.minScore = minScores.get(dungeonId);
+            aggregate.maxScore = maxScores.get(dungeonId);
+            aggregate.minTime = minTimes.get(dungeonId);
+            aggregate.maxTime = maxTimes.get(dungeonId);
+        }
+
         List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates);
 
         PlayerProfileResponse response =
@@ -117,10 +137,25 @@ public class PlayerProfileService {
         RunTime bestTime = aggregate.bestTime;
         Integer scoreValue = bestScore != null ? bestScore.getScore() : null;
         Integer scoreWeek = bestScore != null ? bestScore.getWeek() : null;
+        Integer minScore = aggregate.minScore;
+        Integer maxScore = aggregate.maxScore;
         Integer timeValue = bestTime != null ? bestTime.getTimeInSecond() : null;
         Integer timeWeek = bestTime != null ? bestTime.getWeek() : null;
+        Integer minTime = aggregate.minTime;
+        Integer maxTime = aggregate.maxTime;
         Long dungeonId = dungeon != null ? dungeon.getId() : null;
-        return new PlayerDungeonBestResponse(dungeonId, fallbackName, names, scoreValue, scoreWeek, timeValue, timeWeek);
+        return new PlayerDungeonBestResponse(
+                dungeonId,
+                fallbackName,
+                names,
+                scoreValue,
+                scoreWeek,
+                minScore,
+                maxScore,
+                timeValue,
+                timeWeek,
+                minTime,
+                maxTime);
     }
 
     private Map<String, String> buildNameMap(Dungeon dungeon) {
@@ -151,6 +186,10 @@ public class PlayerProfileService {
         private final Dungeon dungeon;
         private RunScore bestScore;
         private RunTime bestTime;
+        private Integer minScore;
+        private Integer maxScore;
+        private Integer minTime;
+        private Integer maxTime;
 
         private PlayerDungeonAggregate(Dungeon dungeon) {
             this.dungeon = dungeon;

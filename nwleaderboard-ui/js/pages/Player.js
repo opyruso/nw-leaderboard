@@ -106,6 +106,20 @@ function formatTimeValue(value) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+function calculatePercentage(value, minimum, maximum) {
+  if (!Number.isFinite(value) || !Number.isFinite(minimum) || !Number.isFinite(maximum)) {
+    return Number.NaN;
+  }
+  if (maximum === minimum) {
+    return 100;
+  }
+  const percent = ((value - minimum) / (maximum - minimum)) * 100;
+  if (!Number.isFinite(percent)) {
+    return Number.NaN;
+  }
+  return Math.max(0, Math.min(100, percent));
+}
+
 export default function Player() {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -282,8 +296,12 @@ export default function Player() {
       fallbackName: entry?.fallbackName || '',
       bestScore: entry?.bestScore ?? null,
       bestScoreWeek: entry?.bestScoreWeek ?? null,
+      minScore: entry?.minScore ?? null,
+      maxScore: entry?.maxScore ?? null,
       bestTime: entry?.bestTime ?? null,
       bestTimeWeek: entry?.bestTimeWeek ?? null,
+      minTime: entry?.minTime ?? null,
+      maxTime: entry?.maxTime ?? null,
       order: index,
     }));
     return sortDungeons(base, lang);
@@ -294,32 +312,39 @@ export default function Player() {
       return null;
     }
     const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
-    const values = preparedDungeons.map((dungeon) => {
-      const numeric = parseScoreValue(dungeon.bestScore);
-      return Number.isFinite(numeric) ? numeric : null;
+    const percentages = preparedDungeons.map((dungeon) => {
+      const value = parseScoreValue(dungeon.bestScore);
+      const min = parseScoreValue(dungeon.minScore);
+      const max = parseScoreValue(dungeon.maxScore);
+      const percent = calculatePercentage(value, min, max);
+      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : null;
     });
-    const numericValues = values.filter((value) => Number.isFinite(value));
+    const actualValues = preparedDungeons.map((dungeon) => formatScoreValue(dungeon.bestScore));
+    const numericValues = percentages.filter((value) => Number.isFinite(value));
     if (numericValues.length === 0) {
       return null;
     }
-    const minValue = Math.min(...numericValues);
-    const maxValue = Math.max(...numericValues);
-    const span = Math.abs(maxValue - minValue);
-    const padding = span === 0 ? Math.max(1, Math.abs(maxValue || 0) * 0.05) : span * 0.1;
     const options = {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
         r: {
-          beginAtZero: false,
-          suggestedMin: minValue - padding,
-          suggestedMax: maxValue + padding,
+          beginAtZero: true,
+          min: 0,
+          max: 100,
           grid: { color: 'rgba(148, 163, 184, 0.18)' },
           angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
           ticks: {
             backdropColor: 'transparent',
             color: 'rgba(148, 163, 184, 0.85)',
-            callback: (value) => formatScoreValue(value),
+            stepSize: 20,
+            callback: (value) => {
+              const numeric = Number(value);
+              if (!Number.isFinite(numeric)) {
+                return '';
+              }
+              return `${Math.round(numeric)}%`;
+            },
           },
           pointLabels: {
             color: 'inherit',
@@ -332,8 +357,10 @@ export default function Player() {
         tooltip: {
           callbacks: {
             label: (context) => {
-              const parsed = context.parsed?.r;
-              return `${context.label}: ${formatScoreValue(parsed)}`;
+              const parsed = Number(context.parsed?.r);
+              const percentLabel = Number.isFinite(parsed) ? `${Math.round(parsed)}%` : '—';
+              const actual = actualValues[context.dataIndex] ?? '—';
+              return `${context.label}: ${actual} (${percentLabel})`;
             },
           },
         },
@@ -344,7 +371,7 @@ export default function Player() {
       datasets: [
         {
           label: t.playerScoreRadarDataset,
-          data: values,
+          data: percentages,
           borderColor: '#7c5cff',
           backgroundColor: 'rgba(124, 92, 255, 0.18)',
           pointBackgroundColor: '#7c5cff',
@@ -361,33 +388,39 @@ export default function Player() {
       return null;
     }
     const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
-    const values = preparedDungeons.map((dungeon) => {
-      const numeric = toSeconds(dungeon.bestTime);
-      return Number.isFinite(numeric) ? numeric : null;
+    const percentages = preparedDungeons.map((dungeon) => {
+      const value = toSeconds(dungeon.bestTime);
+      const min = toSeconds(dungeon.minTime);
+      const max = toSeconds(dungeon.maxTime);
+      const percent = calculatePercentage(value, min, max);
+      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : null;
     });
-    const numericValues = values.filter((value) => Number.isFinite(value));
+    const actualValues = preparedDungeons.map((dungeon) => formatTimeValue(dungeon.bestTime));
+    const numericValues = percentages.filter((value) => Number.isFinite(value));
     if (numericValues.length === 0) {
       return null;
     }
-    const minValue = Math.min(...numericValues);
-    const maxValue = Math.max(...numericValues);
-    const span = Math.abs(maxValue - minValue);
-    const padding = span === 0 ? Math.max(1, Math.abs(maxValue || 0) * 0.05) : span * 0.1;
     const options = {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
         r: {
-          beginAtZero: false,
-          reverse: true,
-          suggestedMin: minValue - padding,
-          suggestedMax: maxValue + padding,
+          beginAtZero: true,
+          min: 0,
+          max: 100,
           grid: { color: 'rgba(148, 163, 184, 0.18)' },
           angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
           ticks: {
             backdropColor: 'transparent',
             color: 'rgba(148, 163, 184, 0.85)',
-            callback: (value) => formatTimeValue(value),
+            stepSize: 20,
+            callback: (value) => {
+              const numeric = Number(value);
+              if (!Number.isFinite(numeric)) {
+                return '';
+              }
+              return `${Math.round(numeric)}%`;
+            },
           },
           pointLabels: {
             color: 'inherit',
@@ -400,8 +433,10 @@ export default function Player() {
         tooltip: {
           callbacks: {
             label: (context) => {
-              const parsed = context.parsed?.r;
-              return `${context.label}: ${formatTimeValue(parsed)}`;
+              const parsed = Number(context.parsed?.r);
+              const percentLabel = Number.isFinite(parsed) ? `${Math.round(parsed)}%` : '—';
+              const actual = actualValues[context.dataIndex] ?? '—';
+              return `${context.label}: ${actual} (${percentLabel})`;
             },
           },
         },
@@ -412,7 +447,7 @@ export default function Player() {
       datasets: [
         {
           label: t.playerTimeRadarDataset,
-          data: values,
+          data: percentages,
           borderColor: '#38bdf8',
           backgroundColor: 'rgba(56, 189, 248, 0.18)',
           pointBackgroundColor: '#38bdf8',
