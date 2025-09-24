@@ -65,6 +65,9 @@ public class ContributorExtractionService {
     private static final int PLAYER_BOX_HEIGHT = 38;
     private static final int PLAYER_ROW_STEP = 134;
     private static final int PLAYER_VERTICAL_OFFSET = -3;
+    private static final int ROW_SCAN_START_OFFSET = -16;
+    private static final int ROW_SCAN_RANGE = 80;
+    private static final int ROW_SCAN_STEP = 8;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
@@ -754,26 +757,13 @@ public class ContributorExtractionService {
         OffsetBounds bounds = computeOffsetBounds(originalImage, slotCount, RUNS_PER_IMAGE);
         int allowedMin = bounds.minOffset();
         int allowedMax = bounds.maxOffset();
-        int minOffset = Math.max(allowedMin, -10);
-        int maxOffset = Math.min(allowedMax, 135);
+        int minOffset = Math.max(allowedMin, ROW_SCAN_START_OFFSET);
+        if (minOffset > allowedMax) {
+            minOffset = allowedMax;
+        }
+        int maxOffset = Math.min(allowedMax, minOffset + ROW_SCAN_RANGE);
         if (maxOffset < minOffset) {
-            if (allowedMin > 135) {
-                minOffset = allowedMin;
-                maxOffset = allowedMin;
-            } else if (allowedMax < -10) {
-                minOffset = allowedMax;
-                maxOffset = allowedMax;
-            } else {
-                int preferred = 0;
-                if (preferred < allowedMin) {
-                    preferred = allowedMin;
-                }
-                if (preferred > allowedMax) {
-                    preferred = allowedMax;
-                }
-                minOffset = preferred;
-                maxOffset = preferred;
-            }
+            maxOffset = minOffset;
         }
 
         int currentOffset = minOffset;
@@ -799,7 +789,7 @@ public class ContributorExtractionService {
             if (currentOffset >= maxOffset) {
                 break;
             }
-            int nextOffset = Math.min(maxOffset, currentOffset + 8);
+            int nextOffset = Math.min(maxOffset, currentOffset + ROW_SCAN_STEP);
             if (nextOffset == currentOffset) {
                 break;
             }
