@@ -42,6 +42,22 @@ function formatScore(value) {
 export default function Score() {
   const { t } = React.useContext(LangContext);
 
+  const chartConfig = React.useMemo(
+    () => ({
+      chartTitle: t.leaderboardScoreChartTitle,
+      extractValue: (entry) => parseScoreValue(entry.value),
+      formatValue: (value) => formatScore(value),
+      bestLabel: t.leaderboardChartBestScore,
+      worstLabel: t.leaderboardChartWorstScore,
+      averageLabel: t.leaderboardChartAverageScore,
+      yAxisLabel: t.leaderboardChartScoreAxis,
+      xAxisLabel: t.leaderboardChartWeekAxis,
+      ariaLabel: t.leaderboardScoreChartAria,
+      isValueLowerBetter: false,
+    }),
+    [t],
+  );
+
   const getValue = React.useCallback((entry) => {
     if (!entry || typeof entry !== 'object') {
       return null;
@@ -70,6 +86,7 @@ export default function Score() {
       formatValue={formatValue}
       getSortValue={getSortValue}
       sortDirection="desc"
+      chartConfig={chartConfig}
     />
   );
 }

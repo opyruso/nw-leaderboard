@@ -45,6 +45,7 @@ cpSync(
   'node_modules/react-router-dom/dist/umd/react-router-dom.development.js',
   'dist/vendor/react-router-dom.development.js'
 );
+cpSync('node_modules/chart.js/dist/chart.umd.js', 'dist/vendor/chart.umd.js');
 
 let version = '';
 const tag = process.env.GITHUB_REF_NAME || process.env.GIT_TAG || process.env.TAG;

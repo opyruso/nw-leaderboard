@@ -65,6 +65,23 @@ function formatTime(value) {
 export default function Time() {
   const { t } = React.useContext(LangContext);
 
+  const chartConfig = React.useMemo(
+    () => ({
+      chartTitle: t.leaderboardTimeChartTitle,
+      extractValue: (entry) => toSeconds(entry.value),
+      formatValue: (value) => formatTime(value),
+      bestLabel: t.leaderboardChartFastestTime,
+      worstLabel: t.leaderboardChartSlowestTime,
+      averageLabel: t.leaderboardChartAverageTime,
+      yAxisLabel: t.leaderboardChartTimeAxis,
+      xAxisLabel: t.leaderboardChartWeekAxis,
+      ariaLabel: t.leaderboardTimeChartAria,
+      isValueLowerBetter: true,
+      reverseAxis: true,
+    }),
+    [t],
+  );
+
   const getValue = React.useCallback((entry) => {
     if (!entry || typeof entry !== 'object') {
       return null;
@@ -93,6 +110,7 @@ export default function Time() {
       formatValue={formatValue}
       getSortValue={getSortValue}
       sortDirection="asc"
+      chartConfig={chartConfig}
     />
   );
 }

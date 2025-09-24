@@ -1,6 +1,7 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonNameForLang, sortDungeons } from '../dungeons.js';
 import HomeMenu from '../components/HomeMenu.js';
+import ChartCanvas from '../components/ChartCanvas.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -288,6 +289,141 @@ export default function Player() {
     return sortDungeons(base, lang);
   }, [profile, lang]);
 
+  const scoreChartData = React.useMemo(() => {
+    if (preparedDungeons.length === 0) {
+      return null;
+    }
+    const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
+    const values = preparedDungeons.map((dungeon) => {
+      const numeric = parseScoreValue(dungeon.bestScore);
+      return Number.isFinite(numeric) ? numeric : null;
+    });
+    const numericValues = values.filter((value) => Number.isFinite(value));
+    if (numericValues.length === 0) {
+      return null;
+    }
+    const minValue = Math.min(...numericValues);
+    const maxValue = Math.max(...numericValues);
+    const span = Math.abs(maxValue - minValue);
+    const padding = span === 0 ? Math.max(1, Math.abs(maxValue || 0) * 0.05) : span * 0.1;
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          beginAtZero: false,
+          suggestedMin: minValue - padding,
+          suggestedMax: maxValue + padding,
+          grid: { color: 'rgba(148, 163, 184, 0.18)' },
+          angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
+          ticks: {
+            backdropColor: 'transparent',
+            color: 'rgba(148, 163, 184, 0.85)',
+            callback: (value) => formatScoreValue(value),
+          },
+          pointLabels: {
+            color: 'inherit',
+            font: { size: 12 },
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const parsed = context.parsed?.r;
+              return `${context.label}: ${formatScoreValue(parsed)}`;
+            },
+          },
+        },
+      },
+    };
+    const data = {
+      labels,
+      datasets: [
+        {
+          label: t.playerScoreRadarDataset,
+          data: values,
+          borderColor: '#7c5cff',
+          backgroundColor: 'rgba(124, 92, 255, 0.18)',
+          pointBackgroundColor: '#7c5cff',
+          pointBorderColor: '#7c5cff',
+          pointRadius: 3,
+        },
+      ],
+    };
+    return { data, options };
+  }, [preparedDungeons, lang, t]);
+
+  const timeChartData = React.useMemo(() => {
+    if (preparedDungeons.length === 0) {
+      return null;
+    }
+    const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
+    const values = preparedDungeons.map((dungeon) => {
+      const numeric = toSeconds(dungeon.bestTime);
+      return Number.isFinite(numeric) ? numeric : null;
+    });
+    const numericValues = values.filter((value) => Number.isFinite(value));
+    if (numericValues.length === 0) {
+      return null;
+    }
+    const minValue = Math.min(...numericValues);
+    const maxValue = Math.max(...numericValues);
+    const span = Math.abs(maxValue - minValue);
+    const padding = span === 0 ? Math.max(1, Math.abs(maxValue || 0) * 0.05) : span * 0.1;
+    const options = {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        r: {
+          beginAtZero: false,
+          reverse: true,
+          suggestedMin: minValue - padding,
+          suggestedMax: maxValue + padding,
+          grid: { color: 'rgba(148, 163, 184, 0.18)' },
+          angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
+          ticks: {
+            backdropColor: 'transparent',
+            color: 'rgba(148, 163, 184, 0.85)',
+            callback: (value) => formatTimeValue(value),
+          },
+          pointLabels: {
+            color: 'inherit',
+            font: { size: 12 },
+          },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const parsed = context.parsed?.r;
+              return `${context.label}: ${formatTimeValue(parsed)}`;
+            },
+          },
+        },
+      },
+    };
+    const data = {
+      labels,
+      datasets: [
+        {
+          label: t.playerTimeRadarDataset,
+          data: values,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.18)',
+          pointBackgroundColor: '#38bdf8',
+          pointBorderColor: '#38bdf8',
+          pointRadius: 3,
+        },
+      ],
+    };
+    return { data, options };
+  }, [preparedDungeons, lang, t]);
+
   const playerDisplayName = React.useMemo(() => {
     if (profile && typeof profile.playerName === 'string') {
       const trimmed = profile.playerName.trim();
@@ -447,52 +583,86 @@ export default function Player() {
         ) : preparedDungeons.length === 0 ? (
           <p className="leaderboard-status">{t.playerNoRuns}</p>
         ) : (
-          <ul className="player-dungeon-list">
-            {preparedDungeons.map((dungeon) => {
-              const name = getDungeonNameForLang(dungeon, lang);
-              const hasScore = dungeon.bestScore !== null && dungeon.bestScore !== undefined;
-              const hasTime = dungeon.bestTime !== null && dungeon.bestTime !== undefined;
-              const scoreWeekLabel = renderWeek(dungeon.bestScoreWeek);
-              const timeWeekLabel = renderWeek(dungeon.bestTimeWeek);
-              return (
-                <li key={dungeon.id} className="player-dungeon-card">
-                  <h2 className="player-dungeon-name">{name}</h2>
-                  <dl className="player-dungeon-stats">
-                    <div className="player-dungeon-stat">
-                      <dt>{t.playerBestScore}</dt>
-                      <dd>
-                        {hasScore ? (
-                          <>
-                            <span className="player-dungeon-value">{formatScoreValue(dungeon.bestScore)}</span>
-                            {scoreWeekLabel ? (
-                              <span className="player-dungeon-week">{scoreWeekLabel}</span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <span className="player-dungeon-empty">{t.playerNoScore}</span>
-                        )}
-                      </dd>
+          <>
+            {scoreChartData || timeChartData ? (
+              <div className="player-chart-grid">
+                {scoreChartData ? (
+                  <section className="player-chart-card">
+                    <h2 className="player-chart-title">{t.playerScoreRadarTitle}</h2>
+                    <div className="player-chart-body">
+                      <ChartCanvas
+                        type="radar"
+                        data={scoreChartData.data}
+                        options={scoreChartData.options}
+                        ariaLabel={t.playerScoreRadarAria}
+                        className="player-chart-canvas"
+                      />
                     </div>
-                    <div className="player-dungeon-stat">
-                      <dt>{t.playerBestTime}</dt>
-                      <dd>
-                        {hasTime ? (
-                          <>
-                            <span className="player-dungeon-value">{formatTimeValue(dungeon.bestTime)}</span>
-                            {timeWeekLabel ? (
-                              <span className="player-dungeon-week">{timeWeekLabel}</span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <span className="player-dungeon-empty">{t.playerNoTime}</span>
-                        )}
-                      </dd>
+                  </section>
+                ) : null}
+                {timeChartData ? (
+                  <section className="player-chart-card">
+                    <h2 className="player-chart-title">{t.playerTimeRadarTitle}</h2>
+                    <div className="player-chart-body">
+                      <ChartCanvas
+                        type="radar"
+                        data={timeChartData.data}
+                        options={timeChartData.options}
+                        ariaLabel={t.playerTimeRadarAria}
+                        className="player-chart-canvas"
+                      />
                     </div>
-                  </dl>
-                </li>
-              );
-            })}
-          </ul>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
+            <ul className="player-dungeon-list">
+              {preparedDungeons.map((dungeon) => {
+                const name = getDungeonNameForLang(dungeon, lang);
+                const hasScore = dungeon.bestScore !== null && dungeon.bestScore !== undefined;
+                const hasTime = dungeon.bestTime !== null && dungeon.bestTime !== undefined;
+                const scoreWeekLabel = renderWeek(dungeon.bestScoreWeek);
+                const timeWeekLabel = renderWeek(dungeon.bestTimeWeek);
+                return (
+                  <li key={dungeon.id} className="player-dungeon-card">
+                    <h2 className="player-dungeon-name">{name}</h2>
+                    <dl className="player-dungeon-stats">
+                      <div className="player-dungeon-stat">
+                        <dt>{t.playerBestScore}</dt>
+                        <dd>
+                          {hasScore ? (
+                            <>
+                              <span className="player-dungeon-value">{formatScoreValue(dungeon.bestScore)}</span>
+                              {scoreWeekLabel ? (
+                                <span className="player-dungeon-week">{scoreWeekLabel}</span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="player-dungeon-empty">{t.playerNoScore}</span>
+                          )}
+                        </dd>
+                      </div>
+                      <div className="player-dungeon-stat">
+                        <dt>{t.playerBestTime}</dt>
+                        <dd>
+                          {hasTime ? (
+                            <>
+                              <span className="player-dungeon-value">{formatTimeValue(dungeon.bestTime)}</span>
+                              {timeWeekLabel ? (
+                                <span className="player-dungeon-week">{timeWeekLabel}</span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="player-dungeon-empty">{t.playerNoTime}</span>
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
     </main>
