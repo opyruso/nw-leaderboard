@@ -5,6 +5,7 @@ import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.NoResultException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,58 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
                                 + "ORDER BY run.score DESC, run.week DESC, run.id ASC",
                         playerId)
                 .list();
+    }
+
+    /** Returns the lowest score recorded for each provided dungeon identifier. */
+    public Map<Long, Integer> findMinimumScoresByDungeonIds(Collection<Long> dungeonIds) {
+        if (dungeonIds == null || dungeonIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.dungeon.id, MIN(run.score) FROM RunScore run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
+                        Object[].class)
+                .setParameter(1, dungeonIds)
+                .getResultList();
+        Map<Long, Integer> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Object dungeonId = row[0];
+            Object score = row[1];
+            if (!(dungeonId instanceof Long) || !(score instanceof Number)) {
+                continue;
+            }
+            result.put((Long) dungeonId, ((Number) score).intValue());
+        }
+        return result;
+    }
+
+    /** Returns the highest score recorded for each provided dungeon identifier. */
+    public Map<Long, Integer> findMaximumScoresByDungeonIds(Collection<Long> dungeonIds) {
+        if (dungeonIds == null || dungeonIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.dungeon.id, MAX(run.score) FROM RunScore run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
+                        Object[].class)
+                .setParameter(1, dungeonIds)
+                .getResultList();
+        Map<Long, Integer> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Object dungeonId = row[0];
+            Object score = row[1];
+            if (!(dungeonId instanceof Long) || !(score instanceof Number)) {
+                continue;
+            }
+            result.put((Long) dungeonId, ((Number) score).intValue());
+        }
+        return result;
     }
 
     /** Returns the highest week number stored for score runs or {@code null} when none is available. */

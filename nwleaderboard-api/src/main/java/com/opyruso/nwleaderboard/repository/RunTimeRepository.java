@@ -5,6 +5,7 @@ import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.NoResultException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,58 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
                                 + "ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC",
                         playerId)
                 .list();
+    }
+
+    /** Returns the fastest time recorded for each provided dungeon identifier. */
+    public Map<Long, Integer> findMinimumTimesByDungeonIds(Collection<Long> dungeonIds) {
+        if (dungeonIds == null || dungeonIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.dungeon.id, MIN(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
+                        Object[].class)
+                .setParameter(1, dungeonIds)
+                .getResultList();
+        Map<Long, Integer> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Object dungeonId = row[0];
+            Object time = row[1];
+            if (!(dungeonId instanceof Long) || !(time instanceof Number)) {
+                continue;
+            }
+            result.put((Long) dungeonId, ((Number) time).intValue());
+        }
+        return result;
+    }
+
+    /** Returns the slowest time recorded for each provided dungeon identifier. */
+    public Map<Long, Integer> findMaximumTimesByDungeonIds(Collection<Long> dungeonIds) {
+        if (dungeonIds == null || dungeonIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.dungeon.id, MAX(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
+                        Object[].class)
+                .setParameter(1, dungeonIds)
+                .getResultList();
+        Map<Long, Integer> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Object dungeonId = row[0];
+            Object time = row[1];
+            if (!(dungeonId instanceof Long) || !(time instanceof Number)) {
+                continue;
+            }
+            result.put((Long) dungeonId, ((Number) time).intValue());
+        }
+        return result;
     }
 
     /** Returns the highest recorded week for time runs or {@code null} when none exist. */
