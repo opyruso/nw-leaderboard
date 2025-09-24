@@ -312,18 +312,18 @@ export default function Player() {
       return null;
     }
     const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
+    const footerLabels = preparedDungeons.map((dungeon) => {
+      const formatted = formatScoreValue(dungeon.maxScore);
+      return formatted === '—' ? '' : formatted;
+    });
     const percentages = preparedDungeons.map((dungeon) => {
       const value = parseScoreValue(dungeon.bestScore);
       const min = parseScoreValue(dungeon.minScore);
       const max = parseScoreValue(dungeon.maxScore);
       const percent = calculatePercentage(value, min, max);
-      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : null;
+      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : 0;
     });
     const actualValues = preparedDungeons.map((dungeon) => formatScoreValue(dungeon.bestScore));
-    const numericValues = percentages.filter((value) => Number.isFinite(value));
-    if (numericValues.length === 0) {
-      return null;
-    }
     const options = {
       responsive: true,
       maintainAspectRatio: false,
@@ -336,15 +336,7 @@ export default function Player() {
           angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
           ticks: {
             backdropColor: 'transparent',
-            color: 'rgba(148, 163, 184, 0.85)',
-            stepSize: 20,
-            callback: (value) => {
-              const numeric = Number(value);
-              if (!Number.isFinite(numeric)) {
-                return '';
-              }
-              return `${Math.round(numeric)}%`;
-            },
+            display: false,
           },
           pointLabels: {
             color: 'inherit',
@@ -363,6 +355,12 @@ export default function Player() {
               return `${context.label}: ${actual} (${percentLabel})`;
             },
           },
+        },
+        radarLabelFooter: {
+          footers: footerLabels,
+          color: 'rgba(148, 163, 184, 0.78)',
+          font: { size: 11 },
+          offset: 28,
         },
       },
     };
@@ -388,18 +386,18 @@ export default function Player() {
       return null;
     }
     const labels = preparedDungeons.map((dungeon) => getDungeonNameForLang(dungeon, lang));
+    const footerLabels = preparedDungeons.map((dungeon) => {
+      const formatted = formatTimeValue(dungeon.minTime);
+      return formatted === '—' ? '' : formatted;
+    });
     const percentages = preparedDungeons.map((dungeon) => {
       const value = toSeconds(dungeon.bestTime);
       const min = toSeconds(dungeon.minTime);
       const max = toSeconds(dungeon.maxTime);
       const percent = calculatePercentage(value, min, max);
-      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : null;
+      return Number.isFinite(percent) ? Math.round(percent * 10) / 10 : 0;
     });
     const actualValues = preparedDungeons.map((dungeon) => formatTimeValue(dungeon.bestTime));
-    const numericValues = percentages.filter((value) => Number.isFinite(value));
-    if (numericValues.length === 0) {
-      return null;
-    }
     const options = {
       responsive: true,
       maintainAspectRatio: false,
@@ -412,15 +410,7 @@ export default function Player() {
           angleLines: { color: 'rgba(148, 163, 184, 0.18)' },
           ticks: {
             backdropColor: 'transparent',
-            color: 'rgba(148, 163, 184, 0.85)',
-            stepSize: 20,
-            callback: (value) => {
-              const numeric = Number(value);
-              if (!Number.isFinite(numeric)) {
-                return '';
-              }
-              return `${Math.round(numeric)}%`;
-            },
+            display: false,
           },
           pointLabels: {
             color: 'inherit',
@@ -439,6 +429,12 @@ export default function Player() {
               return `${context.label}: ${actual} (${percentLabel})`;
             },
           },
+        },
+        radarLabelFooter: {
+          footers: footerLabels,
+          color: 'rgba(148, 163, 184, 0.78)',
+          font: { size: 11 },
+          offset: 28,
         },
       },
     };
