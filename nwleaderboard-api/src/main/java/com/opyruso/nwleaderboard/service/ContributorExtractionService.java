@@ -65,6 +65,10 @@ public class ContributorExtractionService {
     private static final int PLAYER_BOX_HEIGHT = 38;
     private static final int PLAYER_ROW_STEP = 134;
     private static final int PLAYER_VERTICAL_OFFSET = -3;
+    private static final int ROW_SCAN_START_OFFSET = -16;
+    private static final int ROW_SCAN_MAX_OFFSET = 130;
+    private static final int ROW_SCAN_SWEEP_RANGE = ROW_SCAN_MAX_OFFSET - ROW_SCAN_START_OFFSET;
+    private static final int ROW_SCAN_STEP = 8;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
@@ -754,26 +758,14 @@ public class ContributorExtractionService {
         OffsetBounds bounds = computeOffsetBounds(originalImage, slotCount, RUNS_PER_IMAGE);
         int allowedMin = bounds.minOffset();
         int allowedMax = bounds.maxOffset();
-        int minOffset = Math.max(allowedMin, -10);
-        int maxOffset = Math.min(allowedMax, 135);
+        int minOffset = Math.max(allowedMin, ROW_SCAN_START_OFFSET);
+        if (minOffset > allowedMax) {
+            minOffset = allowedMax;
+        }
+        int desiredMaxOffset = minOffset + ROW_SCAN_SWEEP_RANGE;
+        int maxOffset = Math.min(allowedMax, Math.min(ROW_SCAN_MAX_OFFSET, desiredMaxOffset));
         if (maxOffset < minOffset) {
-            if (allowedMin > 135) {
-                minOffset = allowedMin;
-                maxOffset = allowedMin;
-            } else if (allowedMax < -10) {
-                minOffset = allowedMax;
-                maxOffset = allowedMax;
-            } else {
-                int preferred = 0;
-                if (preferred < allowedMin) {
-                    preferred = allowedMin;
-                }
-                if (preferred > allowedMax) {
-                    preferred = allowedMax;
-                }
-                minOffset = preferred;
-                maxOffset = preferred;
-            }
+            maxOffset = minOffset;
         }
 
         int currentOffset = minOffset;
@@ -788,6 +780,9 @@ public class ContributorExtractionService {
                     knownPlayers, knownPlayersByName, currentOffset, 0, 1);
             double attemptAverage = attempt.averageConfidence();
             List<ContributionRunExtractionDto> attemptRows = attempt.rows();
+            String playerSummary = summariseFirstRowPlayers(attemptRows);
+            LOG.infof("Row scan offset %d: avg confidence %.2f, players=%s", currentOffset, attemptAverage,
+                    playerSummary);
             if (!attemptRows.isEmpty() && (attemptAverage > bestAverage || bestFirstRow == null)) {
                 bestAverage = attemptAverage;
                 bestOffset = currentOffset;
@@ -799,7 +794,7 @@ public class ContributorExtractionService {
             if (currentOffset >= maxOffset) {
                 break;
             }
-            int nextOffset = Math.min(maxOffset, currentOffset + 8);
+            int nextOffset = Math.min(maxOffset, currentOffset + ROW_SCAN_STEP);
             if (nextOffset == currentOffset) {
                 break;
             }
@@ -834,11 +829,44 @@ public class ContributorExtractionService {
         return rows;
     }
 
+    private String summariseFirstRowPlayers(List<ContributionRunExtractionDto> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return "<none>";
+        }
+        ContributionRunExtractionDto firstRow = rows.get(0);
+        if (firstRow == null) {
+            return "<none>";
+        }
+        List<ContributionFieldExtractionDto> players = firstRow.players();
+        if (players == null || players.isEmpty()) {
+            return "<none>";
+        }
+        List<String> names = new ArrayList<>(players.size());
+        for (ContributionFieldExtractionDto player : players) {
+            if (player == null) {
+                names.add("<null>");
+                continue;
+            }
+            String value = player.normalized();
+            if (value == null || value.isBlank()) {
+                value = player.text();
+            }
+            if (value != null) {
+                value = value.strip();
+            }
+            if (value == null || value.isEmpty()) {
+                value = "<empty>";
+            }
+            names.add(value);
+        }
+        return String.join(", ", names);
+    }
+
     private OffsetBounds computeOffsetBounds(BufferedImage image, int slotCount, int rowsToConsider) {
         int height = image != null && image.getHeight() > 0 ? image.getHeight() : EXPECTED_HEIGHT;
         int effectiveRows = Math.min(Math.max(rowsToConsider, 0), RUNS_PER_IMAGE);
         if (effectiveRows <= 0) {
-            return new OffsetBounds(-10, 135);
+            return new OffsetBounds(ROW_SCAN_START_OFFSET, ROW_SCAN_MAX_OFFSET);
         }
 
         int minOffset = Integer.MIN_VALUE;
@@ -862,10 +890,10 @@ public class ContributorExtractionService {
         }
 
         if (minOffset == Integer.MIN_VALUE) {
-            minOffset = -10;
+            minOffset = ROW_SCAN_START_OFFSET;
         }
         if (maxOffset == Integer.MAX_VALUE) {
-            maxOffset = 135;
+            maxOffset = ROW_SCAN_MAX_OFFSET;
         }
         return new OffsetBounds(minOffset, maxOffset);
     }
