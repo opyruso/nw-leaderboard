@@ -747,16 +747,148 @@ public class ContributorExtractionService {
 
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
             ContributionMode declaredMode, int expectedPlayerCount) {
-        List<ContributionRunExtractionDto> result = new ArrayList<>();
         List<Player> knownPlayers = playerRepository.listAll();
         Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
         int slotCount = clampPlayerSlotCount(expectedPlayerCount);
 
-        for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
-            int yOffset = rowIndex * PLAYER_ROW_STEP;
-            List<ContributionFieldExtractionDto> playerFields = new ArrayList<>(slotCount);
+        OffsetBounds bounds = computeOffsetBounds(originalImage, slotCount, RUNS_PER_IMAGE);
+        int allowedMin = bounds.minOffset();
+        int allowedMax = bounds.maxOffset();
+        int minOffset = Math.max(allowedMin, -10);
+        int maxOffset = Math.min(allowedMax, 135);
+        if (maxOffset < minOffset) {
+            if (allowedMin > 135) {
+                minOffset = allowedMin;
+                maxOffset = allowedMin;
+            } else if (allowedMax < -10) {
+                minOffset = allowedMax;
+                maxOffset = allowedMax;
+            } else {
+                int preferred = 0;
+                if (preferred < allowedMin) {
+                    preferred = allowedMin;
+                }
+                if (preferred > allowedMax) {
+                    preferred = allowedMax;
+                }
+                minOffset = preferred;
+                maxOffset = preferred;
+            }
+        }
 
-            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++) {
+        int currentOffset = minOffset;
+        int bestOffset = currentOffset;
+        double bestAverage = Double.NEGATIVE_INFINITY;
+        ContributionRunExtractionDto bestFirstRow = null;
+        boolean attempted = false;
+
+        while (true) {
+            attempted = true;
+            RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, currentOffset, 0, 1);
+            double attemptAverage = attempt.averageConfidence();
+            List<ContributionRunExtractionDto> attemptRows = attempt.rows();
+            if (!attemptRows.isEmpty() && (attemptAverage > bestAverage || bestFirstRow == null)) {
+                bestAverage = attemptAverage;
+                bestOffset = currentOffset;
+                bestFirstRow = attemptRows.get(0);
+            }
+            if (attemptAverage >= 95.0d) {
+                break;
+            }
+            if (currentOffset >= maxOffset) {
+                break;
+            }
+            int nextOffset = Math.min(maxOffset, currentOffset + 8);
+            if (nextOffset == currentOffset) {
+                break;
+            }
+            currentOffset = nextOffset;
+        }
+
+        if (!attempted) {
+            RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, bestOffset, 0, RUNS_PER_IMAGE);
+            return attempt.rows();
+        }
+
+        List<ContributionRunExtractionDto> rows = new ArrayList<>(RUNS_PER_IMAGE);
+        if (bestFirstRow != null) {
+            rows.add(bestFirstRow);
+        }
+
+        int startRowIndex = rows.isEmpty() ? 0 : 1;
+        int remainingRows = RUNS_PER_IMAGE - startRowIndex;
+        if (remainingRows > 0) {
+            RowsExtractionAttempt remainder = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, bestOffset, startRowIndex, remainingRows);
+            rows.addAll(remainder.rows());
+        }
+
+        if (rows.isEmpty()) {
+            RowsExtractionAttempt fallback = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, bestOffset, 0, RUNS_PER_IMAGE);
+            rows.addAll(fallback.rows());
+        }
+
+        return rows;
+    }
+
+    private OffsetBounds computeOffsetBounds(BufferedImage image, int slotCount, int rowsToConsider) {
+        int height = image != null && image.getHeight() > 0 ? image.getHeight() : EXPECTED_HEIGHT;
+        int effectiveRows = Math.min(Math.max(rowsToConsider, 0), RUNS_PER_IMAGE);
+        if (effectiveRows <= 0) {
+            return new OffsetBounds(-10, 135);
+        }
+
+        int minOffset = Integer.MIN_VALUE;
+        int maxOffset = Integer.MAX_VALUE;
+        int effectiveSlots = Math.min(Math.max(slotCount, 0), MAX_PLAYER_SLOTS);
+
+        for (int rowIndex = 0; rowIndex < effectiveRows; rowIndex++) {
+            int rowShift = rowIndex * PLAYER_ROW_STEP;
+            for (int slotIndex = 0; slotIndex < effectiveSlots; slotIndex++) {
+                Point base = PLAYER_BASE_POSITIONS.get(slotIndex);
+                int top = base.y + PLAYER_VERTICAL_OFFSET + rowShift;
+                int bottom = top + PLAYER_BOX_HEIGHT;
+                minOffset = Math.max(minOffset, -top);
+                maxOffset = Math.min(maxOffset, height - bottom);
+            }
+
+            int valueTop = SCORE_AREA.y + rowShift;
+            int valueBottom = valueTop + SCORE_AREA.height;
+            minOffset = Math.max(minOffset, -valueTop);
+            maxOffset = Math.min(maxOffset, height - valueBottom);
+        }
+
+        if (minOffset == Integer.MIN_VALUE) {
+            minOffset = -10;
+        }
+        if (maxOffset == Integer.MAX_VALUE) {
+            maxOffset = 135;
+        }
+        return new OffsetBounds(minOffset, maxOffset);
+    }
+
+    private RowsExtractionAttempt extractRowsForOffset(BufferedImage originalImage, BufferedImage preparedImage,
+            ContributionMode declaredMode, int slotCount, List<Player> knownPlayers,
+            Map<String, Player> knownPlayersByName, int baseVerticalOffset, int startRowIndex, int rowsToExtract) {
+        int limitedSlotCount = Math.min(slotCount, MAX_PLAYER_SLOTS);
+        int effectiveRows = Math.min(Math.max(rowsToExtract, 0), RUNS_PER_IMAGE - Math.max(startRowIndex, 0));
+        if (effectiveRows <= 0) {
+            return new RowsExtractionAttempt(List.of(), 0d, baseVerticalOffset);
+        }
+
+        List<ContributionRunExtractionDto> result = new ArrayList<>(effectiveRows);
+        double confidenceSum = 0d;
+        int confidenceCount = 0;
+
+        for (int rowOffset = 0; rowOffset < effectiveRows; rowOffset++) {
+            int rowIndex = startRowIndex + rowOffset;
+            int yOffset = baseVerticalOffset + rowIndex * PLAYER_ROW_STEP;
+            List<ContributionFieldExtractionDto> playerFields = new ArrayList<>(limitedSlotCount);
+
+            for (int slotIndex = 0; slotIndex < limitedSlotCount; slotIndex++) {
                 Point base = PLAYER_BASE_POSITIONS.get(slotIndex);
                 Rectangle playerRect = new Rectangle(base.x, base.y + yOffset + PLAYER_VERTICAL_OFFSET,
                         PLAYER_BOX_WIDTH, PLAYER_BOX_HEIGHT);
@@ -768,10 +900,14 @@ public class ContributorExtractionService {
                 if (existing == null) {
                     suggestion = findPlayerSuggestion(cleaned, knownPlayers);
                 }
-                playerFields.add(buildPlayerField(playerOcr, cleaned, existing, suggestion));
+                ContributionFieldExtractionDto playerField = buildPlayerField(playerOcr, cleaned, existing, suggestion);
+                playerFields.add(playerField);
+                confidenceSum += fieldConfidenceOrZero(playerField);
+                confidenceCount++;
             }
 
-            Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width, SCORE_AREA.height);
+            Rectangle valueRect = new Rectangle(SCORE_AREA.x, SCORE_AREA.y + yOffset, SCORE_AREA.width,
+                    SCORE_AREA.height);
             OcrResult valueOcr = runOcr(originalImage, preparedImage, valueRect, TessPageSegMode.PSM_SINGLE_LINE,
                     "0123456789:");
 
@@ -783,6 +919,8 @@ public class ContributorExtractionService {
             Integer time = mode == ContributionMode.TIME ? timeCandidate : null;
 
             ContributionFieldExtractionDto valueField = buildValueField(valueOcr, mode, score, time);
+            confidenceSum += fieldConfidenceOrZero(valueField);
+            confidenceCount++;
 
             result.add(new ContributionRunExtractionDto(
                     rowIndex + 1,
@@ -791,10 +929,22 @@ public class ContributorExtractionService {
                     time,
                     valueField,
                     playerFields,
-                    slotCount));
+                    limitedSlotCount));
         }
 
-        return result;
+        double average = confidenceCount > 0 ? confidenceSum / confidenceCount : 0d;
+        return new RowsExtractionAttempt(result, average, baseVerticalOffset);
+    }
+
+    private double fieldConfidenceOrZero(ContributionFieldExtractionDto field) {
+        if (field == null) {
+            return 0d;
+        }
+        Double confidence = field.confidence();
+        if (confidence == null || confidence.isNaN()) {
+            return 0d;
+        }
+        return confidence;
     }
 
     private Integer parseScore(String raw) {
@@ -1070,6 +1220,13 @@ public class ContributorExtractionService {
     }
 
     private record DungeonMatch(Dungeon dungeon, String displayName) {
+    }
+
+    private record RowsExtractionAttempt(List<ContributionRunExtractionDto> rows, double averageConfidence,
+            int baseOffset) {
+    }
+
+    private record OffsetBounds(int minOffset, int maxOffset) {
     }
 
     private record OcrResult(Rectangle area, BufferedImage original, BufferedImage preprocessed, String text,
