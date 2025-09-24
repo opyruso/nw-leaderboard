@@ -26,6 +26,7 @@ const en = {
   contributeFileStatusProcessing: 'Processing…',
   contributeFileStatusSuccess: 'Extracted',
   contributeFileStatusError: 'Error',
+  contributeProcessingTimeout: 'Processing timed out after 60 seconds.',
   contributeTooMany: 'You can upload up to 12 images at a time.',
   contributeResolutionError: 'Only screenshots rendered at 2560×1440 are accepted.',
   contributeNoFiles: 'Select a screenshot before extracting.',

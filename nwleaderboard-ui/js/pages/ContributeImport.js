@@ -6,6 +6,20 @@ const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
 const DEFAULT_PLAYER_SLOTS = 6;
 const RUNS_PER_IMAGE = 5;
+const IMAGE_PROCESSING_TIMEOUT_MS = 60 * 1000;
+const PROCESSING_TIMER_INTERVAL_MS = 1000;
+
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function formatSecondsFromDuration(milliseconds) {
+  if (!isFiniteNumber(milliseconds)) {
+    return null;
+  }
+  const seconds = Math.max(0, Math.round(milliseconds / 1000));
+  return `${seconds}s`;
+}
 
 function toLocaleHeader(lang) {
   if (lang === 'esmx') {
@@ -357,6 +371,7 @@ export default function ContributeImport() {
   const [messageText, setMessageText] = React.useState('');
   const [errorKey, setErrorKey] = React.useState('');
   const [errorText, setErrorText] = React.useState('');
+  const [processingNow, setProcessingNow] = React.useState(() => Date.now());
   const [dungeons, setDungeons] = React.useState([]);
   const [loadingDungeons, setLoadingDungeons] = React.useState(false);
   const [dungeonError, setDungeonError] = React.useState(false);
@@ -418,6 +433,20 @@ export default function ContributeImport() {
     setErrorKey('');
     setErrorText('');
   }, []);
+
+  React.useEffect(() => {
+    const hasProcessing = selectedFiles.some((file) => file.status === 'processing');
+    if (!hasProcessing) {
+      return undefined;
+    }
+    setProcessingNow(Date.now());
+    const timerId = window.setInterval(() => {
+      setProcessingNow(Date.now());
+    }, PROCESSING_TIMER_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [selectedFiles]);
 
   React.useEffect(() => {
     if (!API_BASE_URL) {
@@ -517,6 +546,9 @@ export default function ContributeImport() {
         id: `file-${timestamp}-${index}`,
         status: 'ready',
         errorMessage: '',
+        processingStartedAt: null,
+        processingCompletedAt: null,
+        processingDurationMs: null,
       }));
       setSelectedFiles(enrichedMetadata);
       if (enrichedMetadata.length === 1) {
@@ -612,6 +644,9 @@ export default function ContributeImport() {
           ...file,
           status: 'ready',
           errorMessage: '',
+          processingStartedAt: null,
+          processingCompletedAt: null,
+          processingDurationMs: null,
         })),
       );
       const nextResults = [];
@@ -625,7 +660,13 @@ export default function ContributeImport() {
         if (!meta || !meta.file) {
           continue;
         }
-        updateSelectedFile(meta.id, { status: 'processing', errorMessage: '' });
+        updateSelectedFile(meta.id, () => ({
+          status: 'processing',
+          errorMessage: '',
+          processingStartedAt: Date.now(),
+          processingCompletedAt: null,
+          processingDurationMs: null,
+        }));
         const formData = new FormData();
         const fileName = meta.name || (meta.file && meta.file.name) || `image-${index + 1}`;
         formData.append('image', meta.file, fileName);
@@ -633,10 +674,15 @@ export default function ContributeImport() {
         let responseData = null;
         let requestOk = false;
         let apiMessage = '';
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => {
+          controller.abort();
+        }, IMAGE_PROCESSING_TIMEOUT_MS);
         try {
           const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
             method: 'POST',
             body: formData,
+            signal: controller.signal,
           });
           try {
             responseData = await response.json();
@@ -649,7 +695,16 @@ export default function ContributeImport() {
             requestOk = true;
           }
         } catch (error) {
-          apiMessage = '';
+          if (error?.name === 'AbortError') {
+            apiMessage =
+              typeof t.contributeProcessingTimeout === 'string'
+                ? t.contributeProcessingTimeout
+                : 'Processing timed out after 60 seconds.';
+          } else {
+            apiMessage = '';
+          }
+        } finally {
+          window.clearTimeout(timeoutId);
         }
 
         if (!requestOk) {
@@ -657,7 +712,19 @@ export default function ContributeImport() {
           if (apiMessage && !firstErrorMessage) {
             firstErrorMessage = apiMessage;
           }
-          updateSelectedFile(meta.id, { status: 'error', errorMessage: apiMessage || '' });
+          updateSelectedFile(meta.id, (file) => {
+            const completedAt = Date.now();
+            const startedAt = isFiniteNumber(file.processingStartedAt)
+              ? file.processingStartedAt
+              : completedAt;
+            const durationMs = Math.max(0, completedAt - startedAt);
+            return {
+              status: 'error',
+              errorMessage: apiMessage || '',
+              processingCompletedAt: completedAt,
+              processingDurationMs: durationMs,
+            };
+          });
           continue;
         }
 
@@ -675,7 +742,19 @@ export default function ContributeImport() {
         }));
         nextResults.push({ id: meta.id, context, runs: runsWithContext });
         successCount += 1;
-        updateSelectedFile(meta.id, { status: 'success', errorMessage: '' });
+        updateSelectedFile(meta.id, (file) => {
+          const completedAt = Date.now();
+          const startedAt = isFiniteNumber(file.processingStartedAt)
+            ? file.processingStartedAt
+            : completedAt;
+          const durationMs = Math.max(0, completedAt - startedAt);
+          return {
+            status: 'success',
+            errorMessage: '',
+            processingCompletedAt: completedAt,
+            processingDurationMs: durationMs,
+          };
+        });
       }
 
       setFileResults(nextResults);
@@ -1100,10 +1179,37 @@ export default function ContributeImport() {
                 const label = getFileLabel(file, index);
                 const statusKey = file.status || 'ready';
                 const statusLabel = getFileStatusLabel(statusKey);
+                const startedAt = isFiniteNumber(file.processingStartedAt)
+                  ? file.processingStartedAt
+                  : null;
+                const completedAt = isFiniteNumber(file.processingCompletedAt)
+                  ? file.processingCompletedAt
+                  : null;
+                const recordedDurationMs = isFiniteNumber(file.processingDurationMs)
+                  ? file.processingDurationMs
+                  : null;
+                let statusSuffix = '';
+                if (statusKey === 'processing' && startedAt !== null) {
+                  const elapsedMs = Math.max(0, processingNow - startedAt);
+                  const elapsedLabel = formatSecondsFromDuration(elapsedMs);
+                  if (elapsedLabel) {
+                    statusSuffix = ` (${elapsedLabel})`;
+                  }
+                } else if (statusKey !== 'ready') {
+                  let totalDuration = recordedDurationMs;
+                  if (!isFiniteNumber(totalDuration) && startedAt !== null && completedAt !== null) {
+                    totalDuration = Math.max(0, completedAt - startedAt);
+                  }
+                  const totalLabel = formatSecondsFromDuration(totalDuration);
+                  if (totalLabel) {
+                    statusSuffix = ` (${totalLabel})`;
+                  }
+                }
+                const statusLabelWithTime = `${statusLabel}${statusSuffix}`;
                 const statusText =
                   statusKey === 'error' && file.errorMessage
-                    ? `${statusLabel}: ${file.errorMessage}`
-                    : statusLabel;
+                    ? `${statusLabelWithTime}: ${file.errorMessage}`
+                    : statusLabelWithTime;
                 return (
                   <li
                     key={file.id || `${label}-${index}`}

@@ -27,6 +27,7 @@ const fr = {
   contributeFileStatusProcessing: 'En cours…',
   contributeFileStatusSuccess: 'Extrait',
   contributeFileStatusError: 'Erreur',
+  contributeProcessingTimeout: 'Traitement expiré après 60 secondes.',
   contributeTooMany: 'Vous pouvez importer jusqu’à 12 images à la fois.',
   contributeResolutionError: 'Seules les captures en 2560×1440 sont acceptées.',
   contributeNoFiles: 'Sélectionnez une capture avant de lancer l’extraction.',

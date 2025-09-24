@@ -66,7 +66,8 @@ public class ContributorExtractionService {
     private static final int PLAYER_ROW_STEP = 134;
     private static final int PLAYER_VERTICAL_OFFSET = -3;
     private static final int ROW_SCAN_START_OFFSET = -16;
-    private static final int ROW_SCAN_MAX_OFFSET = 135;
+    private static final int ROW_SCAN_SWEEP_RANGE = 80;
+    private static final int ROW_SCAN_MAX_OFFSET = ROW_SCAN_START_OFFSET + ROW_SCAN_SWEEP_RANGE;
     private static final int ROW_SCAN_STEP = 4;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
@@ -761,7 +762,8 @@ public class ContributorExtractionService {
         if (minOffset > allowedMax) {
             minOffset = allowedMax;
         }
-        int maxOffset = Math.min(allowedMax, ROW_SCAN_MAX_OFFSET);
+        int desiredMaxOffset = minOffset + ROW_SCAN_SWEEP_RANGE;
+        int maxOffset = Math.min(allowedMax, Math.min(ROW_SCAN_MAX_OFFSET, desiredMaxOffset));
         if (maxOffset < minOffset) {
             maxOffset = minOffset;
         }
@@ -828,7 +830,7 @@ public class ContributorExtractionService {
         int height = image != null && image.getHeight() > 0 ? image.getHeight() : EXPECTED_HEIGHT;
         int effectiveRows = Math.min(Math.max(rowsToConsider, 0), RUNS_PER_IMAGE);
         if (effectiveRows <= 0) {
-            return new OffsetBounds(-10, 135);
+            return new OffsetBounds(ROW_SCAN_START_OFFSET, ROW_SCAN_MAX_OFFSET);
         }
 
         int minOffset = Integer.MIN_VALUE;
@@ -852,10 +854,10 @@ public class ContributorExtractionService {
         }
 
         if (minOffset == Integer.MIN_VALUE) {
-            minOffset = -10;
+            minOffset = ROW_SCAN_START_OFFSET;
         }
         if (maxOffset == Integer.MAX_VALUE) {
-            maxOffset = 135;
+            maxOffset = ROW_SCAN_MAX_OFFSET;
         }
         return new OffsetBounds(minOffset, maxOffset);
     }
