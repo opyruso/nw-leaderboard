@@ -7,6 +7,7 @@ import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
+import com.opyruso.nwleaderboard.service.ScanLeaderboardService;
 import jakarta.enterprise.context.ApplicationScoped;
 import javax.imageio.ImageIO;
 import jakarta.inject.Inject;
@@ -16,6 +17,7 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -95,6 +97,9 @@ public class ContributorExtractionService {
 
     @Inject
     PlayerRepository playerRepository;
+
+    @Inject
+    ScanLeaderboardService scanLeaderboardService;
 
     private final JaroWinklerSimilarity similarity = new JaroWinklerSimilarity();
 
@@ -189,7 +194,11 @@ public class ContributorExtractionService {
         for (InputPart part : imageParts) {
             String fileName = extractFileName(part);
             try (InputStream stream = part.getBody(InputStream.class, null)) {
-                BufferedImage bufferedImage = ImageIO.read(stream);
+                byte[] data = readAllBytes(stream);
+                BufferedImage bufferedImage;
+                try (ByteArrayInputStream imageStream = new ByteArrayInputStream(data)) {
+                    bufferedImage = ImageIO.read(imageStream);
+                }
                 if (bufferedImage == null) {
                     throw new ContributorRequestException("Unable to decode image " + fileName);
                 }
@@ -197,12 +206,22 @@ public class ContributorExtractionService {
                     throw new ContributorRequestException(
                             "Image " + fileName + " must have a resolution of " + EXPECTED_WIDTH + "x" + EXPECTED_HEIGHT);
                 }
-                result.add(new ImagePayload(fileName, bufferedImage));
+                result.add(new ImagePayload(fileName, data, bufferedImage));
             } catch (IOException e) {
                 throw new ContributorRequestException("Unable to read image " + fileName, e);
             }
         }
         return result;
+    }
+
+    private byte[] readAllBytes(InputStream stream) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] data = new byte[8192];
+        int read;
+        while ((read = stream.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, read);
+        }
+        return buffer.toByteArray();
     }
 
     private boolean isImagePart(InputPart part) {
@@ -255,7 +274,43 @@ public class ContributorExtractionService {
         List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode, expectedPlayerCount);
         ensureRowCount(rows, expectedPlayerCount);
 
-        return new ContributionExtractionResponseDto(weekField, dungeonField, modeField, expectedPlayerCount, rows);
+        ContributionExtractionResponseDto response = new ContributionExtractionResponseDto(weekField, dungeonField,
+                modeField, expectedPlayerCount, rows);
+
+        storeExtraction(payload, response, detectedWeek, dungeonMatch, modeField);
+
+        return response;
+    }
+
+    private void storeExtraction(ImagePayload payload, ContributionExtractionResponseDto response, Integer detectedWeek,
+            DungeonMatch dungeonMatch, ContributionFieldExtractionDto modeField) {
+        if (payload == null || response == null) {
+            return;
+        }
+        Long dungeonId = null;
+        if (dungeonMatch != null && dungeonMatch.dungeon() != null) {
+            dungeonId = dungeonMatch.dungeon().getId();
+        } else if (response.dungeon() != null && response.dungeon().id() != null) {
+            dungeonId = response.dungeon().id();
+        }
+        Integer week = detectedWeek;
+        if (week == null && response.week() != null) {
+            week = response.week().number();
+        }
+        String leaderboardType = null;
+        if (modeField != null && modeField.normalized() != null) {
+            String normalized = modeField.normalized();
+            if ("SCORE".equalsIgnoreCase(normalized)) {
+                leaderboardType = "Maximum Score";
+            } else if ("TIME".equalsIgnoreCase(normalized)) {
+                leaderboardType = "Clear time";
+            }
+        }
+        try {
+            scanLeaderboardService.storeScan(payload.image(), payload.data(), response, week, dungeonId, leaderboardType);
+        } catch (Exception e) {
+            LOG.warn("Unable to store leaderboard scan for later validation", e);
+        }
     }
 
     private ContributionFieldExtractionDto buildModeField(OcrResult ocr, ContributionMode mode) {
@@ -1239,7 +1294,7 @@ public class ContributorExtractionService {
     /**
      * Lightweight immutable representation of an uploaded image.
      */
-    private record ImagePayload(String fileName, BufferedImage image) {
+    private record ImagePayload(String fileName, byte[] data, BufferedImage image) {
     }
 
     private enum ContributionMode {
