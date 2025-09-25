@@ -1749,7 +1749,8 @@ body[data-theme='light'] .contribute-run {
 
 .contribute-compact-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 2px;
   min-width: 100%;
 }
 
@@ -1781,7 +1782,7 @@ body[data-theme='light'] .contribute-compact-row--image td {
 
 .contribute-compact-image-frame {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   width: 100%;
   min-height: 80px;

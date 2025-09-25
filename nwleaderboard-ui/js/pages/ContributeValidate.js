@@ -1005,8 +1005,6 @@ export default function ContributeValidate() {
         compactRows.push(
           <tr key={`${key}-controls`} className={`${baseRowClass} contribute-compact-row--controls`}>
             <td className="contribute-compact-cell contribute-compact-cell--inputs">
-              {label ? <span className="contribute-compact-label">{label}</span> : null}
-              {extracted ? <span className="contribute-compact-text">{extracted}</span> : null}
               {controls}
             </td>
             <td className="contribute-compact-cell contribute-compact-cell--suggestion">
@@ -1169,10 +1167,6 @@ export default function ContributeValidate() {
               ? slot.details.suggestion
               : null;
           const suggestionName = suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
-          const suggestionActionLabel =
-            typeof t.contributePlayerApplySuggestion === 'function'
-              ? t.contributePlayerApplySuggestion(suggestionName)
-              : t.contributePlayerApplySuggestion || 'Use suggestion';
           const extractedPlayerValue = slot.rawText?.trim() ? slot.rawText.trim() : '—';
           addCompactEntry({
             key: `${run.id}-${slot.key || `player-${playerIndex}`}`,
@@ -1191,7 +1185,7 @@ export default function ContributeValidate() {
                 />
               </div>
             ),
-            suggestionLabel: suggestionName ? suggestionActionLabel : null,
+            suggestionLabel: suggestionName || null,
             onSuggestionClick: suggestionName
               ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
               : null,
