@@ -1794,53 +1794,6 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   border-bottom: none;
 }
 
-.contribute-compact-run-heading-cell {
-  padding: 1.1rem 0.75rem 0.6rem;
-  border-top: 1px solid var(--border-dark);
-}
-
-body[data-theme='light'] .contribute-compact-run-heading-cell {
-  border-color: var(--border-light);
-}
-
-.contribute-compact-run-heading-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-  justify-content: space-between;
-}
-
-.contribute-compact-run-heading-label {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.contribute-compact-run-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1rem;
-}
-
-.contribute-compact-run-expected {
-  font-weight: 600;
-}
-
-.contribute-compact-run-hint {
-  font-size: 0.85rem;
-  opacity: 0.75;
-}
-
-.contribute-run-remove--compact {
-  width: 1.9rem;
-  height: 1.9rem;
-}
-
-.contribute-expected-field--compact {
-  min-width: 140px;
-}
-
 .contribute-compact-cell--image {
   width: 140px;
 }
@@ -1851,26 +1804,61 @@ body[data-theme='light'] .contribute-compact-run-heading-cell {
   border-radius: 10px;
 }
 
-.contribute-compact-cell--input .form-field {
-  margin: 0;
-}
-
 .contribute-compact-cell--input input,
 .contribute-compact-cell--input select,
 .contribute-compact-cell--input textarea {
   width: 100%;
 }
 
-.contribute-compact-inputs {
-  display: grid;
-  gap: 0.75rem;
+.contribute-compact-text {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .contribute-compact-cell--actions,
 .contribute-compact-cell--suggestion {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.contribute-compact-cell--actions .status-action {
+  min-width: 120px;
+}
+
+.contribute-compact-inputs {
+  display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.contribute-compact-inputs--dual input {
+  flex: 1 1 140px;
+  min-width: 120px;
+}
+
+.contribute-compact-suggestion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-dark);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body[data-theme='light'] .contribute-compact-suggestion {
+  border-color: var(--border-light);
+}
+
+.contribute-compact-suggestion:hover,
+.contribute-compact-suggestion:focus-visible {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .contribute-players {

@@ -964,10 +964,6 @@ export default function ContributeValidate() {
     if (compactView) {
       const compactRows = [];
       result.runs.forEach((run, runIndex) => {
-        const expectedPlayersLabel =
-          typeof t.contributePlayersExpected === 'function'
-            ? t.contributePlayersExpected(run.expectedPlayerCount)
-            : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
         const valueStatusClass = getStatusClass(run.valueField?.status, run.valueField?.confirmed);
         const hasValueField = Boolean(
           (run.valueField?.text && run.valueField.text.trim()) ||
@@ -975,56 +971,10 @@ export default function ContributeValidate() {
             (run.score && run.score !== '') ||
             (run.time && run.time !== ''),
         );
-        const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
-        const timePreview = formatTime(run.time);
-        const removeLabel =
-          typeof t.contributeRunRemove === 'function'
-            ? t.contributeRunRemove(runIndex + 1)
-            : t.contributeRunRemove || 'Remove run';
-        compactRows.push(
-          <tr key={`${run.id}-heading`} className="contribute-compact-run-heading">
-            <td className="contribute-compact-run-heading-cell" colSpan={5}>
-              <div className="contribute-compact-run-heading-bar">
-                <span className="contribute-compact-run-heading-label">
-                  {t.contributeRunLabel(runIndex + 1)}
-                </span>
-                <div className="contribute-compact-run-tools">
-                  <span className="contribute-compact-run-expected">{expectedPlayersLabel}</span>
-                  <span className="contribute-compact-run-hint">{t.contributePlayersHint}</span>
-                  <label className="form-field contribute-expected-field contribute-expected-field--compact">
-                    <span>{t.contributePlayers}</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={run.expectedPlayerCount}
-                      onChange={(event) => handleExpectedPlayerCountChange(runIndex, event.target.value)}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="contribute-run-remove contribute-run-remove--compact"
-                    aria-label={removeLabel}
-                    title={removeLabel}
-                    onClick={() => handleRunRemove(runIndex)}
-                  >
-                    <span className="visually-hidden">{removeLabel}</span>
-                    <svg
-                      className="contribute-run-remove-icon"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M10 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h5v2H5V4h5V3Zm-1 6v10h2V9H9Zm4 0v10h2V9h-2Zm-6 0H7v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9h-1v10H7V9Z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </td>
-          </tr>
-        );
+        const extractedValue =
+          run.valueField?.normalized?.trim() || run.valueField?.text?.trim() || '—';
+        const timePlaceholder = typeof t.contributeTime === 'string' ? t.contributeTime : undefined;
+        const scorePlaceholder = typeof t.contributeScore === 'string' ? t.contributeScore : undefined;
         compactRows.push(
           <tr key={`${run.id}-value`} className={`contribute-compact-row ${valueStatusClass}`}>
             <td className="contribute-compact-cell contribute-compact-cell--image">
@@ -1037,37 +987,26 @@ export default function ContributeValidate() {
               ) : null}
             </td>
             <td className="contribute-compact-cell">
-              <p className="contribute-context-ocr">
-                {run.valueField.text
-                  ? t.contributeDetectedText(run.valueField.text)
-                  : t.contributeDetectedEmpty}
-              </p>
-              {valueConfidenceLabel ? <p className="contribute-confidence">{valueConfidenceLabel}</p> : null}
+              <span className="contribute-compact-text">{extractedValue}</span>
             </td>
             <td className="contribute-compact-cell contribute-compact-cell--input">
-              <div className="contribute-compact-inputs">
-                <label className="form-field">
-                  <span>{t.contributeScore}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={run.score === '' ? '' : run.score}
-                    onChange={(event) => handleScoreChange(runIndex, event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>{t.contributeTime}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={run.time === '' ? '' : run.time}
-                    onChange={(event) => handleTimeChange(runIndex, event.target.value)}
-                  />
-                  <small className="form-hint">
-                    {t.contributeTimeHint}
-                    {timePreview ? ` (${timePreview})` : ''}
-                  </small>
-                </label>
+              <div className="contribute-compact-inputs contribute-compact-inputs--dual">
+                <input
+                  type="number"
+                  min="0"
+                  value={run.score === '' ? '' : run.score}
+                  placeholder={scorePlaceholder}
+                  aria-label={t.contributeScore}
+                  onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={run.time === '' ? '' : run.time}
+                  placeholder={timePlaceholder}
+                  aria-label={t.contributeTime}
+                  onChange={(event) => handleTimeChange(runIndex, event.target.value)}
+                />
               </div>
             </td>
             <td className="contribute-compact-cell contribute-compact-cell--actions">
@@ -1086,23 +1025,16 @@ export default function ContributeValidate() {
           </tr>
         );
         run.playerSlots.forEach((slot, playerIndex) => {
-          const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
           const suggestion =
             slot.details && typeof slot.details.suggestion === 'object'
               ? slot.details.suggestion
               : null;
           const suggestionName = suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
-          const suggestionLabel = suggestionName
-            ? typeof t.contributePlayerSuggestion === 'function'
-              ? t.contributePlayerSuggestion(suggestionName)
-              : t.contributePlayerSuggestion
-              ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
-              : suggestionName
-            : '';
           const suggestionActionLabel =
             typeof t.contributePlayerApplySuggestion === 'function'
               ? t.contributePlayerApplySuggestion(suggestionName)
               : t.contributePlayerApplySuggestion || 'Use suggestion';
+          const extractedPlayerValue = slot.rawText?.trim() ? slot.rawText.trim() : '—';
           compactRows.push(
             <tr
               key={`${run.id}-${slot.key || `player-${playerIndex}`}`}
@@ -1118,35 +1050,17 @@ export default function ContributeValidate() {
                 ) : null}
               </td>
               <td className="contribute-compact-cell">
-                <p className="contribute-context-ocr">
-                  {slot.rawText ? t.contributeDetectedText(slot.rawText) : t.contributeDetectedEmpty}
-                </p>
-                {playerConfidenceLabel ? (
-                  <p className="contribute-confidence contribute-confidence--player">{playerConfidenceLabel}</p>
-                ) : null}
-                {slot.status ? (
-                  <p className="contribute-player-status">
-                    {slot.status === 'success' ? t.contributePlayerExisting : t.contributePlayerNew}
-                  </p>
-                ) : null}
+                <span className="contribute-compact-text">{extractedPlayerValue}</span>
               </td>
               <td className="contribute-compact-cell contribute-compact-cell--input">
                 <input
                   type="text"
                   value={slot.value || ''}
+                  placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
                   onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
                 />
               </td>
               <td className="contribute-compact-cell contribute-compact-cell--actions">
-                {suggestionName ? (
-                  <button
-                    type="button"
-                    className="status-action"
-                    onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
-                  >
-                    {suggestionActionLabel}
-                  </button>
-                ) : null}
                 {slot.status === 'warning' && slot.value && slot.value.trim() ? (
                   <button
                     type="button"
@@ -1159,7 +1073,15 @@ export default function ContributeValidate() {
                 ) : null}
               </td>
               <td className="contribute-compact-cell contribute-compact-cell--suggestion">
-                {suggestionLabel ? <p className="contribute-player-suggestion">{suggestionLabel}</p> : null}
+                {suggestionName ? (
+                  <button
+                    type="button"
+                    className="contribute-compact-suggestion"
+                    onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
+                  >
+                    {suggestionActionLabel}
+                  </button>
+                ) : null}
               </td>
             </tr>
           );
