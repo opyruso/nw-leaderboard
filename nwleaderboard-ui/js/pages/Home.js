@@ -4,6 +4,7 @@ import DungeonIcon from '../components/DungeonIcon.js';
 import {
   deriveFallbackName,
   getDungeonNameForLang,
+  getDungeonIconPath,
   normaliseDungeonNames,
   sortDungeons,
   toPositiveInteger,
@@ -181,10 +182,21 @@ export default function Home() {
     [highlights, lang],
   );
 
+  const highlightIconId = React.useMemo(() => {
+    for (const highlight of sortedHighlights) {
+      const iconPath = getDungeonIconPath(highlight?.id);
+      if (iconPath) {
+        return highlight.id;
+      }
+    }
+    return null;
+  }, [sortedHighlights]);
+
   return (
     <main className="page" aria-labelledby="home-title">
-      <h1 id="home-title" className="page-title">
-        {pageTitle}
+      <h1 id="home-title" className="page-title title-with-icon">
+        <DungeonIcon dungeonId={highlightIconId} />
+        <span>{pageTitle}</span>
       </h1>
       <HomeMenu />
       <section className="highlight-section" aria-live="polite">

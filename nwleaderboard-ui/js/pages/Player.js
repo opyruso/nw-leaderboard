@@ -1,5 +1,5 @@
 import { LangContext } from '../i18n.js';
-import { getDungeonNameForLang, sortDungeons } from '../dungeons.js';
+import { getDungeonIconPath, getDungeonNameForLang, sortDungeons } from '../dungeons.js';
 import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
@@ -530,6 +530,16 @@ export default function Player() {
     return capitaliseWords(t.playerNotFoundTitle || '');
   }, [hasPlayerId, playerDisplayName, loading, t]);
 
+  const headingIconId = React.useMemo(() => {
+    for (const dungeon of preparedDungeons) {
+      const iconPath = getDungeonIconPath(dungeon?.id);
+      if (iconPath) {
+        return dungeon.id;
+      }
+    }
+    return null;
+  }, [preparedDungeons]);
+
   const renderWeek = (week) => {
     const numeric = Number(week);
     if (!Number.isFinite(numeric)) {
@@ -543,8 +553,9 @@ export default function Player() {
 
   return (
     <main className="page player-page" aria-labelledby="player-title">
-      <h1 id="player-title" className="page-title">
-        {heading}
+      <h1 id="player-title" className="page-title title-with-icon">
+        <DungeonIcon dungeonId={headingIconId} />
+        <span>{heading}</span>
       </h1>
       <HomeMenu />
       <section className="player-dungeon-section" aria-live="polite">
