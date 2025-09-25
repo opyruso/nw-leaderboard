@@ -1,7 +1,9 @@
 import { LangContext } from '../i18n.js';
 import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
+import DungeonIcon from '../components/DungeonIcon.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
+import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -494,10 +496,13 @@ export default function LeaderboardPage({
     setSelectedDungeon(dungeonId);
   }, []);
 
+  const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
+
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
-      <h1 id={`${mode}-title`} className="page-title">
-        {pageTitle}
+      <h1 id={`${mode}-title`} className="page-title title-with-icon">
+        <DungeonIcon dungeonId={selectedDungeon} />
+        <span>{displayTitle}</span>
       </h1>
       <HomeMenu />
       <div className="leaderboard-layout">

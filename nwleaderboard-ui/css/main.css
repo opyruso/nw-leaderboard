@@ -91,6 +91,19 @@ body[data-theme='light'] {
   letter-spacing: 2px;
 }
 
+.title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.65rem, 1.5vw, 0.9rem);
+}
+
+.title-icon {
+  height: 1em;
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.2));
+}
+
 .page-description {
   margin: 0 0 2rem;
   font-size: clamp(1.2rem, 2.5vw, 1.6rem);

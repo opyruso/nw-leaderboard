@@ -2,6 +2,8 @@ import { LangContext } from '../i18n.js';
 import { getDungeonNameForLang, sortDungeons } from '../dungeons.js';
 import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
+import DungeonIcon from '../components/DungeonIcon.js';
+import { capitaliseWords } from '../text.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -124,6 +126,8 @@ export default function Player() {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
   const navigate = useNavigate();
+  const scoreRadarTitle = capitaliseWords(t.playerScoreRadarTitle || '');
+  const timeRadarTitle = capitaliseWords(t.playerTimeRadarTitle || '');
   const normalisedPlayerId = React.useMemo(() => {
     if (playerId === undefined || playerId === null) {
       return '';
@@ -513,13 +517,18 @@ export default function Player() {
   const showSearchNoResults =
     !searchLoading && !searchError && trimmedSearch.length >= 2 && searchResults.length === 0;
 
-  const heading = !hasPlayerId
-    ? t.playerBrowseTitle
-    : profile?.playerName
-    ? profile.playerName
-    : loading
-    ? t.playerLoadingTitle
-    : t.playerNotFoundTitle;
+  const heading = React.useMemo(() => {
+    if (!hasPlayerId) {
+      return capitaliseWords(t.playerBrowseTitle || '');
+    }
+    if (playerDisplayName) {
+      return playerDisplayName;
+    }
+    if (loading) {
+      return capitaliseWords(t.playerLoadingTitle || '');
+    }
+    return capitaliseWords(t.playerNotFoundTitle || '');
+  }, [hasPlayerId, playerDisplayName, loading, t]);
 
   const renderWeek = (week) => {
     const numeric = Number(week);
@@ -629,7 +638,7 @@ export default function Player() {
               <div className="player-chart-grid">
                 {scoreChartData ? (
                   <section className="player-chart-card">
-                    <h2 className="player-chart-title">{t.playerScoreRadarTitle}</h2>
+                    <h2 className="player-chart-title">{scoreRadarTitle}</h2>
                     <div className="player-chart-body">
                       <ChartCanvas
                         type="radar"
@@ -643,7 +652,7 @@ export default function Player() {
                 ) : null}
                 {timeChartData ? (
                   <section className="player-chart-card">
-                    <h2 className="player-chart-title">{t.playerTimeRadarTitle}</h2>
+                    <h2 className="player-chart-title">{timeRadarTitle}</h2>
                     <div className="player-chart-body">
                       <ChartCanvas
                         type="radar"
@@ -666,7 +675,10 @@ export default function Player() {
                 const timeWeekLabel = renderWeek(dungeon.bestTimeWeek);
                 return (
                   <li key={dungeon.id} className="player-dungeon-card">
-                    <h2 className="player-dungeon-name">{name}</h2>
+                    <h2 className="player-dungeon-name title-with-icon">
+                      <DungeonIcon dungeonId={dungeon.id} />
+                      <span>{name}</span>
+                    </h2>
                     <dl className="player-dungeon-stats">
                       <div className="player-dungeon-stat">
                         <dt>{t.playerBestScore}</dt>
