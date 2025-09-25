@@ -745,9 +745,11 @@ export default function ContributeValidate() {
       .map((run) => {
         const players = run.playerSlots.map((slot) => {
           const normalized = typeof slot.normalized === 'string' ? slot.normalized.trim() : '';
+          const fallback = typeof slot.value === 'string' ? slot.value.trim() : '';
+          const playerName = normalized || fallback;
           return {
-            name: normalized,
-            player_id: Number.isFinite(slot.playerId) ? Number(slot.playerId) : null,
+            player_name: playerName,
+            id_player: Number.isFinite(slot.playerId) ? Number(slot.playerId) : null,
           };
         });
         const expectedPlayerCount = Number.isFinite(run.expectedPlayerCount) ? Number(run.expectedPlayerCount) : null;
@@ -762,7 +764,7 @@ export default function ContributeValidate() {
         };
       })
       .filter(({ week, dungeon, score, time, players }) => {
-        const hasPlayers = players.some((player) => player.name);
+        const hasPlayers = players.some((player) => player.player_name);
         return Boolean(week && dungeon && (score || time || hasPlayers));
       });
     return preparedRuns;
