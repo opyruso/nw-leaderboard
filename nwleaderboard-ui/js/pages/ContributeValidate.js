@@ -992,57 +992,51 @@ export default function ContributeValidate() {
       }) => {
         const baseRowClass = ['contribute-compact-row', statusClass].filter(Boolean).join(' ');
         compactRows.push(
-          <tr key={`${key}-image`} className={`${baseRowClass} contribute-compact-row--image`}>
-            <td className="contribute-compact-cell contribute-compact-cell--image" colSpan={3}>
+          <tr key={key} className={baseRowClass}>
+            <td className="contribute-compact-cell contribute-compact-cell--image">
               <div className="contribute-compact-image-frame">
                 {crop ? (
                   <img className="contribute-crop-image contribute-compact-image" src={crop} alt={alt} />
                 ) : null}
               </div>
             </td>
-          </tr>,
-        );
-        compactRows.push(
-          <tr key={`${key}-controls`} className={`${baseRowClass} contribute-compact-row--controls`}>
-            <td className="contribute-compact-cell contribute-compact-cell--content" colSpan={3}>
-              <div className="contribute-compact-row-content">
-                <div className="contribute-compact-main">
-                  {extracted ? <span className="contribute-compact-extracted">{extracted}</span> : null}
-                  <div
-                    className={`contribute-compact-inputs${inputsClassName ? ` ${inputsClassName}` : ''}`}
-                  >
-                    {inputs}
-                  </div>
-                </div>
-                <div className="contribute-compact-side">
-                  {suggestionLabel && onSuggestionClick ? (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="contribute-compact-suggestion"
-                      onClick={onSuggestionClick}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onSuggestionClick();
-                        }
-                      }}
-                    >
-                      {suggestionLabel}
-                    </span>
-                  ) : null}
-                  {showConfirmButton ? (
-                    <button
-                      type="button"
-                      className="status-action"
-                      onClick={confirmAction}
-                      disabled={confirmDisabled}
-                    >
-                      {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
-                    </button>
-                  ) : null}
-                </div>
+            <td className="contribute-compact-cell contribute-compact-cell--extracted">
+              {extracted ? <span className="contribute-compact-extracted">{extracted}</span> : null}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--inputs">
+              <div className={`contribute-compact-inputs${inputsClassName ? ` ${inputsClassName}` : ''}`}>
+                {inputs}
               </div>
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--confirm">
+              {showConfirmButton ? (
+                <button
+                  type="button"
+                  className="status-action"
+                  onClick={confirmAction}
+                  disabled={confirmDisabled}
+                >
+                  {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                </button>
+              ) : null}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--suggestion">
+              {suggestionLabel && onSuggestionClick ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="contribute-compact-suggestion"
+                  onClick={onSuggestionClick}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSuggestionClick();
+                    }
+                  }}
+                >
+                  {suggestionLabel}
+                </span>
+              ) : null}
             </td>
           </tr>,
         );
@@ -1177,18 +1171,18 @@ export default function ContributeValidate() {
             crop: slot.crop,
             alt: t.contributePlayerSlotLabel(playerIndex + 1),
             extracted: extractedPlayerValue,
-          inputs: (
-            <input
-              type="text"
-              value={slot.value || ''}
-              placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
-              onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
-            />
-          ),
-          suggestionLabel: suggestionName || null,
-          onSuggestionClick: suggestionName
-            ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
-            : null,
+            inputs: (
+              <input
+                type="text"
+                value={slot.value || ''}
+                placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
+                onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
+              />
+            ),
+            suggestionLabel: suggestionName || null,
+            onSuggestionClick: suggestionName
+              ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
+              : null,
             showConfirmButton: slot.status === 'warning' && slot.value && slot.value.trim(),
             confirmDisabled: slot.confirmed,
             confirmAction: () => handlePlayerConfirm(runIndex, playerIndex),
@@ -1199,6 +1193,15 @@ export default function ContributeValidate() {
       return (
         <div className="contribute-compact-table-wrapper contribute-compact-table-wrapper--full">
           <table className="contribute-compact-table">
+            <thead>
+              <tr>
+                <th scope="col">{t.contributeCompactImage}</th>
+                <th scope="col">{t.contributeCompactExtracted}</th>
+                <th scope="col">{t.contributeCompactInput}</th>
+                <th scope="col">{t.contributeCompactAction}</th>
+                <th scope="col">{t.contributeCompactSuggestion}</th>
+              </tr>
+            </thead>
             <tbody>{compactRows}</tbody>
           </table>
         </div>
