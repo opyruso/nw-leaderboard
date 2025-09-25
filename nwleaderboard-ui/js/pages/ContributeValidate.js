@@ -733,6 +733,19 @@ export default function ContributeValidate() {
     });
   };
 
+  const handleContextModeChange = (value) => {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    const resolved = trimmed ? trimmed.toUpperCase() : '';
+    updateResult((current) => {
+      const currentContext = current?.context ? { ...current.context } : createEmptyContext();
+      const updatedContext = { ...currentContext, mode: resolved };
+      const updatedRuns = Array.isArray(current.runs)
+        ? current.runs.map((run) => ({ ...run, mode: resolved }))
+        : [];
+      return { ...current, context: updatedContext, runs: updatedRuns };
+    });
+  };
+
   const handleScoreChange = (runIndex, value) => {
     updateResult((current) => ({
       ...current,
@@ -963,6 +976,149 @@ export default function ContributeValidate() {
     }
     if (compactView) {
       const compactRows = [];
+      const addCompactEntry = ({
+        key,
+        label,
+        statusClass,
+        crop,
+        alt,
+        extracted,
+        controls,
+        suggestionLabel,
+        onSuggestionClick,
+        showConfirmButton,
+        confirmDisabled,
+        confirmAction,
+      }) => {
+        const baseRowClass = ['contribute-compact-row', statusClass].filter(Boolean).join(' ');
+        compactRows.push(
+          <tr key={`${key}-image`} className={`${baseRowClass} contribute-compact-row--image`}>
+            <td className="contribute-compact-cell contribute-compact-cell--image" colSpan={3}>
+              <div className="contribute-compact-image-frame">
+                {crop ? (
+                  <img className="contribute-crop-image contribute-compact-image" src={crop} alt={alt} />
+                ) : null}
+              </div>
+            </td>
+          </tr>,
+        );
+        compactRows.push(
+          <tr key={`${key}-controls`} className={`${baseRowClass} contribute-compact-row--controls`}>
+            <td className="contribute-compact-cell contribute-compact-cell--inputs">
+              {label ? <span className="contribute-compact-label">{label}</span> : null}
+              {extracted ? <span className="contribute-compact-text">{extracted}</span> : null}
+              {controls}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--suggestion">
+              {suggestionLabel && onSuggestionClick ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="contribute-compact-suggestion"
+                  onClick={onSuggestionClick}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSuggestionClick();
+                    }
+                  }}
+                >
+                  {suggestionLabel}
+                </span>
+              ) : null}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--actions">
+              {showConfirmButton ? (
+                <button type="button" className="status-action" onClick={confirmAction} disabled={confirmDisabled}>
+                  {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                </button>
+              ) : null}
+            </td>
+          </tr>,
+        );
+      };
+
+      const contextEntries = [
+        {
+          key: 'context-week',
+          label: t.contributeWeek,
+          statusClass: getStatusClass(result.context.weekField.status, result.context.weekField.confirmed),
+          crop: result.context.weekField.crop,
+          alt: t.contributeWeek,
+          extracted: result.context.weekField.text
+            ? t.contributeDetectedText(result.context.weekField.text)
+            : t.contributeDetectedEmpty,
+          controls: (
+            <div className="contribute-compact-inputs">
+              <input
+                type="number"
+                min="1"
+                value={result.context.week === '' ? '' : result.context.week}
+                onChange={(event) => handleContextWeekChange(event.target.value)}
+              />
+            </div>
+          ),
+          showConfirmButton:
+            result.context.weekField.status === 'warning' && !result.context.weekField.confirmed,
+          confirmDisabled: result.context.weekField.confirmed,
+          confirmAction: () => handleModeConfirm('weekField'),
+        },
+        {
+          key: 'context-dungeon',
+          label: t.contributeDungeon,
+          statusClass: getStatusClass(result.context.dungeonField.status, result.context.dungeonField.confirmed),
+          crop: result.context.dungeonField.crop,
+          alt: t.contributeDungeon,
+          extracted: result.context.dungeonField.text
+            ? t.contributeDetectedText(result.context.dungeonField.text)
+            : t.contributeDetectedEmpty,
+          controls: (
+            <div className="contribute-compact-inputs">
+              <select
+                value={result.context.dungeon === '' ? '' : result.context.dungeon}
+                onChange={(event) => handleContextDungeonChange(event.target.value)}
+              >
+                <option value="">{t.contributeSelectDungeon}</option>
+                {dungeons.map((dungeon) => (
+                  <option key={dungeon.id} value={dungeon.id}>
+                    {dungeon.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ),
+          showConfirmButton:
+            result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed,
+          confirmDisabled: result.context.dungeonField.confirmed,
+          confirmAction: () => handleModeConfirm('dungeonField'),
+        },
+        {
+          key: 'context-mode',
+          label: t.contributeMode,
+          statusClass: getStatusClass(result.context.modeField.status, result.context.modeField.confirmed),
+          crop: result.context.modeField.crop,
+          alt: t.contributeMode,
+          extracted: result.context.modeField.text
+            ? t.contributeDetectedText(result.context.modeField.text)
+            : t.contributeDetectedEmpty,
+          controls: (
+            <div className="contribute-compact-inputs">
+              <input
+                type="text"
+                value={result.context.mode || ''}
+                onChange={(event) => handleContextModeChange(event.target.value)}
+              />
+            </div>
+          ),
+          showConfirmButton:
+            result.context.modeField.status === 'warning' && !result.context.modeField.confirmed,
+          confirmDisabled: result.context.modeField.confirmed,
+          confirmAction: () => handleModeConfirm('modeField'),
+        },
+      ];
+
+      contextEntries.forEach((entry) => addCompactEntry(entry));
+
       result.runs.forEach((run, runIndex) => {
         const valueStatusClass = getStatusClass(run.valueField?.status, run.valueField?.confirmed);
         const hasValueField = Boolean(
@@ -975,55 +1131,38 @@ export default function ContributeValidate() {
           run.valueField?.normalized?.trim() || run.valueField?.text?.trim() || '—';
         const timePlaceholder = typeof t.contributeTime === 'string' ? t.contributeTime : undefined;
         const scorePlaceholder = typeof t.contributeScore === 'string' ? t.contributeScore : undefined;
-        compactRows.push(
-          <tr key={`${run.id}-value`} className={`contribute-compact-row ${valueStatusClass}`}>
-            <td className="contribute-compact-cell contribute-compact-cell--image">
-              {run.valueField.crop ? (
-                <img
-                  className="contribute-crop-image"
-                  src={run.valueField.crop}
-                  alt={t.contributeValueArea}
-                />
-              ) : null}
-            </td>
-            <td className="contribute-compact-cell">
-              <span className="contribute-compact-text">{extractedValue}</span>
-            </td>
-            <td className="contribute-compact-cell contribute-compact-cell--input">
-              <div className="contribute-compact-inputs contribute-compact-inputs--dual">
-                <input
-                  type="number"
-                  min="0"
-                  value={run.score === '' ? '' : run.score}
-                  placeholder={scorePlaceholder}
-                  aria-label={t.contributeScore}
-                  onChange={(event) => handleScoreChange(runIndex, event.target.value)}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={run.time === '' ? '' : run.time}
-                  placeholder={timePlaceholder}
-                  aria-label={t.contributeTime}
-                  onChange={(event) => handleTimeChange(runIndex, event.target.value)}
-                />
-              </div>
-            </td>
-            <td className="contribute-compact-cell contribute-compact-cell--actions">
-              {run.valueField.status === 'warning' && hasValueField ? (
-                <button
-                  type="button"
-                  className="status-action"
-                  onClick={() => handleRunValueConfirm(runIndex)}
-                  disabled={run.valueField.confirmed}
-                >
-                  {run.valueField.confirmed ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
-                </button>
-              ) : null}
-            </td>
-            <td className="contribute-compact-cell contribute-compact-cell--suggestion" />
-          </tr>
-        );
+        addCompactEntry({
+          key: `${run.id}-value`,
+          label: t.contributeRunLabel(runIndex + 1),
+          statusClass: valueStatusClass,
+          crop: run.valueField.crop,
+          alt: t.contributeValueArea,
+          extracted: extractedValue,
+          controls: (
+            <div className="contribute-compact-inputs contribute-compact-inputs--dual">
+              <input
+                type="number"
+                min="0"
+                value={run.score === '' ? '' : run.score}
+                placeholder={scorePlaceholder}
+                aria-label={t.contributeScore}
+                onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                value={run.time === '' ? '' : run.time}
+                placeholder={timePlaceholder}
+                aria-label={t.contributeTime}
+                onChange={(event) => handleTimeChange(runIndex, event.target.value)}
+              />
+            </div>
+          ),
+          showConfirmButton: run.valueField.status === 'warning' && hasValueField,
+          confirmDisabled: run.valueField.confirmed,
+          confirmAction: () => handleRunValueConfirm(runIndex),
+        });
+
         run.playerSlots.forEach((slot, playerIndex) => {
           const suggestion =
             slot.details && typeof slot.details.suggestion === 'object'
@@ -1035,70 +1174,37 @@ export default function ContributeValidate() {
               ? t.contributePlayerApplySuggestion(suggestionName)
               : t.contributePlayerApplySuggestion || 'Use suggestion';
           const extractedPlayerValue = slot.rawText?.trim() ? slot.rawText.trim() : '—';
-          compactRows.push(
-            <tr
-              key={`${run.id}-${slot.key || `player-${playerIndex}`}`}
-              className={`contribute-compact-row ${getStatusClass(slot.status, slot.confirmed)}`}
-            >
-              <td className="contribute-compact-cell contribute-compact-cell--image">
-                {slot.crop ? (
-                  <img
-                    className="contribute-crop-image"
-                    src={slot.crop}
-                    alt={t.contributePlayerSlotLabel(playerIndex + 1)}
-                  />
-                ) : null}
-              </td>
-              <td className="contribute-compact-cell">
-                <span className="contribute-compact-text">{extractedPlayerValue}</span>
-              </td>
-              <td className="contribute-compact-cell contribute-compact-cell--input">
+          addCompactEntry({
+            key: `${run.id}-${slot.key || `player-${playerIndex}`}`,
+            label: t.contributePlayerSlotLabel(playerIndex + 1),
+            statusClass: getStatusClass(slot.status, slot.confirmed),
+            crop: slot.crop,
+            alt: t.contributePlayerSlotLabel(playerIndex + 1),
+            extracted: extractedPlayerValue,
+            controls: (
+              <div className="contribute-compact-inputs">
                 <input
                   type="text"
                   value={slot.value || ''}
                   placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
                   onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
                 />
-              </td>
-              <td className="contribute-compact-cell contribute-compact-cell--actions">
-                {slot.status === 'warning' && slot.value && slot.value.trim() ? (
-                  <button
-                    type="button"
-                    className="status-action"
-                    onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
-                    disabled={slot.confirmed}
-                  >
-                    {slot.confirmed ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
-                  </button>
-                ) : null}
-              </td>
-              <td className="contribute-compact-cell contribute-compact-cell--suggestion">
-                {suggestionName ? (
-                  <button
-                    type="button"
-                    className="contribute-compact-suggestion"
-                    onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
-                  >
-                    {suggestionActionLabel}
-                  </button>
-                ) : null}
-              </td>
-            </tr>
-          );
+              </div>
+            ),
+            suggestionLabel: suggestionName ? suggestionActionLabel : null,
+            onSuggestionClick: suggestionName
+              ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
+              : null,
+            showConfirmButton: slot.status === 'warning' && slot.value && slot.value.trim(),
+            confirmDisabled: slot.confirmed,
+            confirmAction: () => handlePlayerConfirm(runIndex, playerIndex),
+          });
         });
       });
+
       return (
         <div className="contribute-compact-table-wrapper contribute-compact-table-wrapper--full">
           <table className="contribute-compact-table">
-            <thead>
-              <tr>
-                <th>{t.contributeCompactImage}</th>
-                <th>{t.contributeCompactExtracted}</th>
-                <th>{t.contributeCompactInput}</th>
-                <th>{t.contributeCompactAction}</th>
-                <th>{t.contributeCompactSuggestion}</th>
-              </tr>
-            </thead>
             <tbody>{compactRows}</tbody>
           </table>
         </div>

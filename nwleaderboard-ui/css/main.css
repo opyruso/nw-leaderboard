@@ -1753,61 +1753,59 @@ body[data-theme='light'] .contribute-run {
   min-width: 100%;
 }
 
-.contribute-compact-table caption {
-  margin-bottom: 0.75rem;
-  text-align: left;
-}
-
-.contribute-compact-caption {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  font-weight: 600;
-}
-
-.contribute-compact-caption-hint {
-  font-weight: 400;
-  font-size: 0.9rem;
-  opacity: 0.75;
-}
-
-.contribute-compact-table thead th {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.75;
-  padding: 0.6rem 0.75rem;
-}
-
 .contribute-compact-table tbody td {
-  padding: 0.65rem 0.75rem;
+  padding: 0;
   vertical-align: top;
+}
+
+.contribute-compact-row--image td {
+  padding: 0.75rem 0.75rem 0.35rem;
   border-top: 1px solid var(--border-dark);
 }
 
-body[data-theme='light'] .contribute-compact-table tbody td {
+.contribute-compact-row--controls td {
+  padding: 0 0.75rem 0.85rem;
+}
+
+.contribute-compact-row:first-child td {
+  border-top: none;
+}
+
+body[data-theme='light'] .contribute-compact-row--image td {
   border-color: var(--border-light);
 }
 
-.contribute-compact-row:last-child td {
-  border-bottom: none;
-}
-
 .contribute-compact-cell--image {
-  width: 140px;
+  padding: 0;
 }
 
-.contribute-compact-cell--image .contribute-crop-image {
+.contribute-compact-image-frame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  max-width: 120px;
+  min-height: 80px;
+}
+
+.contribute-compact-image {
+  width: 100%;
+  max-width: 240px;
   border-radius: 10px;
 }
 
-.contribute-compact-cell--input input,
-.contribute-compact-cell--input select,
-.contribute-compact-cell--input textarea {
-  width: 100%;
+.contribute-compact-cell--inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.25rem;
+}
+
+.contribute-compact-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
 }
 
 .contribute-compact-text {
@@ -1816,49 +1814,56 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   line-height: 1.4;
 }
 
-.contribute-compact-cell--actions,
-.contribute-compact-cell--suggestion {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.contribute-compact-cell--actions .status-action {
-  min-width: 120px;
-}
-
 .contribute-compact-inputs {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
+.contribute-compact-inputs input,
+.contribute-compact-inputs select,
+.contribute-compact-inputs textarea {
+  width: 100%;
+}
+
 .contribute-compact-inputs--dual input {
-  flex: 1 1 140px;
-  min-width: 120px;
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.contribute-compact-cell--suggestion,
+.contribute-compact-cell--actions {
+  width: 170px;
+  padding-top: 0.85rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.contribute-compact-cell--actions {
+  text-align: right;
+}
+
+.contribute-compact-cell--actions .status-action {
+  width: 100%;
+  min-width: 0;
 }
 
 .contribute-compact-suggestion {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  border: 1px solid var(--border-dark);
-  background: transparent;
-  color: inherit;
+  display: inline-block;
+  color: var(--color-accent);
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  text-decoration: underline;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-body[data-theme='light'] .contribute-compact-suggestion {
-  border-color: var(--border-light);
+.contribute-compact-suggestion:hover {
+  text-decoration: none;
 }
 
-.contribute-compact-suggestion:hover,
 .contribute-compact-suggestion:focus-visible {
-  background-color: rgba(255, 255, 255, 0.08);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .contribute-players {
