@@ -978,12 +978,12 @@ export default function ContributeValidate() {
       const compactRows = [];
       const addCompactEntry = ({
         key,
-        label,
         statusClass,
         crop,
         alt,
         extracted,
-        controls,
+        inputs,
+        inputsClassName,
         suggestionLabel,
         onSuggestionClick,
         showConfirmButton,
@@ -1004,33 +1004,45 @@ export default function ContributeValidate() {
         );
         compactRows.push(
           <tr key={`${key}-controls`} className={`${baseRowClass} contribute-compact-row--controls`}>
-            <td className="contribute-compact-cell contribute-compact-cell--inputs">
-              {controls}
-            </td>
-            <td className="contribute-compact-cell contribute-compact-cell--suggestion">
-              {suggestionLabel && onSuggestionClick ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="contribute-compact-suggestion"
-                  onClick={onSuggestionClick}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      onSuggestionClick();
-                    }
-                  }}
-                >
-                  {suggestionLabel}
-                </span>
-              ) : null}
-            </td>
-            <td className="contribute-compact-cell contribute-compact-cell--actions">
-              {showConfirmButton ? (
-                <button type="button" className="status-action" onClick={confirmAction} disabled={confirmDisabled}>
-                  {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
-                </button>
-              ) : null}
+            <td className="contribute-compact-cell contribute-compact-cell--content" colSpan={3}>
+              <div className="contribute-compact-row-content">
+                <div className="contribute-compact-main">
+                  {extracted ? <span className="contribute-compact-extracted">{extracted}</span> : null}
+                  <div
+                    className={`contribute-compact-inputs${inputsClassName ? ` ${inputsClassName}` : ''}`}
+                  >
+                    {inputs}
+                  </div>
+                </div>
+                <div className="contribute-compact-side">
+                  {suggestionLabel && onSuggestionClick ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="contribute-compact-suggestion"
+                      onClick={onSuggestionClick}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onSuggestionClick();
+                        }
+                      }}
+                    >
+                      {suggestionLabel}
+                    </span>
+                  ) : null}
+                  {showConfirmButton ? (
+                    <button
+                      type="button"
+                      className="status-action"
+                      onClick={confirmAction}
+                      disabled={confirmDisabled}
+                    >
+                      {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </td>
           </tr>,
         );
@@ -1039,22 +1051,19 @@ export default function ContributeValidate() {
       const contextEntries = [
         {
           key: 'context-week',
-          label: t.contributeWeek,
           statusClass: getStatusClass(result.context.weekField.status, result.context.weekField.confirmed),
           crop: result.context.weekField.crop,
           alt: t.contributeWeek,
           extracted: result.context.weekField.text
             ? t.contributeDetectedText(result.context.weekField.text)
             : t.contributeDetectedEmpty,
-          controls: (
-            <div className="contribute-compact-inputs">
-              <input
-                type="number"
-                min="1"
-                value={result.context.week === '' ? '' : result.context.week}
-                onChange={(event) => handleContextWeekChange(event.target.value)}
-              />
-            </div>
+          inputs: (
+            <input
+              type="number"
+              min="1"
+              value={result.context.week === '' ? '' : result.context.week}
+              onChange={(event) => handleContextWeekChange(event.target.value)}
+            />
           ),
           showConfirmButton:
             result.context.weekField.status === 'warning' && !result.context.weekField.confirmed,
@@ -1063,27 +1072,24 @@ export default function ContributeValidate() {
         },
         {
           key: 'context-dungeon',
-          label: t.contributeDungeon,
           statusClass: getStatusClass(result.context.dungeonField.status, result.context.dungeonField.confirmed),
           crop: result.context.dungeonField.crop,
           alt: t.contributeDungeon,
           extracted: result.context.dungeonField.text
             ? t.contributeDetectedText(result.context.dungeonField.text)
             : t.contributeDetectedEmpty,
-          controls: (
-            <div className="contribute-compact-inputs">
-              <select
-                value={result.context.dungeon === '' ? '' : result.context.dungeon}
-                onChange={(event) => handleContextDungeonChange(event.target.value)}
-              >
-                <option value="">{t.contributeSelectDungeon}</option>
-                {dungeons.map((dungeon) => (
-                  <option key={dungeon.id} value={dungeon.id}>
-                    {dungeon.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          inputs: (
+            <select
+              value={result.context.dungeon === '' ? '' : result.context.dungeon}
+              onChange={(event) => handleContextDungeonChange(event.target.value)}
+            >
+              <option value="">{t.contributeSelectDungeon}</option>
+              {dungeons.map((dungeon) => (
+                <option key={dungeon.id} value={dungeon.id}>
+                  {dungeon.name}
+                </option>
+              ))}
+            </select>
           ),
           showConfirmButton:
             result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed,
@@ -1092,21 +1098,18 @@ export default function ContributeValidate() {
         },
         {
           key: 'context-mode',
-          label: t.contributeMode,
           statusClass: getStatusClass(result.context.modeField.status, result.context.modeField.confirmed),
           crop: result.context.modeField.crop,
           alt: t.contributeMode,
           extracted: result.context.modeField.text
             ? t.contributeDetectedText(result.context.modeField.text)
             : t.contributeDetectedEmpty,
-          controls: (
-            <div className="contribute-compact-inputs">
-              <input
-                type="text"
-                value={result.context.mode || ''}
-                onChange={(event) => handleContextModeChange(event.target.value)}
-              />
-            </div>
+          inputs: (
+            <input
+              type="text"
+              value={result.context.mode || ''}
+              onChange={(event) => handleContextModeChange(event.target.value)}
+            />
           ),
           showConfirmButton:
             result.context.modeField.status === 'warning' && !result.context.modeField.confirmed,
@@ -1131,13 +1134,12 @@ export default function ContributeValidate() {
         const scorePlaceholder = typeof t.contributeScore === 'string' ? t.contributeScore : undefined;
         addCompactEntry({
           key: `${run.id}-value`,
-          label: t.contributeRunLabel(runIndex + 1),
           statusClass: valueStatusClass,
           crop: run.valueField.crop,
           alt: t.contributeValueArea,
           extracted: extractedValue,
-          controls: (
-            <div className="contribute-compact-inputs contribute-compact-inputs--dual">
+          inputs: (
+            <>
               <input
                 type="number"
                 min="0"
@@ -1154,8 +1156,9 @@ export default function ContributeValidate() {
                 aria-label={t.contributeTime}
                 onChange={(event) => handleTimeChange(runIndex, event.target.value)}
               />
-            </div>
+            </>
           ),
+          inputsClassName: 'contribute-compact-inputs--dual',
           showConfirmButton: run.valueField.status === 'warning' && hasValueField,
           confirmDisabled: run.valueField.confirmed,
           confirmAction: () => handleRunValueConfirm(runIndex),
@@ -1170,25 +1173,22 @@ export default function ContributeValidate() {
           const extractedPlayerValue = slot.rawText?.trim() ? slot.rawText.trim() : '—';
           addCompactEntry({
             key: `${run.id}-${slot.key || `player-${playerIndex}`}`,
-            label: t.contributePlayerSlotLabel(playerIndex + 1),
             statusClass: getStatusClass(slot.status, slot.confirmed),
             crop: slot.crop,
             alt: t.contributePlayerSlotLabel(playerIndex + 1),
             extracted: extractedPlayerValue,
-            controls: (
-              <div className="contribute-compact-inputs">
-                <input
-                  type="text"
-                  value={slot.value || ''}
-                  placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
-                  onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
-                />
-              </div>
-            ),
-            suggestionLabel: suggestionName || null,
-            onSuggestionClick: suggestionName
-              ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
-              : null,
+          inputs: (
+            <input
+              type="text"
+              value={slot.value || ''}
+              placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
+              onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
+            />
+          ),
+          suggestionLabel: suggestionName || null,
+          onSuggestionClick: suggestionName
+            ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
+            : null,
             showConfirmButton: slot.status === 'warning' && slot.value && slot.value.trim(),
             confirmDisabled: slot.confirmed,
             confirmAction: () => handlePlayerConfirm(runIndex, playerIndex),
@@ -1780,133 +1780,135 @@ export default function ContributeValidate() {
                 {readyForSubmission ? (
                   <p className="contribute-ready-message">{t.contributeReadyForSubmission}</p>
                 ) : null}
-                <div className="contribute-context-grid">
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.weekField.status,
-                    result.context.weekField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeWeek}</span>
-                    {result.context.weekField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.weekField.crop}
-                        alt={t.contributeWeek}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.weekField.text
-                        ? t.contributeDetectedText(result.context.weekField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    {(() => {
-                      const confidenceLabel = getConfidenceLabel(result.context.weekField.confidence);
-                      return confidenceLabel ? (
-                        <p className="contribute-confidence">{confidenceLabel}</p>
-                      ) : null;
-                    })()}
-                    <label className="form-field">
-                      <span>{t.contributeWeek}</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={result.context.week === '' ? '' : result.context.week}
-                        onChange={(event) => handleContextWeekChange(event.target.value)}
-                      />
-                    </label>
-                    {result.context.weekField.status === 'warning' && !result.context.weekField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('weekField')}
+                {!compactView ? (
+                  <div className="contribute-context-grid">
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.weekField.status,
+                      result.context.weekField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeWeek}</span>
+                      {result.context.weekField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.weekField.crop}
+                          alt={t.contributeWeek}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.weekField.text
+                          ? t.contributeDetectedText(result.context.weekField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {(() => {
+                        const confidenceLabel = getConfidenceLabel(result.context.weekField.confidence);
+                        return confidenceLabel ? (
+                          <p className="contribute-confidence">{confidenceLabel}</p>
+                        ) : null;
+                      })()}
+                      <label className="form-field">
+                        <span>{t.contributeWeek}</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={result.context.week === '' ? '' : result.context.week}
+                          onChange={(event) => handleContextWeekChange(event.target.value)}
+                        />
+                      </label>
+                      {result.context.weekField.status === 'warning' && !result.context.weekField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('weekField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.dungeonField.status,
+                      result.context.dungeonField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeDungeon}</span>
+                      {result.context.dungeonField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.dungeonField.crop}
+                          alt={t.contributeDungeon}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.dungeonField.text
+                          ? t.contributeDetectedText(result.context.dungeonField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      <label className="form-field">
+                        <span>{t.contributeDungeon}</span>
+                        <select
+                          value={result.context.dungeon === '' ? '' : result.context.dungeon}
+                          onChange={(event) => handleContextDungeonChange(event.target.value)}
                         >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
+                          <option value="">{t.contributeSelectDungeon}</option>
+                          {dungeons.map((dungeon) => (
+                            <option key={dungeon.id} value={dungeon.id}>
+                              {dungeon.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('dungeonField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.modeField.status,
+                      result.context.modeField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeMode}</span>
+                      {result.context.modeField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.modeField.crop}
+                          alt={t.contributeMode}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.modeField.text
+                          ? t.contributeDetectedText(result.context.modeField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {(() => {
+                        const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
+                        return confidenceLabel ? (
+                          <p className="contribute-confidence">{confidenceLabel}</p>
+                        ) : null;
+                      })()}
+                      {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('modeField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.dungeonField.status,
-                    result.context.dungeonField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeDungeon}</span>
-                    {result.context.dungeonField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.dungeonField.crop}
-                        alt={t.contributeDungeon}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.dungeonField.text
-                        ? t.contributeDetectedText(result.context.dungeonField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    <label className="form-field">
-                      <span>{t.contributeDungeon}</span>
-                      <select
-                        value={result.context.dungeon === '' ? '' : result.context.dungeon}
-                        onChange={(event) => handleContextDungeonChange(event.target.value)}
-                      >
-                        <option value="">{t.contributeSelectDungeon}</option>
-                        {dungeons.map((dungeon) => (
-                          <option key={dungeon.id} value={dungeon.id}>
-                            {dungeon.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('dungeonField')}
-                        >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.modeField.status,
-                    result.context.modeField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeMode}</span>
-                    {result.context.modeField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.modeField.crop}
-                        alt={t.contributeMode}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.modeField.text
-                        ? t.contributeDetectedText(result.context.modeField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    {(() => {
-                      const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
-                      return confidenceLabel ? (
-                        <p className="contribute-confidence">{confidenceLabel}</p>
-                      ) : null;
-                    })()}
-                    {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('modeField')}
-                        >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                ) : null}
                 <div className="contribute-file-runs">{renderRuns()}</div>
                 <div className="form-actions contribute-actions">
                   <button
