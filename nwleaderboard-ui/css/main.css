@@ -1859,10 +1859,6 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   border-color: var(--border-light);
 }
 
-.contribute-compact-cell--image {
-  width: 140px;
-}
-
 .contribute-compact-cell--confirm {
   width: 160px;
   white-space: nowrap;
