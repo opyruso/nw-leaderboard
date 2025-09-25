@@ -188,53 +188,63 @@ export default function ContributeImport() {
     resetFeedback();
     setStatus('extracting');
     const filesToProcess = selectedFiles.filter((file) => file.status !== 'processing');
-    filesToProcess.forEach((file) => {
-      updateSelectedFile(file.id, () => ({ status: 'processing', processingStartedAt: Date.now() }));
-    });
-
-    const formData = new FormData();
-    filesToProcess.forEach((file, index) => {
-      formData.append(`file${index}`, file.file);
-    });
-
-    let requestOk = false;
-    let apiMessage = '';
-    try {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_PROCESSING_TIMEOUT_MS);
-      try {
-        const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Accept-Language': toLocaleHeader(lang),
-          },
-          signal: controller.signal,
-        });
-        requestOk = response.ok;
-        if (!response.ok) {
-          try {
-            const data = await response.json();
-            apiMessage = data && data.message ? data.message : '';
-          } catch (error) {
-            apiMessage = '';
-          }
-        }
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
-    } catch (error) {
-      if (error?.name === 'AbortError') {
-        apiMessage =
-          typeof t.contributeProcessingTimeout === 'string'
-            ? t.contributeProcessingTimeout
-            : 'Processing timed out after 60 seconds.';
-      }
+    if (!filesToProcess.length) {
+      setStatus('idle');
+      return;
     }
 
-    filesToProcess.forEach((file) => {
+    let successCount = 0;
+    let failureCount = 0;
+    let lastErrorMessage = '';
+
+    for (const file of filesToProcess) {
+      const startedAt = Date.now();
+      updateSelectedFile(file.id, () => ({
+        status: 'processing',
+        processingStartedAt: startedAt,
+        processingCompletedAt: null,
+        processingDurationMs: null,
+        errorMessage: '',
+      }));
+
+      let requestOk = false;
+      let apiMessage = '';
+      try {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_PROCESSING_TIMEOUT_MS);
+        try {
+          const formData = new FormData();
+          formData.append('file0', file.file);
+          const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Accept-Language': toLocaleHeader(lang),
+            },
+            signal: controller.signal,
+          });
+          requestOk = response.ok;
+          if (!response.ok) {
+            try {
+              const data = await response.json();
+              apiMessage = data && data.message ? data.message : '';
+            } catch (error) {
+              apiMessage = '';
+            }
+          }
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          apiMessage =
+            typeof t.contributeProcessingTimeout === 'string'
+              ? t.contributeProcessingTimeout
+              : 'Processing timed out after 60 seconds.';
+        }
+      }
+
       const completedAt = Date.now();
-      const startedAt = isFiniteNumber(file.processingStartedAt) ? file.processingStartedAt : completedAt;
       const durationMs = Math.max(0, completedAt - startedAt);
       updateSelectedFile(file.id, () => ({
         status: requestOk ? 'success' : 'error',
@@ -242,19 +252,32 @@ export default function ContributeImport() {
         processingDurationMs: durationMs,
         errorMessage: requestOk ? '' : apiMessage,
       }));
-    });
 
-    if (requestOk) {
+      if (requestOk) {
+        successCount += 1;
+      } else {
+        failureCount += 1;
+        lastErrorMessage = apiMessage || lastErrorMessage;
+      }
+    }
+
+    if (successCount && !failureCount) {
       setMessageKey('contributeImportStored');
       setMessageText('');
       setErrorKey('');
       setErrorText('');
-    } else if (apiMessage) {
-      setErrorText(apiMessage);
-      setErrorKey('');
     } else {
-      setErrorKey('contributeError');
-      setErrorText('');
+      setMessageKey('');
+      setMessageText('');
+      if (failureCount) {
+        if (lastErrorMessage) {
+          setErrorKey('');
+          setErrorText(lastErrorMessage);
+        } else {
+          setErrorKey('contributeError');
+          setErrorText('');
+        }
+      }
     }
 
     setStatus('idle');

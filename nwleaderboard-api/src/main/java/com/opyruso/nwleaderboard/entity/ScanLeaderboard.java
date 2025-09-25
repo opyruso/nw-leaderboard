@@ -30,7 +30,7 @@ public class ScanLeaderboard extends Auditable {
 
     @Lob
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "picture", nullable = false)
+    @Column(name = "picture", nullable = false, columnDefinition = "LONGBLOB")
     private byte[] picture;
 
     @Lob
