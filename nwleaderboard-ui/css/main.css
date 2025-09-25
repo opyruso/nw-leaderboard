@@ -1743,6 +1743,10 @@ body[data-theme='light'] .contribute-run {
   overflow-x: auto;
 }
 
+.contribute-compact-table-wrapper--full {
+  margin-top: 1.5rem;
+}
+
 .contribute-compact-table {
   width: 100%;
   border-collapse: collapse;
@@ -1788,6 +1792,53 @@ body[data-theme='light'] .contribute-compact-table tbody td {
 
 .contribute-compact-row:last-child td {
   border-bottom: none;
+}
+
+.contribute-compact-run-heading-cell {
+  padding: 1.1rem 0.75rem 0.6rem;
+  border-top: 1px solid var(--border-dark);
+}
+
+body[data-theme='light'] .contribute-compact-run-heading-cell {
+  border-color: var(--border-light);
+}
+
+.contribute-compact-run-heading-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+}
+
+.contribute-compact-run-heading-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.contribute-compact-run-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.contribute-compact-run-expected {
+  font-weight: 600;
+}
+
+.contribute-compact-run-hint {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.contribute-run-remove--compact {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.contribute-expected-field--compact {
+  min-width: 140px;
 }
 
 .contribute-compact-cell--image {
