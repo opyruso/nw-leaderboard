@@ -3,7 +3,6 @@ import { LangContext } from '../i18n.js';
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
-const MAX_FILES = 12;
 const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
 const IMAGE_PROCESSING_TIMEOUT_MS = 60 * 1000;
@@ -112,7 +111,7 @@ export default function ContributeImport() {
       return;
     }
     const processed = await Promise.all(
-      files.slice(0, MAX_FILES).map(
+      files.map(
         (file, index) =>
           new Promise((resolve) => {
             const url = URL.createObjectURL(file);
