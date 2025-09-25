@@ -31,6 +31,14 @@ export default function Contribute() {
           {t.contributeMenuImport || t.contribute}
         </NavLink>
         <NavLink
+          to="/contribute/validate"
+          className={({ isActive }) =>
+            isActive ? 'page-submenu-link active' : 'page-submenu-link'
+          }
+        >
+          {t.contributeMenuValidate || 'Validate'}
+        </NavLink>
+        <NavLink
           to="/contribute/stats"
           className={({ isActive }) =>
             isActive ? 'page-submenu-link active' : 'page-submenu-link'
