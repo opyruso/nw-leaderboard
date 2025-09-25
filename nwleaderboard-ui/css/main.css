@@ -1626,6 +1626,12 @@ body[data-theme='light'] .contribute-run {
   gap: 1rem;
 }
 
+.contribute-run-tools {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .contribute-run-header h3 {
   margin: 0;
   font-size: clamp(1.3rem, 2.4vw, 1.6rem);

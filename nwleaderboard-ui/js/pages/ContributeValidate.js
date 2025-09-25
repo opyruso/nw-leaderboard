@@ -271,6 +271,27 @@ function applyExpectedPlayerCountToRun(run, expectedCount, seed = Date.now()) {
   return { ...run, expectedPlayerCount: safeExpected, playerSlots: trimmed.concat(additions) };
 }
 
+function createEmptyRun(context, runIndex, expectedCount, seed = Date.now()) {
+  const resolvedContext = context && typeof context === 'object' ? context : createEmptyContext();
+  const contextExpected = Number.isFinite(resolvedContext.expectedPlayerCount)
+    ? Number(resolvedContext.expectedPlayerCount)
+    : DEFAULT_PLAYER_SLOTS;
+  const safeExpected = Number.isFinite(expectedCount) && expectedCount > 0 ? Number(expectedCount) : contextExpected;
+  const baseRun = {
+    id: `run-${seed}-${runIndex}`,
+    index: runIndex,
+    week: resolvedContext.week ?? '',
+    dungeon: resolvedContext.dungeon ?? '',
+    score: '',
+    time: '',
+    mode: resolvedContext.mode ?? '',
+    valueField: normaliseField(null),
+    playerSlots: [],
+    expectedPlayerCount: safeExpected,
+  };
+  return applyExpectedPlayerCountToRun(baseRun, safeExpected, seed);
+}
+
 function hasRunContent(run) {
   if (!run) {
     return false;
@@ -722,6 +743,33 @@ export default function ContributeValidate() {
     }));
   };
 
+  const handleRunRemove = React.useCallback(
+    (runIndex) => {
+      const confirmationMessage =
+        typeof t.contributeRunRemoveConfirm === 'function'
+          ? t.contributeRunRemoveConfirm(runIndex + 1)
+          : t.contributeRunRemoveConfirm;
+      if (confirmationMessage && typeof window !== 'undefined' && !window.confirm(confirmationMessage)) {
+        return;
+      }
+      updateResult((current) => {
+        if (!current || !Array.isArray(current.runs) || !current.runs[runIndex]) {
+          return current;
+        }
+        const context = current.context || createEmptyContext();
+        const existingRun = current.runs[runIndex];
+        const expected = Number.isFinite(existingRun?.expectedPlayerCount) && existingRun.expectedPlayerCount > 0
+          ? Number(existingRun.expectedPlayerCount)
+          : null;
+        const seed = Date.now();
+        const clearedRun = createEmptyRun(context, runIndex, expected, seed);
+        const updatedRuns = current.runs.map((run, index) => (index === runIndex ? clearedRun : run));
+        return { ...current, runs: updatedRuns };
+      });
+    },
+    [t, updateResult],
+  );
+
   const handleModeConfirm = (fieldKey) => {
     updateResult((current) => {
       if (!current?.context) {
@@ -1134,15 +1182,26 @@ export default function ContributeValidate() {
                       <section key={run.id} className="contribute-run">
                         <header className="contribute-run-header">
                           <h3>{t.contributeRunLabel(runIndex + 1)}</h3>
-                          <label className="form-field contribute-expected-field">
-                            <span>{t.contributePlayers}</span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={run.expectedPlayerCount}
-                              onChange={(event) => handleExpectedPlayerCountChange(runIndex, event.target.value)}
-                            />
-                          </label>
+                          <div className="contribute-run-tools">
+                            <button
+                              type="button"
+                              className="contribute-run-remove"
+                              onClick={() => handleRunRemove(runIndex)}
+                            >
+                              {typeof t.contributeRunRemove === 'function'
+                                ? t.contributeRunRemove(runIndex + 1)
+                                : t.contributeRunRemove}
+                            </button>
+                            <label className="form-field contribute-expected-field">
+                              <span>{t.contributePlayers}</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={run.expectedPlayerCount}
+                                onChange={(event) => handleExpectedPlayerCountChange(runIndex, event.target.value)}
+                              />
+                            </label>
+                          </div>
                         </header>
                         <div className={`contribute-run-value ${valueStatusClass}`}>
                           {run.valueField.crop ? (
