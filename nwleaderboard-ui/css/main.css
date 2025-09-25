@@ -1314,6 +1314,29 @@ body[data-theme='light'] .leaderboard-sidebar {
     color 0.2s ease, transform 0.2s ease;
 }
 
+.dungeon-button-content {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.dungeon-button-icon {
+  height: 1.35rem;
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.25));
+}
+
+.dungeon-button.active .dungeon-button-icon {
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.4));
+}
+
+.dungeon-button-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+}
+
 .dungeon-button:hover,
 .dungeon-button:focus-visible {
   background: rgba(124, 92, 255, 0.2);

@@ -518,18 +518,18 @@ export default function LeaderboardPage({
             <ul className="dungeon-list">
               {sortedDungeons.map((dungeon) => {
                 const displayName = getDungeonNameForLang(dungeon, lang);
+                const isActive = dungeon.id === selectedDungeon;
                 return (
                   <li key={dungeon.id}>
                     <button
                       type="button"
-                      className={
-                          dungeon.id === selectedDungeon
-                            ? 'dungeon-button active'
-                            : 'dungeon-button'
-                      }
+                      className={isActive ? 'dungeon-button active' : 'dungeon-button'}
                       onClick={() => handleSelectDungeon(dungeon.id)}
                     >
-                      {displayName}
+                      <span className="dungeon-button-content">
+                        <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
+                        <span className="dungeon-button-label">{displayName}</span>
+                      </span>
                     </button>
                   </li>
                 );
