@@ -16,7 +16,7 @@ const en = {
   contributeDescription:
     'Upload 2560×1440 screenshots to detect runs automatically. Review and edit the extracted data before saving it to the leaderboard.',
   contributeUploadLabel: 'Screenshot',
-  contributeUploadHint: 'Select up to 12 PNG or JPEG images with a 2560×1440 resolution.',
+  contributeUploadHint: 'Select PNG or JPEG images with a 2560×1440 resolution.',
   contributeImagesTitle: 'Selected images',
   contributeFileReady: 'Image ready for extraction.',
   contributeFilesReady: (count) => `${count} images ready for extraction.`,
@@ -27,7 +27,6 @@ const en = {
   contributeFileStatusSuccess: 'Extracted',
   contributeFileStatusError: 'Error',
   contributeProcessingTimeout: 'Processing timed out after 60 seconds.',
-  contributeTooMany: 'You can upload up to 12 images at a time.',
   contributeResolutionError: 'Only screenshots rendered at 2560×1440 are accepted.',
   contributeNoFiles: 'Select a screenshot before extracting.',
   contributeExtract: 'Extract',

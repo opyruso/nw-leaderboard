@@ -57,7 +57,6 @@ public class ContributorExtractionService {
 
     private static final int EXPECTED_WIDTH = 2560;
     private static final int EXPECTED_HEIGHT = 1440;
-    private static final int MAX_UPLOADS = 12;
 
     private static final Rectangle DUNGEON_AREA = new Rectangle(675, 215, 1060, 70);
     private static final Rectangle MODE_AREA = new Rectangle(700, 300, 340, 40);
@@ -106,7 +105,7 @@ public class ContributorExtractionService {
     /**
      * Attempts to extract leaderboard runs from the provided multipart payload.
      *
-     * @param input multipart request containing up to {@value #MAX_UPLOADS} images
+     * @param input multipart request containing one or more images
      * @return a list of extracted runs
      * @throws ContributorRequestException if the payload is invalid or OCR fails unexpectedly
      */
@@ -183,11 +182,6 @@ public class ContributorExtractionService {
                     }
                 }
             }
-        }
-
-        if (imageParts.size() > MAX_UPLOADS) {
-            throw new ContributorRequestException(
-                    "A maximum of " + MAX_UPLOADS + " images can be processed per request");
         }
 
         List<ImagePayload> result = new ArrayList<>();

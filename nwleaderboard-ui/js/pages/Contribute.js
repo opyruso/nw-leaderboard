@@ -1,14 +1,17 @@
 import { LangContext } from '../i18n.js';
 import PageSubmenu from '../components/PageSubmenu.js';
 
-const { NavLink, Outlet } = ReactRouterDOM;
+const { NavLink, Outlet, useLocation } = ReactRouterDOM;
 
 export default function Contribute() {
   const { t } = React.useContext(LangContext);
   const menuLabel = t.contributeMenuLabel || t.leaderboardMenuTitle;
+  const location = useLocation();
+  const isValidateRoute = location?.pathname?.startsWith('/contribute/validate');
+  const pageClassName = `page contribute-page${isValidateRoute ? ' contribute-page--wide' : ''}`;
 
   return (
-    <main className="page contribute-page" aria-labelledby="contribute-title">
+    <main className={pageClassName} aria-labelledby="contribute-title">
       <h1 id="contribute-title" className="page-title">
         {t.contributeTitle}
       </h1>
