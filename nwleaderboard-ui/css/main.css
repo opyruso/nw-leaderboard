@@ -50,6 +50,18 @@ body {
   overflow-x: hidden;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body[data-theme='light'] {
   background: var(--gradient-light);
   background-color: var(--color-background-light);
@@ -1932,22 +1944,33 @@ body[data-theme='light'] .status-action:focus-visible {
   background: transparent;
   border: none;
   color: inherit;
-  font-size: 1.4rem;
-  line-height: 1;
   cursor: pointer;
   padding: 0;
-  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.contribute-run-remove-icon {
+  width: 1.35rem;
+  height: 1.35rem;
 }
 
 .contribute-run-remove:hover,
 .contribute-run-remove:focus-visible {
   color: #ff6b6b;
+  background-color: rgba(255, 107, 107, 0.12);
   outline: none;
 }
 
 body[data-theme='light'] .contribute-run-remove:hover,
 body[data-theme='light'] .contribute-run-remove:focus-visible {
   color: #c62828;
+  background-color: rgba(198, 40, 40, 0.12);
 }
 
 @media (max-width: 768px) {

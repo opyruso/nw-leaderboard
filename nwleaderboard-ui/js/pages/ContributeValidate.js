@@ -756,14 +756,33 @@ export default function ContributeValidate() {
         if (!current || !Array.isArray(current.runs) || !current.runs[runIndex]) {
           return current;
         }
+        const remainingRuns = current.runs.filter((_, index) => index !== runIndex);
+        if (!remainingRuns.length) {
+          return { ...current, runs: remainingRuns };
+        }
         const context = current.context || createEmptyContext();
-        const existingRun = current.runs[runIndex];
-        const expected = Number.isFinite(existingRun?.expectedPlayerCount) && existingRun.expectedPlayerCount > 0
-          ? Number(existingRun.expectedPlayerCount)
-          : null;
-        const seed = Date.now();
-        const clearedRun = createEmptyRun(context, runIndex, expected, seed);
-        const updatedRuns = current.runs.map((run, index) => (index === runIndex ? clearedRun : run));
+        const fallbackExpected =
+          Number.isFinite(context.expectedPlayerCount) && context.expectedPlayerCount > 0
+            ? Number(context.expectedPlayerCount)
+            : DEFAULT_PLAYER_SLOTS;
+        const updatedRuns = remainingRuns.map((run, index) => {
+          const expected =
+            Number.isFinite(run?.expectedPlayerCount) && run.expectedPlayerCount > 0
+              ? Number(run.expectedPlayerCount)
+              : fallbackExpected;
+          const playerSlots = Array.isArray(run?.playerSlots)
+            ? run.playerSlots.map((slot, slotIndex) => ({
+                ...slot,
+                slotIndex,
+              }))
+            : [];
+          return {
+            ...run,
+            index,
+            expectedPlayerCount: expected,
+            playerSlots,
+          };
+        });
         return { ...current, runs: updatedRuns };
       });
     },
@@ -1178,6 +1197,10 @@ export default function ContributeValidate() {
                     );
                     const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
                     const timePreview = formatTime(run.time);
+                    const removeLabel =
+                      typeof t.contributeRunRemove === 'function'
+                        ? t.contributeRunRemove(runIndex + 1)
+                        : t.contributeRunRemove || 'Remove run';
                     return (
                       <section key={run.id} className="contribute-run">
                         <header className="contribute-run-header">
@@ -1186,11 +1209,22 @@ export default function ContributeValidate() {
                             <button
                               type="button"
                               className="contribute-run-remove"
+                              aria-label={removeLabel}
+                              title={removeLabel}
                               onClick={() => handleRunRemove(runIndex)}
                             >
-                              {typeof t.contributeRunRemove === 'function'
-                                ? t.contributeRunRemove(runIndex + 1)
-                                : t.contributeRunRemove}
+                              <span className="visually-hidden">{removeLabel}</span>
+                              <svg
+                                className="contribute-run-remove-icon"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                focusable="false"
+                              >
+                                <path
+                                  fill="currentColor"
+                                  d="M10 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h5v2H5V4h5V3Zm-1 6v10h2V9H9Zm4 0v10h2V9h-2Zm-6 0H7v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9h-1v10H7V9Z"
+                                />
+                              </svg>
                             </button>
                             <label className="form-field contribute-expected-field">
                               <span>{t.contributePlayers}</span>
