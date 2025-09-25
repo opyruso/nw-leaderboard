@@ -17,5 +17,6 @@ public record ContributionFieldExtractionDto(
         @JsonProperty("confidence") Double confidence,
         @JsonProperty("status") String status,
         @JsonProperty("already_exists") Boolean alreadyExists,
-        @JsonProperty("details") Map<String, Object> details) {
+        @JsonProperty("details") Map<String, Object> details,
+        @JsonProperty("confirmed") Boolean confirmed) {
 }

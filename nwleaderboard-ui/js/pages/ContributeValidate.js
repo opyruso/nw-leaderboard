@@ -115,7 +115,12 @@ function normaliseField(field) {
       details = null;
     }
   }
-  const confirmed = status === 'warning' ? false : true;
+  let confirmed = true;
+  if (typeof field.confirmed === 'boolean') {
+    confirmed = field.confirmed;
+  } else if (status === 'warning') {
+    confirmed = false;
+  }
   return { text, normalized, number, id, crop, confidence, status, alreadyExists, details, confirmed };
 }
 
@@ -370,12 +375,15 @@ export default function ContributeValidate() {
   const [selectedScanId, setSelectedScanId] = React.useState(null);
   const [result, setResult] = React.useState(null);
   const [status, setStatus] = React.useState('idle');
+  const [expandedGroups, setExpandedGroups] = React.useState({});
   const [messageKey, setMessageKey] = React.useState('');
   const [messageText, setMessageText] = React.useState('');
   const [errorKey, setErrorKey] = React.useState('');
   const [errorText, setErrorText] = React.useState('');
   const [showSuccess, setShowSuccess] = React.useState(true);
   const [loadingDetail, setLoadingDetail] = React.useState(false);
+  const [compactView, setCompactView] = React.useState(false);
+  const [savingDraft, setSavingDraft] = React.useState(false);
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
 
@@ -501,6 +509,61 @@ export default function ContributeValidate() {
     [dungeons],
   );
 
+  const groupedScans = React.useMemo(() => {
+    if (!Array.isArray(scans) || !scans.length) {
+      return [];
+    }
+    const groups = new Map();
+    scans.forEach((scan) => {
+      if (!scan) {
+        return;
+      }
+      const rawDungeonId = Number.isFinite(scan.dungeon_id)
+        ? Number(scan.dungeon_id)
+        : Number.isFinite(Number(scan.dungeon_id))
+        ? Number(scan.dungeon_id)
+        : null;
+      const normalizedDungeonId = rawDungeonId && rawDungeonId > 0 ? rawDungeonId : null;
+      const key = normalizedDungeonId !== null ? String(normalizedDungeonId) : 'unknown';
+      if (!groups.has(key)) {
+        const label = normalizedDungeonId !== null
+          ? findDungeonLabel(normalizedDungeonId)
+          : t.contributeDungeonUnknown || 'Unknown';
+        groups.set(key, {
+          key,
+          dungeonId: normalizedDungeonId,
+          label,
+          scans: [],
+        });
+      }
+      const entry = groups.get(key);
+      entry.scans.push(scan);
+    });
+    return Array.from(groups.values());
+  }, [scans, findDungeonLabel, t]);
+
+  React.useEffect(() => {
+    setExpandedGroups((current) => {
+      const next = { ...current };
+      let changed = false;
+      const validKeys = new Set();
+      groupedScans.forEach((group) => {
+        validKeys.add(group.key);
+        if (next[group.key] === undefined) {
+          next[group.key] = true;
+          changed = true;
+        }
+      });
+      Object.keys(next).forEach((key) => {
+        if (!validKeys.has(key)) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : current;
+    });
+  }, [groupedScans]);
+
   const updateResult = React.useCallback((updater) => {
     setResult((current) => {
       if (!current) {
@@ -510,6 +573,111 @@ export default function ContributeValidate() {
       return updated || current;
     });
   }, []);
+
+  const toFieldExtractionPayload = React.useCallback((field) => {
+    if (!field || typeof field !== 'object') {
+      return null;
+    }
+    const text = typeof field.text === 'string' ? field.text.trim() || null : null;
+    const normalized = typeof field.normalized === 'string' ? field.normalized.trim() || null : null;
+    const number = Number.isFinite(field.number) ? Number(field.number) : null;
+    const id = Number.isFinite(field.id) ? Number(field.id) : null;
+    const crop = typeof field.crop === 'string' && field.crop ? field.crop : null;
+    const confidence = Number.isFinite(field.confidence) ? Number(field.confidence) : null;
+    const status = typeof field.status === 'string' && field.status ? field.status : null;
+    const alreadyExists = typeof field.alreadyExists === 'boolean' ? field.alreadyExists : null;
+    const confirmed = typeof field.confirmed === 'boolean' ? field.confirmed : null;
+    const details = field.details && typeof field.details === 'object' ? { ...field.details } : null;
+    const payload = {
+      text,
+      normalized,
+      number,
+      id,
+      crop,
+      confidence,
+      status,
+      already_exists: alreadyExists,
+      details,
+      confirmed,
+    };
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
+    return payload;
+  }, []);
+
+  const buildExtractionSavePayload = React.useCallback(() => {
+    if (!result) {
+      return null;
+    }
+    const context = result.context ? { ...result.context } : createEmptyContext();
+    const weekNumber = context.week === '' ? null : toPositiveInteger(context.week);
+    const dungeonNumber = context.dungeon === '' ? null : toPositiveInteger(context.dungeon);
+    const expectedPlayerCount = Number.isFinite(context.expectedPlayerCount)
+      ? Number(context.expectedPlayerCount)
+      : null;
+
+    const weekFieldSource = context.weekField ? { ...context.weekField } : normaliseField(null);
+    if (weekNumber !== null) {
+      weekFieldSource.number = weekNumber;
+      weekFieldSource.normalized = String(weekNumber);
+    }
+
+    const dungeonFieldSource = context.dungeonField ? { ...context.dungeonField } : normaliseField(null);
+    if (dungeonNumber !== null) {
+      dungeonFieldSource.id = dungeonNumber;
+      dungeonFieldSource.number = dungeonNumber;
+      dungeonFieldSource.normalized = String(dungeonNumber);
+    }
+
+    const modeFieldSource = context.modeField ? { ...context.modeField } : normaliseField(null);
+
+    const runs = Array.isArray(result.runs)
+      ? result.runs.map((run, index) => {
+          const score = run.score === '' ? null : toPositiveInteger(run.score);
+          const time = run.time === '' ? null : toPositiveInteger(run.time);
+          const expected = Number.isFinite(run.expectedPlayerCount)
+            ? Number(run.expectedPlayerCount)
+            : expectedPlayerCount;
+          const players = Array.isArray(run.playerSlots)
+            ? run.playerSlots.map((slot) => {
+                const trimmed = typeof slot.value === 'string' ? slot.value.trim() : '';
+                return toFieldExtractionPayload({
+                  text: slot.rawText || null,
+                  normalized: trimmed || null,
+                  number: null,
+                  id: Number.isFinite(slot.playerId) ? Number(slot.playerId) : null,
+                  crop: slot.crop || null,
+                  confidence: slot.confidence,
+                  status: slot.status || null,
+                  alreadyExists: typeof slot.alreadyExists === 'boolean' ? slot.alreadyExists : null,
+                  details: slot.details ? { ...slot.details } : null,
+                  confirmed: typeof slot.confirmed === 'boolean' ? slot.confirmed : null,
+                });
+              })
+            : [];
+          return {
+            index: Number.isFinite(run.index) ? Number(run.index) : index,
+            mode: typeof run.mode === 'string' && run.mode ? run.mode : null,
+            score,
+            time,
+            value: toFieldExtractionPayload(run.valueField),
+            players,
+            expected_player_count: expected,
+          };
+        })
+      : [];
+
+    return {
+      week: toFieldExtractionPayload(weekFieldSource),
+      dungeon: toFieldExtractionPayload(dungeonFieldSource),
+      mode: toFieldExtractionPayload(modeFieldSource),
+      expected_player_count: expectedPlayerCount,
+      runs,
+    };
+  }, [result, toFieldExtractionPayload]);
 
   const handleContextWeekChange = (value) => {
     const resolved = value === '' ? '' : toPositiveInteger(value) ?? '';
@@ -560,6 +728,19 @@ export default function ContributeValidate() {
               timestamp,
             ),
           )
+        : [];
+      return { ...current, context: updatedContext, runs: updatedRuns };
+    });
+  };
+
+  const handleContextModeChange = (value) => {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    const resolved = trimmed ? trimmed.toUpperCase() : '';
+    updateResult((current) => {
+      const currentContext = current?.context ? { ...current.context } : createEmptyContext();
+      const updatedContext = { ...currentContext, mode: resolved };
+      const updatedRuns = Array.isArray(current.runs)
+        ? current.runs.map((run) => ({ ...run, mode: resolved }))
         : [];
       return { ...current, context: updatedContext, runs: updatedRuns };
     });
@@ -789,6 +970,431 @@ export default function ContributeValidate() {
     [t, updateResult],
   );
 
+  const renderRuns = () => {
+    if (!result || !Array.isArray(result.runs)) {
+      return null;
+    }
+    if (compactView) {
+      const compactRows = [];
+      const addCompactEntry = ({
+        key,
+        statusClass,
+        crop,
+        alt,
+        extracted,
+        inputs,
+        inputsClassName,
+        suggestionLabel,
+        onSuggestionClick,
+        showConfirmButton,
+        confirmDisabled,
+        confirmAction,
+      }) => {
+        const baseRowClass = ['contribute-compact-row', statusClass].filter(Boolean).join(' ');
+        compactRows.push(
+          <tr key={key} className={baseRowClass}>
+            <td className="contribute-compact-cell contribute-compact-cell--image">
+              <div className="contribute-compact-image-frame">
+                {crop ? (
+                  <img className="contribute-crop-image contribute-compact-image" src={crop} alt={alt} />
+                ) : null}
+              </div>
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--extracted">
+              {extracted ? <span className="contribute-compact-extracted">{extracted}</span> : null}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--inputs">
+              <div className={`contribute-compact-inputs${inputsClassName ? ` ${inputsClassName}` : ''}`}>
+                {inputs}
+              </div>
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--confirm">
+              {showConfirmButton ? (
+                <button
+                  type="button"
+                  className="status-action"
+                  onClick={confirmAction}
+                  disabled={confirmDisabled}
+                >
+                  {confirmDisabled ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                </button>
+              ) : null}
+            </td>
+            <td className="contribute-compact-cell contribute-compact-cell--suggestion">
+              {suggestionLabel && onSuggestionClick ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="contribute-compact-suggestion"
+                  onClick={onSuggestionClick}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSuggestionClick();
+                    }
+                  }}
+                >
+                  {suggestionLabel}
+                </span>
+              ) : null}
+            </td>
+          </tr>,
+        );
+      };
+
+      const contextEntries = [
+        {
+          key: 'context-week',
+          statusClass: getStatusClass(result.context.weekField.status, result.context.weekField.confirmed),
+          crop: result.context.weekField.crop,
+          alt: t.contributeWeek,
+          extracted: result.context.weekField.text
+            ? t.contributeDetectedText(result.context.weekField.text)
+            : t.contributeDetectedEmpty,
+          inputs: (
+            <input
+              type="number"
+              min="1"
+              value={result.context.week === '' ? '' : result.context.week}
+              onChange={(event) => handleContextWeekChange(event.target.value)}
+            />
+          ),
+          showConfirmButton:
+            result.context.weekField.status === 'warning' && !result.context.weekField.confirmed,
+          confirmDisabled: result.context.weekField.confirmed,
+          confirmAction: () => handleModeConfirm('weekField'),
+        },
+        {
+          key: 'context-dungeon',
+          statusClass: getStatusClass(result.context.dungeonField.status, result.context.dungeonField.confirmed),
+          crop: result.context.dungeonField.crop,
+          alt: t.contributeDungeon,
+          extracted: result.context.dungeonField.text
+            ? t.contributeDetectedText(result.context.dungeonField.text)
+            : t.contributeDetectedEmpty,
+          inputs: (
+            <select
+              value={result.context.dungeon === '' ? '' : result.context.dungeon}
+              onChange={(event) => handleContextDungeonChange(event.target.value)}
+            >
+              <option value="">{t.contributeSelectDungeon}</option>
+              {dungeons.map((dungeon) => (
+                <option key={dungeon.id} value={dungeon.id}>
+                  {dungeon.name}
+                </option>
+              ))}
+            </select>
+          ),
+          showConfirmButton:
+            result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed,
+          confirmDisabled: result.context.dungeonField.confirmed,
+          confirmAction: () => handleModeConfirm('dungeonField'),
+        },
+        {
+          key: 'context-mode',
+          statusClass: getStatusClass(result.context.modeField.status, result.context.modeField.confirmed),
+          crop: result.context.modeField.crop,
+          alt: t.contributeMode,
+          extracted: result.context.modeField.text
+            ? t.contributeDetectedText(result.context.modeField.text)
+            : t.contributeDetectedEmpty,
+          inputs: (
+            <input
+              type="text"
+              value={result.context.mode || ''}
+              onChange={(event) => handleContextModeChange(event.target.value)}
+            />
+          ),
+          showConfirmButton:
+            result.context.modeField.status === 'warning' && !result.context.modeField.confirmed,
+          confirmDisabled: result.context.modeField.confirmed,
+          confirmAction: () => handleModeConfirm('modeField'),
+        },
+      ];
+
+      contextEntries.forEach((entry) => addCompactEntry(entry));
+
+      result.runs.forEach((run, runIndex) => {
+        const valueStatusClass = getStatusClass(run.valueField?.status, run.valueField?.confirmed);
+        const hasValueField = Boolean(
+          (run.valueField?.text && run.valueField.text.trim()) ||
+            (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+            (run.score && run.score !== '') ||
+            (run.time && run.time !== ''),
+        );
+        const extractedValue =
+          run.valueField?.normalized?.trim() || run.valueField?.text?.trim() || '—';
+        const timePlaceholder = typeof t.contributeTime === 'string' ? t.contributeTime : undefined;
+        const scorePlaceholder = typeof t.contributeScore === 'string' ? t.contributeScore : undefined;
+        addCompactEntry({
+          key: `${run.id}-value`,
+          statusClass: valueStatusClass,
+          crop: run.valueField.crop,
+          alt: t.contributeValueArea,
+          extracted: extractedValue,
+          inputs: (
+            <>
+              <input
+                type="number"
+                min="0"
+                value={run.score === '' ? '' : run.score}
+                placeholder={scorePlaceholder}
+                aria-label={t.contributeScore}
+                onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+              />
+              <input
+                type="number"
+                min="0"
+                value={run.time === '' ? '' : run.time}
+                placeholder={timePlaceholder}
+                aria-label={t.contributeTime}
+                onChange={(event) => handleTimeChange(runIndex, event.target.value)}
+              />
+            </>
+          ),
+          inputsClassName: 'contribute-compact-inputs--dual',
+          showConfirmButton: run.valueField.status === 'warning' && hasValueField,
+          confirmDisabled: run.valueField.confirmed,
+          confirmAction: () => handleRunValueConfirm(runIndex),
+        });
+
+        run.playerSlots.forEach((slot, playerIndex) => {
+          const suggestion =
+            slot.details && typeof slot.details.suggestion === 'object'
+              ? slot.details.suggestion
+              : null;
+          const suggestionName = suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
+          const extractedPlayerValue = slot.rawText?.trim() ? slot.rawText.trim() : '—';
+          addCompactEntry({
+            key: `${run.id}-${slot.key || `player-${playerIndex}`}`,
+            statusClass: getStatusClass(slot.status, slot.confirmed),
+            crop: slot.crop,
+            alt: t.contributePlayerSlotLabel(playerIndex + 1),
+            extracted: extractedPlayerValue,
+            inputs: (
+              <input
+                type="text"
+                value={slot.value || ''}
+                placeholder={t.contributePlayerSlotLabel(playerIndex + 1)}
+                onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
+              />
+            ),
+            suggestionLabel: suggestionName || null,
+            onSuggestionClick: suggestionName
+              ? () => handlePlayerApplySuggestion(runIndex, playerIndex)
+              : null,
+            showConfirmButton: slot.status === 'warning' && slot.value && slot.value.trim(),
+            confirmDisabled: slot.confirmed,
+            confirmAction: () => handlePlayerConfirm(runIndex, playerIndex),
+          });
+        });
+      });
+
+      return (
+        <div className="contribute-compact-table-wrapper contribute-compact-table-wrapper--full">
+          <table className="contribute-compact-table">
+            <thead>
+              <tr>
+                <th scope="col">{t.contributeCompactImage}</th>
+                <th scope="col">{t.contributeCompactExtracted}</th>
+                <th scope="col">{t.contributeCompactInput}</th>
+                <th scope="col">{t.contributeCompactAction}</th>
+                <th scope="col">{t.contributeCompactSuggestion}</th>
+              </tr>
+            </thead>
+            <tbody>{compactRows}</tbody>
+          </table>
+        </div>
+      );
+    }
+    return result.runs.map((run, runIndex) => {
+      const expectedPlayersLabel =
+        typeof t.contributePlayersExpected === 'function'
+          ? t.contributePlayersExpected(run.expectedPlayerCount)
+          : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
+      const valueStatusClass = getStatusClass(run.valueField?.status, run.valueField?.confirmed);
+      const hasValueField = Boolean(
+        (run.valueField?.text && run.valueField.text.trim()) ||
+          (run.valueField?.normalized && run.valueField.normalized.trim()) ||
+          (run.score && run.score !== '') ||
+          (run.time && run.time !== ''),
+      );
+      const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
+      const timePreview = formatTime(run.time);
+      const removeLabel =
+        typeof t.contributeRunRemove === 'function'
+          ? t.contributeRunRemove(runIndex + 1)
+          : t.contributeRunRemove || 'Remove run';
+      return (
+        <section key={run.id} className="contribute-run">
+          <header className="contribute-run-header">
+            <h3>{t.contributeRunLabel(runIndex + 1)}</h3>
+            <div className="contribute-run-tools">
+              <button
+                type="button"
+                className="contribute-run-remove"
+                aria-label={removeLabel}
+                title={removeLabel}
+                onClick={() => handleRunRemove(runIndex)}
+              >
+                <span className="visually-hidden">{removeLabel}</span>
+                <svg
+                  className="contribute-run-remove-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M10 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h5v2H5V4h5V3Zm-1 6v10h2V9H9Zm4 0v10h2V9h-2Zm-6 0H7v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9h-1v10H7V9Z"
+                  />
+                </svg>
+              </button>
+              <label className="form-field contribute-expected-field">
+                <span>{t.contributePlayers}</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={run.expectedPlayerCount}
+                  onChange={(event) => handleExpectedPlayerCountChange(runIndex, event.target.value)}
+                />
+              </label>
+            </div>
+          </header>
+          <div className={`contribute-run-value ${valueStatusClass}`}>
+            {run.valueField.crop ? (
+              <img className="contribute-crop-image" src={run.valueField.crop} alt={t.contributeValueArea} />
+            ) : null}
+            <p className="contribute-context-ocr">
+              {run.valueField.text
+                ? t.contributeDetectedText(run.valueField.text)
+                : t.contributeDetectedEmpty}
+            </p>
+            {valueConfidenceLabel ? <p className="contribute-confidence">{valueConfidenceLabel}</p> : null}
+            {run.valueField.status === 'warning' && hasValueField ? (
+              <div className="contribute-field-warning">
+                <p className="form-hint">{t.contributeValueNeedsReview}</p>
+                <button
+                  type="button"
+                  className="status-action"
+                  onClick={() => handleRunValueConfirm(runIndex)}
+                  disabled={run.valueField.confirmed}
+                >
+                  {run.valueField.confirmed ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                </button>
+              </div>
+            ) : null}
+            <div className="contribute-run-value-inputs">
+              <label className="form-field">
+                <span>{t.contributeScore}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={run.score === '' ? '' : run.score}
+                  onChange={(event) => handleScoreChange(runIndex, event.target.value)}
+                />
+              </label>
+              <label className="form-field">
+                <span>{t.contributeTime}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={run.time === '' ? '' : run.time}
+                  onChange={(event) => handleTimeChange(runIndex, event.target.value)}
+                />
+                <small className="form-hint">
+                  {t.contributeTimeHint}
+                  {timePreview ? ` (${timePreview})` : ''}
+                </small>
+              </label>
+            </div>
+          </div>
+          <div className="contribute-players">
+            <div className="contribute-players-header">
+              <span>{expectedPlayersLabel}</span>
+              <p className="form-hint">{t.contributePlayersHint}</p>
+            </div>
+            <ul className="contribute-player-grid">
+              {run.playerSlots.map((slot, playerIndex) => {
+                const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
+                const suggestion =
+                  slot.details && typeof slot.details.suggestion === 'object'
+                    ? slot.details.suggestion
+                    : null;
+                const suggestionName = suggestion && typeof suggestion.name === 'string' ? suggestion.name : '';
+                const suggestionLabel = suggestionName
+                  ? typeof t.contributePlayerSuggestion === 'function'
+                    ? t.contributePlayerSuggestion(suggestionName)
+                    : t.contributePlayerSuggestion
+                    ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
+                    : suggestionName
+                  : '';
+                const suggestionActionLabel =
+                  typeof t.contributePlayerApplySuggestion === 'function'
+                    ? t.contributePlayerApplySuggestion(suggestionName)
+                    : t.contributePlayerApplySuggestion || 'Use suggestion';
+                return (
+                  <li
+                    key={slot.key || playerIndex}
+                    className={`contribute-player-slot ${getStatusClass(slot.status, slot.confirmed)}`}
+                  >
+                    {slot.crop ? (
+                      <img
+                        className="contribute-crop-image"
+                        src={slot.crop}
+                        alt={t.contributePlayerSlotLabel(playerIndex + 1)}
+                      />
+                    ) : null}
+                    <p className="contribute-context-ocr">
+                      {slot.rawText
+                        ? t.contributeDetectedText(slot.rawText)
+                        : t.contributeDetectedEmpty}
+                    </p>
+                    {playerConfidenceLabel ? (
+                      <p className="contribute-confidence contribute-confidence--player">{playerConfidenceLabel}</p>
+                    ) : null}
+                    {slot.status ? (
+                      <p className="contribute-player-status">
+                        {slot.status === 'success' ? t.contributePlayerExisting : t.contributePlayerNew}
+                      </p>
+                    ) : null}
+                    <input
+                      type="text"
+                      value={slot.value || ''}
+                      onChange={(event) => handlePlayerChange(runIndex, playerIndex, event.target.value)}
+                    />
+                    {suggestionLabel ? (
+                      <p className="contribute-player-suggestion">{suggestionLabel}</p>
+                    ) : null}
+                    {suggestionName ? (
+                      <button
+                        type="button"
+                        className="status-action"
+                        onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
+                      >
+                        {suggestionActionLabel}
+                      </button>
+                    ) : null}
+                    {slot.status === 'warning' && slot.value && slot.value.trim() ? (
+                      <button
+                        type="button"
+                        className="status-action"
+                        onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
+                        disabled={slot.confirmed}
+                      >
+                        {slot.confirmed ? t.contributeWarningConfirmed : t.contributeWarningConfirm}
+                      </button>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      );
+    });
+  };
+
   const handleModeConfirm = (fieldKey) => {
     updateResult((current) => {
       if (!current?.context) {
@@ -836,6 +1442,34 @@ export default function ContributeValidate() {
       });
     return preparedRuns;
   };
+
+  const applyScanDetail = React.useCallback((detail) => {
+    if (!detail) {
+      return;
+    }
+    const extraction = detail?.extraction || {};
+    const context = normaliseExtractionContext(extraction);
+    const runs = buildRunsFromExtraction(extraction, context, `${detail.id}-${Date.now()}`).map((run) => ({
+      ...run,
+      week: context.week ?? run.week ?? '',
+      dungeon: context.dungeon ?? run.dungeon ?? '',
+      mode: run.mode || context.mode || '',
+      expectedPlayerCount:
+        Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
+          ? run.expectedPlayerCount
+          : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
+    }));
+    setResult({
+      id: detail.id,
+      context,
+      runs,
+      width: detail.width,
+      height: detail.height,
+      picture: detail.picture || '',
+      leaderboardType: detail.leaderboard_type || detail.leaderboardType || '',
+    });
+    setSelectedScanId(detail.id);
+  }, []);
 
   const handleSubmit = async () => {
     resetFeedback();
@@ -926,6 +1560,75 @@ export default function ContributeValidate() {
     }
   };
 
+  const handleSaveProgress = async () => {
+    if (!API_BASE_URL || !selectedScanId || !result) {
+      return;
+    }
+    resetFeedback();
+    const extractionPayload = buildExtractionSavePayload();
+    if (!extractionPayload) {
+      return;
+    }
+    const context = result.context ? result.context : createEmptyContext();
+    const weekValue = context.week === '' ? null : toPositiveInteger(context.week);
+    const dungeonValue = context.dungeon === '' ? null : toPositiveInteger(context.dungeon);
+    const payload = {
+      week: weekValue,
+      dungeon_id: dungeonValue,
+      leaderboard_type: result.leaderboardType || null,
+      extraction: extractionPayload,
+    };
+
+    setSavingDraft(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/contributor/scans/${selectedScanId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = null;
+      }
+      if (!response.ok) {
+        const apiMessage = data && data.message ? data.message : null;
+        if (apiMessage) {
+          setErrorText(apiMessage);
+        } else {
+          setErrorKey('contributeSaveError');
+        }
+        return;
+      }
+
+      if (data) {
+        applyScanDetail(data);
+        setScans((current) =>
+          current.map((scan) => {
+            if (scan.id !== data.id) {
+              return scan;
+            }
+            return {
+              ...scan,
+              week: data.week ?? scan.week,
+              dungeon_id: data.dungeon_id ?? data.dungeonId ?? scan.dungeon_id,
+              leaderboard_type: data.leaderboard_type ?? data.leaderboardType ?? scan.leaderboard_type,
+            };
+          }),
+        );
+      }
+      setMessageKey('contributeSaveSuccess');
+    } catch (error) {
+      console.warn('Unable to save validation progress', error);
+      setErrorKey('contributeSaveError');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const loadScanDetail = async (scanId) => {
     if (!API_BASE_URL || !scanId) {
       return;
@@ -938,28 +1641,7 @@ export default function ContributeValidate() {
         throw new Error('scan');
       }
       const detail = await response.json();
-      const extraction = detail?.extraction || {};
-      const context = normaliseExtractionContext(extraction);
-      const runs = buildRunsFromExtraction(extraction, context, `${scanId}-${Date.now()}`).map((run) => ({
-        ...run,
-        week: context.week ?? run.week ?? '',
-        dungeon: context.dungeon ?? run.dungeon ?? '',
-        mode: run.mode || context.mode || '',
-        expectedPlayerCount:
-          Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
-            ? run.expectedPlayerCount
-            : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
-      }));
-      setResult({
-        id: detail.id,
-        context,
-        runs,
-        width: detail.width,
-        height: detail.height,
-        picture: detail.picture || '',
-        leaderboardType: detail.leaderboard_type || '',
-      });
-      setSelectedScanId(detail.id);
+      applyScanDetail(detail);
     } catch (error) {
       console.warn('Unable to load stored scan detail', error);
       setErrorKey('contributeValidateLoadError');
@@ -989,40 +1671,77 @@ export default function ContributeValidate() {
               {t.contributeValidateLoadError}
             </p>
           ) : null}
-          {!loadingScans && !scans.length ? (
+          {groupedScans.length ? (
+            <ul className="contribute-file-list contribute-scan-list contribute-scan-list--grouped">
+              {groupedScans.map((group) => {
+                const isExpanded = expandedGroups[group.key] !== false;
+                const countLabel =
+                  typeof t.contributeScansGroupCount === 'function'
+                    ? t.contributeScansGroupCount(group.scans.length)
+                    : `${group.scans.length}`;
+                const groupTitle = group.label || t.contributeDungeonUnknown || 'Unknown';
+                return (
+                  <li
+                    key={group.key}
+                    className={`contribute-scan-group${isExpanded ? ' contribute-scan-group--open' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="contribute-scan-group-header"
+                      onClick={() =>
+                        setExpandedGroups((current) => ({
+                          ...current,
+                          [group.key]: !(current[group.key] !== false),
+                        }))
+                      }
+                      aria-expanded={isExpanded}
+                    >
+                      <span className="contribute-scan-group-title">{groupTitle}</span>
+                      <span className="contribute-scan-group-count">{countLabel}</span>
+                      <span className="contribute-scan-group-icon" aria-hidden="true">
+                        {isExpanded ? '▾' : '▸'}
+                      </span>
+                    </button>
+                    {isExpanded ? (
+                      <ul className="contribute-scan-group-list">
+                        {group.scans.map((scan) => {
+                          const labelWeek = scan.week
+                            ? `${t.contributeWeek} ${scan.week}`
+                            : t.contributeWeekUnknown || t.contributeWeek;
+                          const dungeonLabel = findDungeonLabel(scan.dungeon_id);
+                          const typeLabel = scan.leaderboard_type || '';
+                          const isActive = selectedScanId === scan.id;
+                          return (
+                            <li
+                              key={scan.id}
+                              className={`contribute-file-item contribute-file-item--${isActive ? 'success' : 'ready'}`}
+                            >
+                              <div className="contribute-file-details">
+                                <span className="contribute-file-name">{labelWeek}</span>
+                                <span className="contribute-file-meta">{dungeonLabel}</span>
+                              </div>
+                              <button
+                                type="button"
+                                className="contribute-file-status contribute-file-status--ready"
+                                onClick={() => loadScanDetail(scan.id)}
+                                disabled={loadingDetail && selectedScanId === scan.id}
+                              >
+                                {loadingDetail && selectedScanId === scan.id
+                                  ? t.contributeValidateLoading
+                                  : typeLabel || t.contributeValidateSelect}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : !loadingScans && !scansError ? (
             <p className="form-hint">{t.contributeValidateEmpty}</p>
           ) : null}
-          <ul className="contribute-file-list contribute-scan-list">
-            {scans.map((scan) => {
-              const labelWeek = scan.week
-                ? `${t.contributeWeek} ${scan.week}`
-                : t.contributeWeekUnknown || t.contributeWeek;
-              const dungeonLabel = findDungeonLabel(scan.dungeon_id);
-              const typeLabel = scan.leaderboard_type || '';
-              const isActive = selectedScanId === scan.id;
-              return (
-                <li
-                  key={scan.id}
-                  className={`contribute-file-item contribute-file-item--${isActive ? 'success' : 'ready'}`}
-                >
-                  <div className="contribute-file-details">
-                    <span className="contribute-file-name">{labelWeek}</span>
-                    <span className="contribute-file-meta">{dungeonLabel}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="contribute-file-status contribute-file-status--ready"
-                    onClick={() => loadScanDetail(scan.id)}
-                    disabled={loadingDetail && selectedScanId === scan.id}
-                  >
-                    {loadingDetail && selectedScanId === scan.id
-                      ? t.contributeValidateLoading
-                      : typeLabel || t.contributeValidateSelect}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
         </section>
         <section className="contribute-results-container" aria-live="polite">
           {loadingDungeons ? <p className="form-hint">{t.contributeDungeonsLoading}</p> : null}
@@ -1044,6 +1763,15 @@ export default function ContributeValidate() {
                   />
                   <span className="contribute-toggle-success-text">{t.contributeToggleSuccessLabel}</span>
                 </label>
+                <label className="contribute-toggle-compact">
+                  <input
+                    type="checkbox"
+                    className="contribute-toggle-success-input"
+                    checked={compactView}
+                    onChange={(event) => setCompactView(event.target.checked)}
+                  />
+                  <span className="contribute-toggle-success-text">{t.contributeToggleCompactLabel}</span>
+                </label>
               </div>
               <article
                 className={`contribute-file-result${readyForSubmission ? ' contribute-file-result--ready' : ''}`}
@@ -1055,344 +1783,144 @@ export default function ContributeValidate() {
                 {readyForSubmission ? (
                   <p className="contribute-ready-message">{t.contributeReadyForSubmission}</p>
                 ) : null}
-                <div className="contribute-context-grid">
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.weekField.status,
-                    result.context.weekField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeWeek}</span>
-                    {result.context.weekField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.weekField.crop}
-                        alt={t.contributeWeek}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.weekField.text
-                        ? t.contributeDetectedText(result.context.weekField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    {(() => {
-                      const confidenceLabel = getConfidenceLabel(result.context.weekField.confidence);
-                      return confidenceLabel ? (
-                        <p className="contribute-confidence">{confidenceLabel}</p>
-                      ) : null;
-                    })()}
-                    <label className="form-field">
-                      <span>{t.contributeWeek}</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={result.context.week === '' ? '' : result.context.week}
-                        onChange={(event) => handleContextWeekChange(event.target.value)}
-                      />
-                    </label>
-                    {result.context.weekField.status === 'warning' && !result.context.weekField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('weekField')}
-                        >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.dungeonField.status,
-                    result.context.dungeonField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeDungeon}</span>
-                    {result.context.dungeonField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.dungeonField.crop}
-                        alt={t.contributeDungeon}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.dungeonField.text
-                        ? t.contributeDetectedText(result.context.dungeonField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    <label className="form-field">
-                      <span>{t.contributeDungeon}</span>
-                      <select
-                        value={result.context.dungeon === '' ? '' : result.context.dungeon}
-                        onChange={(event) => handleContextDungeonChange(event.target.value)}
-                      >
-                        <option value="">{t.contributeSelectDungeon}</option>
-                        {dungeons.map((dungeon) => (
-                          <option key={dungeon.id} value={dungeon.id}>
-                            {dungeon.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('dungeonField')}
-                        >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className={`contribute-context-item ${getStatusClass(
-                    result.context.modeField.status,
-                    result.context.modeField.confirmed,
-                  )}`}>
-                    <span className="contribute-context-label">{t.contributeMode}</span>
-                    {result.context.modeField.crop ? (
-                      <img
-                        className="contribute-crop-image"
-                        src={result.context.modeField.crop}
-                        alt={t.contributeMode}
-                      />
-                    ) : null}
-                    <p className="contribute-context-ocr">
-                      {result.context.modeField.text
-                        ? t.contributeDetectedText(result.context.modeField.text)
-                        : t.contributeDetectedEmpty}
-                    </p>
-                    {(() => {
-                      const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
-                      return confidenceLabel ? (
-                        <p className="contribute-confidence">{confidenceLabel}</p>
-                      ) : null;
-                    })()}
-                    {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
-                      <div className="contribute-field-warning">
-                        <p className="form-hint">{t.contributeWarningReview}</p>
-                        <button
-                          type="button"
-                          className="status-action"
-                          onClick={() => handleModeConfirm('modeField')}
-                        >
-                          {t.contributeWarningConfirm}
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="contribute-file-runs">
-                  {result.runs.map((run, runIndex) => {
-                    const expectedPlayersLabel =
-                      typeof t.contributePlayersExpected === 'function'
-                        ? t.contributePlayersExpected(run.expectedPlayerCount)
-                        : `${t.contributePlayers} (${run.expectedPlayerCount ?? ''})`;
-                    const valueStatusClass = getStatusClass(run.valueField?.status, run.valueField?.confirmed);
-                    const hasValueField = Boolean(
-                      (run.valueField?.text && run.valueField.text.trim()) ||
-                        (run.valueField?.normalized && run.valueField.normalized.trim()) ||
-                        (run.score && run.score !== '') ||
-                        (run.time && run.time !== ''),
-                    );
-                    const valueConfidenceLabel = getConfidenceLabel(run.valueField?.confidence);
-                    const timePreview = formatTime(run.time);
-                    const removeLabel =
-                      typeof t.contributeRunRemove === 'function'
-                        ? t.contributeRunRemove(runIndex + 1)
-                        : t.contributeRunRemove || 'Remove run';
-                    return (
-                      <section key={run.id} className="contribute-run">
-                        <header className="contribute-run-header">
-                          <h3>{t.contributeRunLabel(runIndex + 1)}</h3>
-                          <div className="contribute-run-tools">
-                            <button
-                              type="button"
-                              className="contribute-run-remove"
-                              aria-label={removeLabel}
-                              title={removeLabel}
-                              onClick={() => handleRunRemove(runIndex)}
-                            >
-                              <span className="visually-hidden">{removeLabel}</span>
-                              <svg
-                                className="contribute-run-remove-icon"
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                                focusable="false"
-                              >
-                                <path
-                                  fill="currentColor"
-                                  d="M10 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h5v2H5V4h5V3Zm-1 6v10h2V9H9Zm4 0v10h2V9h-2Zm-6 0H7v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9h-1v10H7V9Z"
-                                />
-                              </svg>
-                            </button>
-                            <label className="form-field contribute-expected-field">
-                              <span>{t.contributePlayers}</span>
-                              <input
-                                type="number"
-                                min="1"
-                                value={run.expectedPlayerCount}
-                                onChange={(event) => handleExpectedPlayerCountChange(runIndex, event.target.value)}
-                              />
-                            </label>
-                          </div>
-                        </header>
-                        <div className={`contribute-run-value ${valueStatusClass}`}>
-                          {run.valueField.crop ? (
-                            <img
-                              className="contribute-crop-image"
-                              src={run.valueField.crop}
-                              alt={t.contributeValueArea}
-                            />
-                          ) : null}
-                          <p className="contribute-context-ocr">
-                            {run.valueField.text
-                              ? t.contributeDetectedText(run.valueField.text)
-                              : t.contributeDetectedEmpty}
-                          </p>
-                          {valueConfidenceLabel ? (
-                            <p className="contribute-confidence">{valueConfidenceLabel}</p>
-                          ) : null}
-                          {run.valueField.status === 'warning' && hasValueField ? (
-                            <div className="contribute-field-warning">
-                              <p className="form-hint">{t.contributeValueNeedsReview}</p>
-                              <button
-                                type="button"
-                                className="status-action"
-                                onClick={() => handleRunValueConfirm(runIndex)}
-                                disabled={run.valueField.confirmed}
-                              >
-                                {run.valueField.confirmed
-                                  ? t.contributeWarningConfirmed
-                                  : t.contributeWarningConfirm}
-                              </button>
-                            </div>
-                          ) : null}
-                          <div className="contribute-run-value-inputs">
-                            <label className="form-field">
-                              <span>{t.contributeScore}</span>
-                              <input
-                                type="number"
-                                min="0"
-                                value={run.score === '' ? '' : run.score}
-                                onChange={(event) => handleScoreChange(runIndex, event.target.value)}
-                              />
-                            </label>
-                            <label className="form-field">
-                              <span>{t.contributeTime}</span>
-                              <input
-                                type="number"
-                                min="0"
-                                value={run.time === '' ? '' : run.time}
-                                onChange={(event) => handleTimeChange(runIndex, event.target.value)}
-                              />
-                              <small className="form-hint">
-                                {t.contributeTimeHint}
-                                {timePreview ? ` (${timePreview})` : ''}
-                              </small>
-                            </label>
-                          </div>
+                {!compactView ? (
+                  <div className="contribute-context-grid">
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.weekField.status,
+                      result.context.weekField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeWeek}</span>
+                      {result.context.weekField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.weekField.crop}
+                          alt={t.contributeWeek}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.weekField.text
+                          ? t.contributeDetectedText(result.context.weekField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {(() => {
+                        const confidenceLabel = getConfidenceLabel(result.context.weekField.confidence);
+                        return confidenceLabel ? (
+                          <p className="contribute-confidence">{confidenceLabel}</p>
+                        ) : null;
+                      })()}
+                      <label className="form-field">
+                        <span>{t.contributeWeek}</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={result.context.week === '' ? '' : result.context.week}
+                          onChange={(event) => handleContextWeekChange(event.target.value)}
+                        />
+                      </label>
+                      {result.context.weekField.status === 'warning' && !result.context.weekField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('weekField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
                         </div>
-                        <div className="contribute-players">
-                          <div className="contribute-players-header">
-                            <span>{expectedPlayersLabel}</span>
-                            <p className="form-hint">{t.contributePlayersHint}</p>
-                          </div>
-                          <ul className="contribute-player-grid">
-                            {run.playerSlots.map((slot, playerIndex) => {
-                              const playerConfidenceLabel = getConfidenceLabel(slot.confidence);
-                              const suggestion =
-                                slot.details && typeof slot.details.suggestion === 'object'
-                                  ? slot.details.suggestion
-                                  : null;
-                              const suggestionName =
-                                suggestion && typeof suggestion.name === 'string'
-                                  ? suggestion.name
-                                  : '';
-                              const suggestionLabel = suggestionName
-                                ? typeof t.contributePlayerSuggestion === 'function'
-                                  ? t.contributePlayerSuggestion(suggestionName)
-                                  : t.contributePlayerSuggestion
-                                  ? `${t.contributePlayerSuggestion} ${suggestionName}`.trim()
-                                  : suggestionName
-                                : '';
-                              const suggestionActionLabel =
-                                typeof t.contributePlayerApplySuggestion === 'function'
-                                  ? t.contributePlayerApplySuggestion(suggestionName)
-                                  : t.contributePlayerApplySuggestion || 'Use suggestion';
-                              return (
-                                <li
-                                  key={slot.key || playerIndex}
-                                  className={`contribute-player-slot ${getStatusClass(
-                                    slot.status,
-                                    slot.confirmed,
-                                  )}`}
-                                >
-                                  {slot.crop ? (
-                                    <img
-                                      className="contribute-crop-image"
-                                      src={slot.crop}
-                                      alt={t.contributePlayerSlotLabel(playerIndex + 1)}
-                                    />
-                                  ) : null}
-                                  <p className="contribute-context-ocr">
-                                    {slot.rawText
-                                      ? t.contributeDetectedText(slot.rawText)
-                                      : t.contributeDetectedEmpty}
-                                  </p>
-                                  {playerConfidenceLabel ? (
-                                    <p className="contribute-confidence contribute-confidence--player">
-                                      {playerConfidenceLabel}
-                                    </p>
-                                  ) : null}
-                                  {slot.status ? (
-                                    <p className="contribute-player-status">
-                                      {slot.status === 'success'
-                                        ? t.contributePlayerExisting
-                                        : t.contributePlayerNew}
-                                    </p>
-                                  ) : null}
-                                  <input
-                                    type="text"
-                                    value={slot.value || ''}
-                                    onChange={(event) =>
-                                      handlePlayerChange(runIndex, playerIndex, event.target.value)
-                                    }
-                                  />
-                                  {suggestionLabel ? (
-                                    <p className="contribute-player-suggestion">{suggestionLabel}</p>
-                                  ) : null}
-                                  {suggestionName ? (
-                                    <button
-                                      type="button"
-                                      className="status-action"
-                                      onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
-                                    >
-                                      {suggestionActionLabel}
-                                    </button>
-                                  ) : null}
-                                  {slot.status === 'warning' && slot.value && slot.value.trim() ? (
-                                    <button
-                                      type="button"
-                                      className="status-action"
-                                      onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
-                                      disabled={slot.confirmed}
-                                    >
-                                      {slot.confirmed
-                                        ? t.contributeWarningConfirmed
-                                        : t.contributeWarningConfirm}
-                                    </button>
-                                  ) : null}
-                                </li>
-                              );
-                            })}
-                          </ul>
+                      ) : null}
+                    </div>
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.dungeonField.status,
+                      result.context.dungeonField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeDungeon}</span>
+                      {result.context.dungeonField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.dungeonField.crop}
+                          alt={t.contributeDungeon}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.dungeonField.text
+                          ? t.contributeDetectedText(result.context.dungeonField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      <label className="form-field">
+                        <span>{t.contributeDungeon}</span>
+                        <select
+                          value={result.context.dungeon === '' ? '' : result.context.dungeon}
+                          onChange={(event) => handleContextDungeonChange(event.target.value)}
+                        >
+                          <option value="">{t.contributeSelectDungeon}</option>
+                          {dungeons.map((dungeon) => (
+                            <option key={dungeon.id} value={dungeon.id}>
+                              {dungeon.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('dungeonField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
                         </div>
-                      </section>
-                    );
-                  })}
-                </div>
+                      ) : null}
+                    </div>
+                    <div className={`contribute-context-item ${getStatusClass(
+                      result.context.modeField.status,
+                      result.context.modeField.confirmed,
+                    )}`}>
+                      <span className="contribute-context-label">{t.contributeMode}</span>
+                      {result.context.modeField.crop ? (
+                        <img
+                          className="contribute-crop-image"
+                          src={result.context.modeField.crop}
+                          alt={t.contributeMode}
+                        />
+                      ) : null}
+                      <p className="contribute-context-ocr">
+                        {result.context.modeField.text
+                          ? t.contributeDetectedText(result.context.modeField.text)
+                          : t.contributeDetectedEmpty}
+                      </p>
+                      {(() => {
+                        const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
+                        return confidenceLabel ? (
+                          <p className="contribute-confidence">{confidenceLabel}</p>
+                        ) : null;
+                      })()}
+                      {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
+                        <div className="contribute-field-warning">
+                          <p className="form-hint">{t.contributeWarningReview}</p>
+                          <button
+                            type="button"
+                            className="status-action"
+                            onClick={() => handleModeConfirm('modeField')}
+                          >
+                            {t.contributeWarningConfirm}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="contribute-file-runs">{renderRuns()}</div>
                 <div className="form-actions contribute-actions">
+                  <button
+                    type="button"
+                    onClick={handleSaveProgress}
+                    disabled={savingDraft || !selectedScanId}
+                  >
+                    {savingDraft ? t.contributeSaving : t.contributeSaveProgress}
+                  </button>
                   <button type="button" onClick={handleSubmit} disabled={status === 'submitting'}>
                     {status === 'submitting' ? t.contributeSubmitting : t.contributeSubmit}
                   </button>

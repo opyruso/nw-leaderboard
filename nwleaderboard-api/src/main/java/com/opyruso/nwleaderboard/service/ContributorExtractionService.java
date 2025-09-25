@@ -410,9 +410,10 @@ public class ContributorExtractionService {
     private ContributionFieldExtractionDto buildField(OcrResult ocr, String normalized, Integer number, Long id,
             String status, Boolean alreadyExists, Map<String, Object> details) {
         Map<String, Object> safeDetails = sanitiseDetails(details);
+        Boolean confirmed = defaultConfirmed(status);
         if (ocr == null) {
             return new ContributionFieldExtractionDto(null, normalized, number, id, null, null, status, alreadyExists,
-                    safeDetails);
+                    safeDetails, confirmed);
         }
         String text = ocr.text();
         if (text != null) {
@@ -423,7 +424,18 @@ public class ContributorExtractionService {
         }
         Double confidence = normaliseConfidence(ocr.confidence());
         return new ContributionFieldExtractionDto(text, normalized, number, id, encodeToDataUrl(ocr.preprocessed()),
-                confidence, status, alreadyExists, safeDetails);
+                confidence, status, alreadyExists, safeDetails, confirmed);
+    }
+
+    private Boolean defaultConfirmed(String status) {
+        if (status == null) {
+            return Boolean.TRUE;
+        }
+        String normalizedStatus = status.toLowerCase(Locale.ROOT);
+        if ("warning".equals(normalizedStatus)) {
+            return Boolean.FALSE;
+        }
+        return Boolean.TRUE;
     }
 
     private Double normaliseConfidence(Double confidence) {
@@ -466,8 +478,19 @@ public class ContributorExtractionService {
         Boolean alreadyExists = current.alreadyExists() != null ? current.alreadyExists() : candidate.alreadyExists();
         Map<String, Object> details = mergeDetails(current.details(), candidate.details());
 
+        Boolean confirmed = mergeConfirmed(current.confirmed(), candidate.confirmed(), status);
         return new ContributionFieldExtractionDto(text, normalized, number, id, crop, confidence, status, alreadyExists,
-                details);
+                details, confirmed);
+    }
+
+    private Boolean mergeConfirmed(Boolean current, Boolean candidate, String status) {
+        if (candidate != null) {
+            return candidate;
+        }
+        if (current != null) {
+            return current;
+        }
+        return defaultConfirmed(status);
     }
 
     private Integer mergeExpectedPlayerCount(Integer current, Integer candidate) {
@@ -532,14 +555,14 @@ public class ContributorExtractionService {
         while (rows.size() < RUNS_PER_IMAGE) {
             List<ContributionFieldExtractionDto> emptyPlayers = new ArrayList<>(slotCount);
             for (int i = 0; i < slotCount; i++) {
-                emptyPlayers.add(new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null));
+                emptyPlayers.add(new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null, null));
             }
             rows.add(new ContributionRunExtractionDto(
                     index.incrementAndGet(),
                     null,
                     null,
                     null,
-                    new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null),
+                    new ContributionFieldExtractionDto(null, null, null, null, null, null, null, null, null, null),
                     emptyPlayers,
                     slotCount));
         }

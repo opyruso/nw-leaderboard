@@ -6,6 +6,7 @@ import com.opyruso.nwleaderboard.dto.ContributionRunDto;
 import com.opyruso.nwleaderboard.dto.ContributionScanDetailDto;
 import com.opyruso.nwleaderboard.dto.ContributionScanSummaryDto;
 import com.opyruso.nwleaderboard.dto.ContributorWeeklyRunsResponse;
+import com.opyruso.nwleaderboard.dto.UpdateContributionScanRequest;
 import com.opyruso.nwleaderboard.dto.UpdateDungeonHighlightsRequest;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
@@ -219,6 +220,35 @@ public class ContributorResource {
             LOG.error("Unable to delete stored leaderboard scan", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to delete stored scan", null))
+                    .build();
+        }
+    }
+
+    @PUT
+    @Path("/scans/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response updateScan(@PathParam("id") Long id, UpdateContributionScanRequest request) {
+        if (!hasContributorRole()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(new ApiMessageResponse("Contributor role required", null))
+                    .build();
+        }
+        try {
+            ContributionScanDetailDto updated = scanLeaderboardService.updateScan(id,
+                    request != null ? request.week() : null,
+                    request != null ? request.dungeonId() : null,
+                    request != null ? request.leaderboardType() : null,
+                    request != null ? request.extraction() : null);
+            if (updated == null) {
+                return Response.status(Status.NOT_FOUND)
+                        .entity(new ApiMessageResponse("Scan not found", null))
+                        .build();
+            }
+            return Response.ok(updated).build();
+        } catch (Exception e) {
+            LOG.error("Unable to update stored leaderboard scan", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to update stored scan", null))
                     .build();
         }
     }

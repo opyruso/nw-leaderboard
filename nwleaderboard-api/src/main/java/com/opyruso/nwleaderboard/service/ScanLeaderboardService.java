@@ -76,6 +76,31 @@ public class ScanLeaderboardService {
     }
 
     @Transactional
+    public ContributionScanDetailDto updateScan(Long id, Integer weekCandidate, Long dungeonIdCandidate,
+            String leaderboardTypeCandidate, ContributionExtractionResponseDto extraction) {
+        if (id == null) {
+            return null;
+        }
+        ScanLeaderboard scan = repository.findById(id);
+        if (scan == null) {
+            return null;
+        }
+        if (extraction != null) {
+            scan.setExtractData(writeExtraction(extraction));
+        }
+        if (weekCandidate != null) {
+            scan.setWeek(weekCandidate);
+        }
+        if (dungeonIdCandidate != null) {
+            scan.setDungeonId(dungeonIdCandidate);
+        }
+        if (leaderboardTypeCandidate != null && !leaderboardTypeCandidate.isBlank()) {
+            scan.setLeaderboardType(normalizeLeaderboardType(leaderboardTypeCandidate));
+        }
+        return getScanDetail(id);
+    }
+
+    @Transactional
     public void deleteScan(Long id) {
         if (id == null) {
             return;
