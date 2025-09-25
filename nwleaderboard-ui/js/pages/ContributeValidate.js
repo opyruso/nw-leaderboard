@@ -630,6 +630,28 @@ export default function ContributeValidate() {
     }));
   };
 
+  const handlePlayerConfirm = (runIndex, playerIndex) => {
+    updateResult((current) => ({
+      ...current,
+      runs: current.runs.map((run, index) => {
+        if (index !== runIndex) {
+          return run;
+        }
+        return {
+          ...run,
+          playerSlots: run.playerSlots.map((slot, currentIndex) =>
+            currentIndex === playerIndex
+              ? {
+                  ...slot,
+                  confirmed: true,
+                }
+              : slot,
+          ),
+        };
+      }),
+    }));
+  };
+
   const handlePlayerApplySuggestion = (runIndex, playerIndex) => {
     setResult((current) => {
       if (!current) {
@@ -1041,33 +1063,45 @@ export default function ContributeValidate() {
                         ))}
                       </select>
                     </label>
+                    {result.context.dungeonField.status === 'warning' && !result.context.dungeonField.confirmed ? (
+                      <div className="contribute-field-warning">
+                        <p className="form-hint">{t.contributeWarningReview}</p>
+                        <button
+                          type="button"
+                          className="status-action"
+                          onClick={() => handleModeConfirm('dungeonField')}
+                        >
+                          {t.contributeWarningConfirm}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                   <div className={`contribute-context-item ${getStatusClass(
                     result.context.modeField.status,
                     result.context.modeField.confirmed,
                   )}`}>
                     <span className="contribute-context-label">{t.contributeMode}</span>
-                  {result.context.modeField.crop ? (
-                    <img
-                      className="contribute-crop-image"
-                      src={result.context.modeField.crop}
-                      alt={t.contributeMode}
-                    />
-                  ) : null}
-                  <p className="contribute-context-ocr">
-                    {result.context.modeField.text
-                      ? t.contributeDetectedText(result.context.modeField.text)
-                      : t.contributeDetectedEmpty}
-                  </p>
-                  {(() => {
-                    const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
-                    return confidenceLabel ? (
-                      <p className="contribute-confidence">{confidenceLabel}</p>
-                    ) : null;
-                  })()}
-                  {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
-                    <div className="contribute-field-warning">
-                      <p className="form-hint">{t.contributeWarningReview}</p>
+                    {result.context.modeField.crop ? (
+                      <img
+                        className="contribute-crop-image"
+                        src={result.context.modeField.crop}
+                        alt={t.contributeMode}
+                      />
+                    ) : null}
+                    <p className="contribute-context-ocr">
+                      {result.context.modeField.text
+                        ? t.contributeDetectedText(result.context.modeField.text)
+                        : t.contributeDetectedEmpty}
+                    </p>
+                    {(() => {
+                      const confidenceLabel = getConfidenceLabel(result.context.modeField.confidence);
+                      return confidenceLabel ? (
+                        <p className="contribute-confidence">{confidenceLabel}</p>
+                      ) : null;
+                    })()}
+                    {result.context.modeField.status === 'warning' && !result.context.modeField.confirmed ? (
+                      <div className="contribute-field-warning">
+                        <p className="form-hint">{t.contributeWarningReview}</p>
                         <button
                           type="button"
                           className="status-action"
@@ -1240,6 +1274,18 @@ export default function ContributeValidate() {
                                       onClick={() => handlePlayerApplySuggestion(runIndex, playerIndex)}
                                     >
                                       {suggestionActionLabel}
+                                    </button>
+                                  ) : null}
+                                  {slot.status === 'warning' && slot.value && slot.value.trim() ? (
+                                    <button
+                                      type="button"
+                                      className="status-action"
+                                      onClick={() => handlePlayerConfirm(runIndex, playerIndex)}
+                                      disabled={slot.confirmed}
+                                    >
+                                      {slot.confirmed
+                                        ? t.contributeWarningConfirmed
+                                        : t.contributeWarningConfirm}
                                     </button>
                                   ) : null}
                                 </li>
