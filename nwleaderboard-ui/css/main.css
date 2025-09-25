@@ -85,6 +85,11 @@ body[data-theme='light'] {
   margin: 0 auto;
 }
 
+.contribute-page--wide {
+  max-width: none;
+  width: 100%;
+}
+
 .page-title {
   font-size: clamp(2.2rem, 3vw, 3rem);
   margin: 0 0 1rem;
