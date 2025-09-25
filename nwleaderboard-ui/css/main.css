@@ -91,6 +91,29 @@ body[data-theme='light'] {
   letter-spacing: 2px;
 }
 
+.title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.65rem, 1.5vw, 0.9rem);
+  min-width: 0;
+}
+
+.title-icon {
+  height: 2em;
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.2));
+}
+
+.title-with-icon > span {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .page-description {
   margin: 0 0 2rem;
   font-size: clamp(1.2rem, 2.5vw, 1.6rem);
@@ -460,6 +483,8 @@ body[data-theme='light'] .highlight-item {
   margin: 0;
   font-size: clamp(1.5rem, 2.5vw, 1.9rem);
   letter-spacing: 1px;
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .highlight-meta {
@@ -1202,6 +1227,7 @@ body[data-theme='light'] .player-dungeon-card {
   margin: 0;
   font-size: 1.3rem;
   letter-spacing: 0.4px;
+  max-width: 100%;
 }
 
 .player-dungeon-stats {
@@ -1290,7 +1316,7 @@ body[data-theme='light'] .leaderboard-sidebar {
 
 .dungeon-button {
   width: 100%;
-  padding: 0.65rem 0.9rem;
+  padding: 0.9rem 1.15rem;
   border-radius: 12px;
   border: 1px solid rgba(124, 92, 255, 0.2);
   background: rgba(124, 92, 255, 0.08);
@@ -1299,6 +1325,34 @@ body[data-theme='light'] .leaderboard-sidebar {
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease,
     color 0.2s ease, transform 0.2s ease;
+}
+
+.dungeon-button-content {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.dungeon-button-icon {
+  height: 2.2rem;
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.25));
+}
+
+.dungeon-button.active .dungeon-button-icon {
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.4));
+}
+
+.dungeon-button-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dungeon-button:hover,

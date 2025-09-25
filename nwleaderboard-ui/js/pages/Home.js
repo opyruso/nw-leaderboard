@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import HomeMenu from '../components/HomeMenu.js';
+import DungeonIcon from '../components/DungeonIcon.js';
 import {
   deriveFallbackName,
   getDungeonNameForLang,
@@ -7,6 +8,7 @@ import {
   sortDungeons,
   toPositiveInteger,
 } from '../dungeons.js';
+import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -129,6 +131,7 @@ export default function Home() {
   const [highlights, setHighlights] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const pageTitle = capitaliseWords(t.leaderboardTitle || '');
 
   React.useEffect(() => {
     let active = true;
@@ -180,8 +183,8 @@ export default function Home() {
 
   return (
     <main className="page" aria-labelledby="home-title">
-      <h1 id="home-title" className="page-title">
-        {t.leaderboardTitle}
+      <h1 id="home-title" className="page-title title-with-icon">
+        <span>{pageTitle}</span>
       </h1>
       <HomeMenu />
       <section className="highlight-section" aria-live="polite">
@@ -204,7 +207,10 @@ export default function Home() {
               return (
                 <li key={highlight.id} className="highlight-item">
                   <header className="highlight-header">
-                    <h2 className="highlight-title">{dungeonName}</h2>
+                    <h2 className="highlight-title title-with-icon">
+                      <DungeonIcon dungeonId={highlight.id} />
+                      <span>{dungeonName}</span>
+                    </h2>
                     {highlight.playerCount ? (
                       <span className="highlight-meta">
                         {typeof t.contributeDungeonExpectedPlayers === 'function'

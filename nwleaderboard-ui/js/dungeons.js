@@ -201,3 +201,23 @@ export function toPositiveInteger(value) {
   return Math.trunc(numeric);
 }
 
+export function getDungeonIconPath(dungeonId) {
+  if (dungeonId === undefined || dungeonId === null) {
+    return null;
+  }
+
+  const trimmed = String(dungeonId).trim();
+
+  if (!trimmed || /^dungeon-\d+$/i.test(trimmed)) {
+    return null;
+  }
+
+  const safe = trimmed.replace(/[^0-9a-z_-]/gi, '').toLowerCase();
+
+  if (!safe) {
+    return null;
+  }
+
+  return `images/icons/dungeons/${encodeURIComponent(safe)}.png`;
+}
+
