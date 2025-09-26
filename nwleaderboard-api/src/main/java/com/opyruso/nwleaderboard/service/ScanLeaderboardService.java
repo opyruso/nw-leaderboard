@@ -1,6 +1,5 @@
 package com.opyruso.nwleaderboard.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
 import com.opyruso.nwleaderboard.dto.ContributionScanDetailDto;
@@ -11,6 +10,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -18,6 +22,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import org.jboss.logging.Logger;
 
 /**
@@ -132,9 +138,17 @@ public class ScanLeaderboardService {
     }
 
     private String writeExtraction(ContributionExtractionResponseDto extraction) {
+        if (extraction == null) {
+            return "{}";
+        }
         try {
-            return objectMapper.writeValueAsString(extraction);
-        } catch (JsonProcessingException e) {
+            byte[] json = objectMapper.writeValueAsBytes(extraction);
+            String compressed = compress(json);
+            if (compressed != null) {
+                return compressed;
+            }
+            return new String(json, StandardCharsets.UTF_8);
+        } catch (Exception e) {
             LOG.warn("Unable to serialise extraction payload", e);
             return "{}";
         }
@@ -144,10 +158,60 @@ public class ScanLeaderboardService {
         if (payload == null || payload.isBlank()) {
             return null;
         }
+        boolean compressed = payload.startsWith("gz:");
         try {
-            return objectMapper.readValue(payload, ContributionExtractionResponseDto.class);
+            byte[] json = decodePayload(payload);
+            if (json != null) {
+                return objectMapper.readValue(json, ContributionExtractionResponseDto.class);
+            }
+            if (!compressed) {
+                return objectMapper.readValue(payload, ContributionExtractionResponseDto.class);
+            }
+            LOG.warn("Compressed extraction payload could not be decoded");
+            return null;
         } catch (Exception e) {
             LOG.warn("Unable to deserialise extraction payload", e);
+            return null;
+        }
+    }
+
+    private String compress(byte[] json) {
+        if (json == null || json.length == 0) {
+            return null;
+        }
+        try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                GZIPOutputStream gzip = new GZIPOutputStream(buffer)) {
+            gzip.write(json);
+            gzip.finish();
+            byte[] compressed = buffer.toByteArray();
+            if (compressed.length >= json.length) {
+                return null;
+            }
+            return "gz:" + Base64.getEncoder().encodeToString(compressed);
+        } catch (IOException e) {
+            LOG.debug("Unable to compress extraction payload", e);
+            return null;
+        }
+    }
+
+    private byte[] decodePayload(String payload) {
+        if (payload == null || !payload.startsWith("gz:")) {
+            return null;
+        }
+        String encoded = payload.substring(3);
+        byte[] compressed;
+        try {
+            compressed = Base64.getDecoder().decode(encoded);
+        } catch (IllegalArgumentException e) {
+            LOG.debug("Unable to decode compressed extraction payload", e);
+            return null;
+        }
+        try (InputStream inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed));
+                ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            inputStream.transferTo(output);
+            return output.toByteArray();
+        } catch (IOException e) {
+            LOG.debug("Unable to inflate compressed extraction payload", e);
             return null;
         }
     }
