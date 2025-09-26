@@ -1,5 +1,5 @@
 import { LangContext } from '../i18n.js';
-const { Link } = ReactRouterDOM;
+const { Link, useLocation, useNavigate } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -18,6 +18,14 @@ export default function Individual() {
   const [entries, setEntries] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (location.pathname === '/individual') {
+      navigate('/leaderboard/individual', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   React.useEffect(() => {
     let active = true;

@@ -100,6 +100,8 @@ export default function LeaderboardPage({
   sortDirection = 'desc',
   chartConfig,
   showDungeonIconInTitle = true,
+  selectedDungeonId = null,
+  onSelectedDungeonChange,
 }) {
   const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
@@ -150,19 +152,60 @@ export default function LeaderboardPage({
     };
   }, []);
 
+  const notifySelectedDungeonChange = React.useCallback(
+    (dungeonId, reason = 'auto') => {
+      if (typeof onSelectedDungeonChange === 'function') {
+        onSelectedDungeonChange(dungeonId, reason);
+      }
+    },
+    [onSelectedDungeonChange],
+  );
+
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
-      setSelectedDungeon((previous) => (previous === null ? previous : null));
+      if (selectedDungeon !== null) {
+        setSelectedDungeon(null);
+        if (selectedDungeonId) {
+          notifySelectedDungeonChange(null, 'fallback');
+        }
+      }
       return;
     }
-    setSelectedDungeon((previous) => {
-      if (previous && dungeons.some((dungeon) => dungeon.id === previous)) {
-        return previous;
+
+    const desiredDungeonId = selectedDungeonId || null;
+    const hasDesiredDungeon =
+      desiredDungeonId && dungeons.some((dungeon) => dungeon.id === desiredDungeonId);
+
+    if (hasDesiredDungeon) {
+      if (selectedDungeon !== desiredDungeonId) {
+        setSelectedDungeon(desiredDungeonId);
       }
-      const [first] = sortDungeons(dungeons, lang);
-      return first ? first.id : null;
-    });
-  }, [dungeons, lang]);
+      return;
+    }
+
+    const currentIsValid =
+      selectedDungeon && dungeons.some((dungeon) => dungeon.id === selectedDungeon);
+
+    if (currentIsValid) {
+      return;
+    }
+
+    const [first] = sortDungeons(dungeons, lang);
+    const fallbackId = first ? first.id : null;
+
+    if (selectedDungeon !== fallbackId) {
+      setSelectedDungeon(fallbackId);
+      if (desiredDungeonId) {
+        notifySelectedDungeonChange(fallbackId, 'fallback');
+      }
+    }
+  }, [
+    dungeons,
+    lang,
+    selectedDungeon,
+    selectedDungeonId,
+    notifySelectedDungeonChange,
+  ]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
@@ -492,9 +535,16 @@ export default function LeaderboardPage({
     return copy;
   }, [entries, getSortValue, sortDirection]);
 
-  const handleSelectDungeon = React.useCallback((dungeonId) => {
-    setSelectedDungeon(dungeonId);
-  }, []);
+  const handleSelectDungeon = React.useCallback(
+    (dungeonId) => {
+      if (dungeonId === selectedDungeon) {
+        return;
+      }
+      setSelectedDungeon(dungeonId);
+      notifySelectedDungeonChange(dungeonId, 'user');
+    },
+    [notifySelectedDungeonChange, selectedDungeon],
+  );
 
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
 

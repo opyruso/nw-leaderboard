@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useLocation, useNavigate, useParams } = ReactRouterDOM;
+
 function parseScoreValue(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -43,6 +45,42 @@ function formatScore(value) {
 export default function Score() {
   const { t } = React.useContext(LangContext);
   const pageTitle = capitaliseWords(t.scoreTitle || '');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+  const dungeonIdFromParams = params?.dungeonId ? String(params.dungeonId) : null;
+
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/score')) {
+      const suffix = dungeonIdFromParams ? `/${encodeURIComponent(dungeonIdFromParams)}` : '';
+      navigate(`/leaderboard/score${suffix}`, { replace: true });
+    }
+  }, [location.pathname, dungeonIdFromParams, navigate]);
+
+  const handleSelectedDungeonChange = React.useCallback(
+    (dungeonId, reason = 'auto') => {
+      if (reason === 'sync') {
+        return;
+      }
+
+      const basePath = '/leaderboard/score';
+
+      if (!dungeonId) {
+        if (location.pathname !== basePath) {
+          navigate(basePath, { replace: reason !== 'user' });
+        }
+        return;
+      }
+
+      const targetPath = `${basePath}/${encodeURIComponent(dungeonId)}`;
+      if (location.pathname === targetPath) {
+        return;
+      }
+
+      navigate(targetPath, { replace: reason !== 'user' });
+    },
+    [location.pathname, navigate],
+  );
 
   const chartConfig = React.useMemo(
     () => ({
@@ -84,6 +122,8 @@ export default function Score() {
     <LeaderboardPage
       mode="score"
       pageTitle={pageTitle}
+      selectedDungeonId={dungeonIdFromParams}
+      onSelectedDungeonChange={handleSelectedDungeonChange}
       getValue={getValue}
       formatValue={formatValue}
       getSortValue={getSortValue}

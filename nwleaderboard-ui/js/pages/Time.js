@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useLocation, useNavigate, useParams } = ReactRouterDOM;
+
 function toSeconds(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -66,6 +68,42 @@ function formatTime(value) {
 export default function Time() {
   const { t } = React.useContext(LangContext);
   const pageTitle = capitaliseWords(t.timeTitle || '');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+  const dungeonIdFromParams = params?.dungeonId ? String(params.dungeonId) : null;
+
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/time')) {
+      const suffix = dungeonIdFromParams ? `/${encodeURIComponent(dungeonIdFromParams)}` : '';
+      navigate(`/leaderboard/time${suffix}`, { replace: true });
+    }
+  }, [location.pathname, dungeonIdFromParams, navigate]);
+
+  const handleSelectedDungeonChange = React.useCallback(
+    (dungeonId, reason = 'auto') => {
+      if (reason === 'sync') {
+        return;
+      }
+
+      const basePath = '/leaderboard/time';
+
+      if (!dungeonId) {
+        if (location.pathname !== basePath) {
+          navigate(basePath, { replace: reason !== 'user' });
+        }
+        return;
+      }
+
+      const targetPath = `${basePath}/${encodeURIComponent(dungeonId)}`;
+      if (location.pathname === targetPath) {
+        return;
+      }
+
+      navigate(targetPath, { replace: reason !== 'user' });
+    },
+    [location.pathname, navigate],
+  );
 
   const chartConfig = React.useMemo(
     () => ({
@@ -108,6 +146,8 @@ export default function Time() {
     <LeaderboardPage
       mode="time"
       pageTitle={pageTitle}
+      selectedDungeonId={dungeonIdFromParams}
+      onSelectedDungeonChange={handleSelectedDungeonChange}
       getValue={getValue}
       formatValue={formatValue}
       getSortValue={getSortValue}
