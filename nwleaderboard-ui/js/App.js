@@ -26,7 +26,16 @@ import {
   hasContributorRole,
 } from './auth.js';
 
-const { BrowserRouter, Routes, Route, Navigate } = ReactRouterDOM;
+const { BrowserRouter, Routes, Route, Navigate, useLocation } = ReactRouterDOM;
+
+function ContributeAliasRedirect() {
+  const location = useLocation();
+  const suffix = location.pathname.startsWith('/contributor')
+    ? location.pathname.slice('/contributor'.length)
+    : '';
+  const targetPath = `/contribute${suffix}${location.search || ''}${location.hash || ''}`;
+  return <Navigate to={targetPath} replace />;
+}
 
 export default function App() {
   const [authState, setAuthState] = React.useState(() => {
@@ -99,7 +108,7 @@ export default function App() {
             }
           />
           <Route
-            path="/contribute/*"
+            path="/contribute"
             element={
               authenticated && authState.canContribute ? (
                 <Contribute />
@@ -115,6 +124,7 @@ export default function App() {
             <Route path="players" element={<ContributePlayers />} />
             <Route path="*" element={<Navigate to="." replace />} />
           </Route>
+          <Route path="/contributor/*" element={<ContributeAliasRedirect />} />
           <Route path="/player/:playerId?" element={<Player />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
