@@ -66,10 +66,10 @@ public class ContributorExtractionService {
     private static final int PLAYER_BOX_HEIGHT = 38;
     private static final int PLAYER_ROW_STEP = 134;
     private static final int PLAYER_VERTICAL_OFFSET = -3;
-    private static final int ROW_SCAN_START_OFFSET = -16;
-    private static final int ROW_SCAN_MAX_OFFSET = 70;
+    private static final int ROW_SCAN_START_OFFSET = -4;
+    private static final int ROW_SCAN_MAX_OFFSET = ROW_SCAN_START_OFFSET + 20;
     private static final int ROW_SCAN_SWEEP_RANGE = ROW_SCAN_MAX_OFFSET - ROW_SCAN_START_OFFSET;
-    private static final int ROW_SCAN_STEP = 4;
+    private static final int ROW_SCAN_STEP = 2;
     private static final int RUNS_PER_IMAGE = 5;
     private static final List<Point> PLAYER_BASE_POSITIONS = List.of(
             new Point(920, 420),
