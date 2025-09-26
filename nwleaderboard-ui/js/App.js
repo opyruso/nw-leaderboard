@@ -28,6 +28,8 @@ import {
 
 const { BrowserRouter, Routes, Route, Navigate } = ReactRouterDOM;
 
+const SITE_ICON_URL = new URL('../images/icons/logo.svg', import.meta.url).href;
+
 export default function App() {
   const [authState, setAuthState] = React.useState(() => {
     const stored = getStoredTokens();
@@ -36,6 +38,8 @@ export default function App() {
       canContribute: hasContributorRole(stored),
     };
   });
+  const currentYear = new Date().getFullYear();
+  const siteTitle = `New World Leaderboard - By oPy For Stats Lovers - 2025-${currentYear}`;
 
   const handleLogout = React.useCallback(() => {
     setAuthState({ token: null, canContribute: false });
@@ -69,60 +73,72 @@ export default function App() {
   return (
     <>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/score" element={<Score />} />
-          <Route path="/time" element={<Time />} />
-          <Route path="/individual" element={<Individual />} />
-          <Route
-            path="/login"
-            element={
-              authenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login onLogin={handleLogin} />
-              )
-            }
+        <div className="app-shell">
+          <header className="site-header" role="banner">
+            <img
+              src={SITE_ICON_URL}
+              alt="New World Leaderboard"
+              className="site-header__logo"
+            />
+            <span className="site-header__title">{siteTitle}</span>
+          </header>
+          <main className="app-content" role="main">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/score" element={<Score />} />
+              <Route path="/time" element={<Time />} />
+              <Route path="/individual" element={<Individual />} />
+              <Route
+                path="/login"
+                element={
+                  authenticated ? (
+                    <Navigate to="/" replace />
+                  ) : (
+                    <Login onLogin={handleLogin} />
+                  )
+                }
+              />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route
+                path="/password"
+                element={
+                  authenticated ? <Password /> : <Navigate to="/login" replace />
+                }
+              />
+              <Route
+                path="/preferences"
+                element={
+                  authenticated ? <Preferences /> : <Navigate to="/login" replace />
+                }
+              />
+              <Route
+                path="/contribute/*"
+                element={
+                  authenticated && authState.canContribute ? (
+                    <Contribute />
+                  ) : (
+                    <Navigate to="/" replace />
+                  )
+                }
+              >
+                <Route index element={<ContributeDungeons />} />
+                <Route path="import" element={<ContributeImport />} />
+                <Route path="validate" element={<ContributeValidate />} />
+                <Route path="stats" element={<ContributeStats />} />
+                <Route path="players" element={<ContributePlayers />} />
+                <Route path="*" element={<Navigate to="." replace />} />
+              </Route>
+              <Route path="/player/:playerId?" element={<Player />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <BottomNav
+            authenticated={authenticated}
+            canContribute={authState.canContribute}
+            onLogout={handleLogout}
           />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route
-            path="/password"
-            element={
-              authenticated ? <Password /> : <Navigate to="/login" replace />
-            }
-          />
-          <Route
-            path="/preferences"
-            element={
-              authenticated ? <Preferences /> : <Navigate to="/login" replace />
-            }
-          />
-          <Route
-            path="/contribute/*"
-            element={
-              authenticated && authState.canContribute ? (
-                <Contribute />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          >
-            <Route index element={<ContributeDungeons />} />
-            <Route path="import" element={<ContributeImport />} />
-            <Route path="validate" element={<ContributeValidate />} />
-            <Route path="stats" element={<ContributeStats />} />
-            <Route path="players" element={<ContributePlayers />} />
-            <Route path="*" element={<Navigate to="." replace />} />
-          </Route>
-          <Route path="/player/:playerId?" element={<Player />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <BottomNav
-          authenticated={authenticated}
-          canContribute={authState.canContribute}
-          onLogout={handleLogout}
-        />
+        </div>
       </BrowserRouter>
       <VersionChecker />
     </>
