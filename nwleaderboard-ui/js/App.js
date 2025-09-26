@@ -75,12 +75,19 @@ export default function App() {
       <BrowserRouter>
         <div className="app-shell">
           <header className="site-header" role="banner">
-            <img
-              src={SITE_ICON_URL}
-              alt="New World Leaderboard"
-              className="site-header__logo"
+            <div className="site-header__bar">
+              <img
+                src={SITE_ICON_URL}
+                alt="New World Leaderboard"
+                className="site-header__logo"
+              />
+              <span className="site-header__title">{siteTitle}</span>
+            </div>
+            <BottomNav
+              authenticated={authenticated}
+              canContribute={authState.canContribute}
+              onLogout={handleLogout}
             />
-            <span className="site-header__title">{siteTitle}</span>
           </header>
           <main className="app-content" role="main">
             <Routes>
@@ -133,11 +140,6 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
-          <BottomNav
-            authenticated={authenticated}
-            canContribute={authState.canContribute}
-            onLogout={handleLogout}
-          />
         </div>
       </BrowserRouter>
       <VersionChecker />

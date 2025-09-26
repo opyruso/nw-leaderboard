@@ -19,7 +19,12 @@ function NavButton({ to, children, onClick }) {
   );
 }
 
-export default function BottomNav({ authenticated, canContribute = false, onLogout }) {
+export default function BottomNav({
+  authenticated,
+  canContribute = false,
+  onLogout,
+  className = 'bottom-nav',
+}) {
   const { t } = React.useContext(LangContext);
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
@@ -39,7 +44,7 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   );
 
   return (
-    <nav className="bottom-nav" aria-label={t.navMenu}>
+    <nav className={className} aria-label={t.navMenu}>
       <NavButton to="/">{t.home}</NavButton>
       {accountNavigation}
     </nav>

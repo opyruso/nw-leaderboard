@@ -87,9 +87,7 @@ body[data-theme='light'] {
   top: 0;
   z-index: 1000;
   display: flex;
-  align-items: center;
-  gap: clamp(0.85rem, 2vw, 1.25rem);
-  padding: clamp(1.1rem, 2.8vw, 1.75rem) clamp(1.25rem, 4vw, 2.25rem);
+  flex-direction: column;
   background: var(--surface-dark);
   border-bottom: 1px solid var(--border-dark);
   box-shadow: 0 18px 30px rgba(5, 8, 20, 0.65);
@@ -100,6 +98,13 @@ body[data-theme='light'] .site-header {
   background: var(--surface-light);
   border-bottom-color: var(--border-light);
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+}
+
+.site-header__bar {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.85rem, 2vw, 1.25rem);
+  padding: clamp(1.1rem, 2.8vw, 1.75rem) clamp(1.25rem, 4vw, 2.25rem) 0;
 }
 
 .site-header__logo {
@@ -114,6 +119,24 @@ body[data-theme='light'] .site-header {
   letter-spacing: 0.04em;
 }
 
+.site-header nav {
+  padding: clamp(0.9rem, 2.5vw, 1.2rem) clamp(1.25rem, 4vw, 2.25rem)
+    clamp(0.9rem, 2.5vw, 1.4rem);
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.35rem, 1vw, 0.65rem);
+  align-items: center;
+  justify-content: flex-start;
+  background: inherit;
+  overflow-x: auto;
+  margin: 0;
+}
+
+body[data-theme='light'] .site-header nav {
+  border-top-color: rgba(148, 163, 184, 0.35);
+}
+
 .app-content {
   flex: 1 1 auto;
   display: flex;
@@ -124,7 +147,7 @@ body[data-theme='light'] .site-header {
 .page {
   flex: 1 1 auto;
   padding: clamp(1.75rem, 4vw, 2.5rem) clamp(1rem, 5vw, 1.75rem)
-    clamp(5rem, 12vw, 7rem);
+    clamp(3rem, 8vw, 4rem);
   box-sizing: border-box;
   width: 100%;
   max-width: 1200px;
@@ -701,28 +724,6 @@ body[data-theme='light'] .page-submenu-link:focus-visible {
 
 body[data-theme='light'] .page-submenu-link.active {
   color: var(--color-accent-contrast);
-}
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 1.25rem;
-  background: rgba(10, 15, 27, 0.85);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 -12px 30px rgba(5, 8, 20, 0.6);
-  border-top: 1px solid var(--border-dark);
-}
-
-body[data-theme='light'] .bottom-nav {
-  background: rgba(246, 248, 255, 0.92);
-  box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.12);
-  border-top-color: var(--border-light);
 }
 
 .bottom-nav-link,
