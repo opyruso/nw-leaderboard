@@ -5,6 +5,7 @@ const fr = {
   time: 'Temps',
   individual: 'Individuel',
   player: 'Joueur',
+  players: 'Joueurs',
   login: 'Connexion',
   logout: 'Déconnexion',
   register: "Créer un compte",

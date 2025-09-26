@@ -1,5 +1,4 @@
 import { LangContext } from '../i18n.js';
-import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
@@ -100,6 +99,7 @@ export default function LeaderboardPage({
   getSortValue,
   sortDirection = 'desc',
   chartConfig,
+  showDungeonIconInTitle = true,
 }) {
   const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
@@ -501,10 +501,9 @@ export default function LeaderboardPage({
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
       <h1 id={`${mode}-title`} className="page-title title-with-icon">
-        <DungeonIcon dungeonId={selectedDungeon} />
+        {showDungeonIconInTitle ? <DungeonIcon dungeonId={selectedDungeon} /> : null}
         <span>{displayTitle}</span>
       </h1>
-      <HomeMenu />
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
           <h2 className="leaderboard-sidebar-title">{t.dungeonSelectorTitle}</h2>

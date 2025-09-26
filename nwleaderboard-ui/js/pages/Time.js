@@ -113,6 +113,7 @@ export default function Time() {
       getSortValue={getSortValue}
       sortDirection="asc"
       chartConfig={chartConfig}
+      showDungeonIconInTitle={false}
     />
   );
 }

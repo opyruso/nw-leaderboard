@@ -89,6 +89,7 @@ export default function Score() {
       getSortValue={getSortValue}
       sortDirection="desc"
       chartConfig={chartConfig}
+      showDungeonIconInTitle={false}
     />
   );
 }
