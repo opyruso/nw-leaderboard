@@ -1922,6 +1922,20 @@ body[data-theme='light'] .contribute-file-item--error {
   flex-wrap: wrap;
 }
 
+.contribute-results-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.contribute-rescan-button {
+  padding: 0.55rem 1.15rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
 .contribute-toggle-success {
   display: inline-flex;
   align-items: center;
