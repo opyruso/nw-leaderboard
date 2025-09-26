@@ -70,6 +70,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match('/index.html');
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request);
+      })()
+    );
     event.waitUntil(
       (async () => {
         const client = await self.clients.get(event.clientId);
@@ -78,6 +88,7 @@ self.addEventListener('fetch', (event) => {
         }
       })()
     );
+    return;
   }
   if (event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
