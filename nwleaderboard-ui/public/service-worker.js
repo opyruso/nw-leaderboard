@@ -72,10 +72,33 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
+        let networkResponse;
+        let networkError;
+        try {
+          networkResponse = await fetch(event.request);
+        } catch (error) {
+          networkError = error;
+        }
+
+        if (networkResponse) {
+          if (networkResponse.ok || networkResponse.type === 'opaqueredirect') {
+            return networkResponse;
+          }
+          if (networkResponse.status && networkResponse.status !== 404) {
+            return networkResponse;
+          }
+        }
+
         const cache = await caches.open(CACHE_NAME);
         const cachedResponse = await cache.match('/index.html');
         if (cachedResponse) {
-          return cachedResponse;
+          return cachedResponse.clone();
+        }
+        if (networkResponse) {
+          return networkResponse;
+        }
+        if (networkError) {
+          throw networkError;
         }
         return fetch(event.request);
       })()
