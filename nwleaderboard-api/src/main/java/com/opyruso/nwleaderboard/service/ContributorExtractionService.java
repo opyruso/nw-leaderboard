@@ -3,14 +3,17 @@ package com.opyruso.nwleaderboard.service;
 import com.opyruso.nwleaderboard.dto.ContributionExtractionResponseDto;
 import com.opyruso.nwleaderboard.dto.ContributionFieldExtractionDto;
 import com.opyruso.nwleaderboard.dto.ContributionRunExtractionDto;
+import com.opyruso.nwleaderboard.dto.ContributionScanDetailDto;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
+import com.opyruso.nwleaderboard.entity.ScanLeaderboard;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import com.opyruso.nwleaderboard.service.ScanLeaderboardService;
 import jakarta.enterprise.context.ApplicationScoped;
-import javax.imageio.ImageIO;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -29,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -246,6 +250,13 @@ public class ContributorExtractionService {
     }
 
     private ContributionExtractionResponseDto processImage(ImagePayload payload) throws ContributorRequestException {
+        ProcessedImage processed = processImagePayload(payload, null);
+        storeExtraction(payload, processed);
+        return processed != null ? processed.response() : null;
+    }
+
+    private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset)
+            throws ContributorRequestException {
         BufferedImage originalImage = payload.image();
         BufferedImage preparedImage = prepareContributorImage(originalImage);
 
@@ -265,22 +276,24 @@ public class ContributorExtractionService {
         int expectedPlayerCount = resolveExpectedPlayerCount(dungeonMatch);
         ContributionFieldExtractionDto dungeonField = buildDungeonField(dungeonOcr, dungeonMatch, expectedPlayerCount);
 
-        List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode, expectedPlayerCount);
+        List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode,
+                expectedPlayerCount, forcedOffset);
         ensureRowCount(rows, expectedPlayerCount);
 
         ContributionExtractionResponseDto response = new ContributionExtractionResponseDto(weekField, dungeonField,
                 modeField, expectedPlayerCount, rows);
 
-        storeExtraction(payload, response, detectedWeek, dungeonMatch, modeField);
-
-        return response;
+        return new ProcessedImage(response, detectedWeek, dungeonMatch, modeField);
     }
 
-    private void storeExtraction(ImagePayload payload, ContributionExtractionResponseDto response, Integer detectedWeek,
-            DungeonMatch dungeonMatch, ContributionFieldExtractionDto modeField) {
-        if (payload == null || response == null) {
+    private void storeExtraction(ImagePayload payload, ProcessedImage processed) {
+        if (payload == null || processed == null || processed.response() == null) {
             return;
         }
+        ContributionExtractionResponseDto response = processed.response();
+        DungeonMatch dungeonMatch = processed.dungeonMatch();
+        ContributionFieldExtractionDto modeField = processed.modeField();
+        Integer detectedWeek = processed.detectedWeek();
         Long dungeonId = null;
         if (dungeonMatch != null && dungeonMatch.dungeon() != null) {
             dungeonId = dungeonMatch.dungeon().getId();
@@ -305,6 +318,67 @@ public class ContributorExtractionService {
         } catch (Exception e) {
             LOG.warn("Unable to store leaderboard scan for later validation", e);
         }
+    }
+
+    @Transactional
+    public ContributionScanDetailDto rescanStoredScan(Long scanId, Integer forcedOffset)
+            throws ContributorRequestException {
+        if (scanId == null) {
+            return null;
+        }
+        ScanLeaderboard existing = scanLeaderboardService.findRawScan(scanId);
+        if (existing == null) {
+            return null;
+        }
+        byte[] picture = existing.getPicture();
+        if (picture == null || picture.length == 0) {
+            throw new ContributorRequestException("Stored scan does not contain an image");
+        }
+        byte[] copy = Arrays.copyOf(picture, picture.length);
+        BufferedImage image;
+        try (ByteArrayInputStream input = new ByteArrayInputStream(copy)) {
+            image = ImageIO.read(input);
+        } catch (IOException e) {
+            LOG.warn("Unable to read stored scan for reprocessing", e);
+            throw new ContributorRequestException("Unable to read stored scan");
+        }
+        if (image == null) {
+            throw new ContributorRequestException("Unable to read stored scan");
+        }
+
+        ImagePayload payload = new ImagePayload("stored-scan-" + scanId, copy, image);
+        ProcessedImage processed = processImagePayload(payload, forcedOffset);
+        if (processed == null || processed.response() == null) {
+            return null;
+        }
+
+        Integer week = processed.detectedWeek();
+        if (week == null && processed.response().week() != null) {
+            week = processed.response().week().number();
+        }
+
+        Long dungeonId = null;
+        DungeonMatch dungeonMatch = processed.dungeonMatch();
+        if (dungeonMatch != null && dungeonMatch.dungeon() != null) {
+            dungeonId = dungeonMatch.dungeon().getId();
+        } else if (processed.response().dungeon() != null) {
+            dungeonId = processed.response().dungeon().id();
+        }
+
+        String leaderboardType = null;
+        ContributionFieldExtractionDto modeField = processed.modeField();
+        if (modeField != null && modeField.normalized() != null) {
+            String normalized = modeField.normalized();
+            if ("SCORE".equalsIgnoreCase(normalized)) {
+                leaderboardType = "Maximum Score";
+            } else if ("TIME".equalsIgnoreCase(normalized)) {
+                leaderboardType = "Clear time";
+            }
+        }
+
+        ContributionScanDetailDto updated = scanLeaderboardService.updateScan(scanId, week, dungeonId, leaderboardType,
+                processed.response());
+        return updated;
     }
 
     private ContributionFieldExtractionDto buildModeField(OcrResult ocr, ContributionMode mode) {
@@ -822,7 +896,7 @@ public class ContributorExtractionService {
     }
 
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
-            ContributionMode declaredMode, int expectedPlayerCount) {
+            ContributionMode declaredMode, int expectedPlayerCount, Integer forcedOffset) {
         List<Player> knownPlayers = playerRepository.listAll();
         Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
         int slotCount = clampPlayerSlotCount(expectedPlayerCount);
@@ -830,6 +904,19 @@ public class ContributorExtractionService {
         OffsetBounds bounds = computeOffsetBounds(originalImage, slotCount, RUNS_PER_IMAGE);
         int allowedMin = bounds.minOffset();
         int allowedMax = bounds.maxOffset();
+
+        if (forcedOffset != null) {
+            int clampedOffset = Math.max(allowedMin, Math.min(allowedMax, forcedOffset));
+            if (!forcedOffset.equals(clampedOffset)) {
+                LOG.infof("Forced row scan offset %d clamped to %d", forcedOffset, clampedOffset);
+            } else {
+                LOG.infof("Forced row scan offset %d applied", clampedOffset);
+            }
+            RowsExtractionAttempt forcedAttempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                    knownPlayers, knownPlayersByName, clampedOffset, 0, RUNS_PER_IMAGE);
+            return forcedAttempt.rows();
+        }
+
         int minOffset = Math.max(allowedMin, ROW_SCAN_START_OFFSET);
         if (minOffset > allowedMax) {
             minOffset = allowedMax;
@@ -1312,6 +1399,10 @@ public class ContributorExtractionService {
      * Lightweight immutable representation of an uploaded image.
      */
     private record ImagePayload(String fileName, byte[] data, BufferedImage image) {
+    }
+
+    private record ProcessedImage(ContributionExtractionResponseDto response, Integer detectedWeek,
+            DungeonMatch dungeonMatch, ContributionFieldExtractionDto modeField) {
     }
 
     private enum ContributionMode {
