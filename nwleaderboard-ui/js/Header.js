@@ -118,8 +118,8 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   });
 
   const homeLabel = t.highlights ? `${t.home} (${t.highlights})` : t.home;
-  const contributeMenuOpen = openMenu === 'contribute' || contributeActive;
-  const leaderboardMenuOpen = openMenu === 'leaderboard' || leaderboardActive;
+  const contributeMenuOpen = openMenu === 'contribute';
+  const leaderboardMenuOpen = openMenu === 'leaderboard';
 
   const handleMenuKeyDown = (event) => {
     if (event.key === 'Escape') {
