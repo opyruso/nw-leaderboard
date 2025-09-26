@@ -2717,6 +2717,6 @@ body[data-theme='light'] .version-banner {
   .leaderboard-sidebar {
     width: 280px;
     position: sticky;
-    top: 2.5rem;
+    top: calc(var(--site-header-height, 0px) + 1.5rem);
   }
 }
