@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -58,6 +59,14 @@ export default function ContributePlayers() {
   const [editingName, setEditingName] = React.useState('');
   const [pendingIds, setPendingIds] = React.useState(() => new Set());
   const [feedback, setFeedback] = React.useState({ type: '', text: '' });
+
+  const sectionTitle = React.useMemo(() => {
+    const section = t.contributeMenuPlayers || t.contributePlayers || 'Players';
+    const base = t.contributeTitle || '';
+    return base ? `${base} – ${section}` : section;
+  }, [t]);
+
+  useDocumentTitle(sectionTitle);
 
   const formatRunCounts = React.useCallback(
     (total, score, time) => {

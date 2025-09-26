@@ -9,6 +9,7 @@ import {
   toPositiveInteger,
 } from '../dungeons.js';
 import { capitaliseWords } from '../text.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -132,6 +133,8 @@ export default function Home() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
   const pageTitle = capitaliseWords(t.leaderboardTitle || '');
+
+  useDocumentTitle(pageTitle);
 
   React.useEffect(() => {
     let active = true;

@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import PageSubmenu from '../components/PageSubmenu.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { NavLink, Outlet, useLocation } = ReactRouterDOM;
 
@@ -9,6 +10,8 @@ export default function Contribute() {
   const location = useLocation();
   const isValidateRoute = location?.pathname?.startsWith('/contribute/validate');
   const pageClassName = `page contribute-page${isValidateRoute ? ' contribute-page--wide' : ''}`;
+
+  useDocumentTitle(t.contributeTitle);
 
   return (
     <main className={pageClassName} aria-labelledby="contribute-title">

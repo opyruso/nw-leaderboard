@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import { ThemeContext } from '../theme.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { useNavigate } = ReactRouterDOM;
 
@@ -19,6 +20,8 @@ export default function Preferences() {
   const { theme, toggleTheme } = React.useContext(ThemeContext);
   const [messageKey, setMessageKey] = React.useState('');
   const navigate = useNavigate();
+
+  useDocumentTitle(t.preferences);
 
   const handleLanguageChange = (event) => {
     changeLang(event.target.value);

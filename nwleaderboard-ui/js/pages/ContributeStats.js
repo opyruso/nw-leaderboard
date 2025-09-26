@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -7,6 +8,14 @@ export default function ContributeStats() {
   const [stats, setStats] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+
+  const sectionTitle = React.useMemo(() => {
+    const section = t.contributeMenuStats || t.contributeStats || 'Weekly runs';
+    const base = t.contributeTitle || '';
+    return base ? `${base} – ${section}` : section;
+  }, [t]);
+
+  useDocumentTitle(sectionTitle);
 
   React.useEffect(() => {
     let active = true;

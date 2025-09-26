@@ -4,6 +4,7 @@ import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import { capitaliseWords } from '../text.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -529,6 +530,8 @@ export default function Player() {
     }
     return capitaliseWords(t.playerNotFoundTitle || '');
   }, [hasPlayerId, playerDisplayName, loading, t]);
+
+  useDocumentTitle(heading);
 
   const headingIconId = React.useMemo(() => {
     for (const dungeon of preparedDungeons) {

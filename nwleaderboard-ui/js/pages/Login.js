@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import { loginWithPassword } from '../auth.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 export default function Login({ onLogin }) {
   const { t, lang, changeLang } = React.useContext(LangContext);
@@ -22,6 +23,8 @@ export default function Login({ onLogin }) {
   const preventCopyPaste = (event) => {
     event.preventDefault();
   };
+
+  useDocumentTitle(t.login);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

@@ -1,5 +1,7 @@
 import { LangContext } from '../i18n.js';
 import HomeMenu from '../components/HomeMenu.js';
+import { capitaliseWords } from '../text.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -20,6 +22,26 @@ export default function Individual() {
   const [entries, setEntries] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
+
+  const baseTitle = React.useMemo(() => capitaliseWords(t.individualTitle || ''), [t]);
+  const activeModeLabel = React.useMemo(() => {
+    if (mode === 'score') {
+      return capitaliseWords(t.individualModeScore || '');
+    }
+    if (mode === 'time') {
+      return capitaliseWords(t.individualModeTime || '');
+    }
+    return capitaliseWords(t.individualModeGlobal || '');
+  }, [mode, t]);
+
+  const documentTitle = React.useMemo(() => {
+    if (activeModeLabel) {
+      return `${baseTitle} – ${activeModeLabel}`;
+    }
+    return baseTitle;
+  }, [baseTitle, activeModeLabel]);
+
+  useDocumentTitle(documentTitle);
 
   React.useEffect(() => {
     let active = true;

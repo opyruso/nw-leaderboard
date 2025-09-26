@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons, toPositiveInteger } from '../dungeons.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -27,6 +28,14 @@ export default function ContributeDungeons() {
   const [error, setError] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [feedback, setFeedback] = React.useState({ type: '', text: '' });
+
+  const sectionTitle = React.useMemo(() => {
+    const section = t.contributeMenuDungeons || t.dungeons || 'Dungeons';
+    const base = t.contributeTitle || '';
+    return base ? `${base} – ${section}` : section;
+  }, [t]);
+
+  useDocumentTitle(sectionTitle);
 
   React.useEffect(() => {
     let active = true;

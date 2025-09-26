@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 export default function ForgotPassword() {
   const { t } = React.useContext(LangContext);
@@ -36,6 +37,8 @@ export default function ForgotPassword() {
       setMessage(t.forgotError);
     }
   };
+
+  useDocumentTitle(t.forgotPassword);
 
   return (
     <main className="page" aria-labelledby="forgot-title">

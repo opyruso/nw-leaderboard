@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -37,6 +38,14 @@ export default function ContributeImport() {
   const [errorKey, setErrorKey] = React.useState('');
   const [errorText, setErrorText] = React.useState('');
   const [processingNow, setProcessingNow] = React.useState(() => Date.now());
+
+  const sectionTitle = React.useMemo(() => {
+    const section = t.contributeMenuImport || t.contribute || 'Import';
+    const base = t.contributeTitle || '';
+    return base ? `${base} – ${section}` : section;
+  }, [t]);
+
+  useDocumentTitle(sectionTitle);
 
   const resetFeedback = React.useCallback(() => {
     setMessageKey('');

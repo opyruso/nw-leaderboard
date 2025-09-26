@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 export default function Register() {
   const { t } = React.useContext(LangContext);
@@ -22,6 +23,8 @@ export default function Register() {
   const preventCopyPaste = (event) => {
     event.preventDefault();
   };
+
+  useDocumentTitle(t.register);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

@@ -4,6 +4,7 @@ import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
 import { capitaliseWords } from '../text.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -109,6 +110,28 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
+
+  const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
+
+  const activeDungeonName = React.useMemo(() => {
+    if (!selectedDungeon) {
+      return '';
+    }
+    const found = dungeons.find((dungeon) => dungeon.id === selectedDungeon);
+    if (!found) {
+      return '';
+    }
+    return getDungeonNameForLang(found, lang);
+  }, [dungeons, selectedDungeon, lang]);
+
+  const documentTitle = React.useMemo(() => {
+    if (activeDungeonName) {
+      return `${displayTitle} – ${activeDungeonName}`;
+    }
+    return displayTitle;
+  }, [displayTitle, activeDungeonName]);
+
+  useDocumentTitle(documentTitle);
 
   React.useEffect(() => {
     let active = true;
@@ -495,8 +518,6 @@ export default function LeaderboardPage({
   const handleSelectDungeon = React.useCallback((dungeonId) => {
     setSelectedDungeon(dungeonId);
   }, []);
-
-  const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
 
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>

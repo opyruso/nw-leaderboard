@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { useDocumentTitle } from '../pageTitle.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 const DEFAULT_PLAYER_SLOTS = 6;
@@ -384,6 +385,14 @@ export default function ContributeValidate() {
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [compactView, setCompactView] = React.useState(false);
   const [savingDraft, setSavingDraft] = React.useState(false);
+
+  const sectionTitle = React.useMemo(() => {
+    const section = t.contributeMenuValidate || 'Validate';
+    const base = t.contributeTitle || '';
+    return base ? `${base} – ${section}` : section;
+  }, [t]);
+
+  useDocumentTitle(sectionTitle);
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
 
