@@ -1,8 +1,38 @@
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const footerRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    const updateHeight = () => {
+      if (!footerRef.current) {
+        return;
+      }
+      document.documentElement.style.setProperty(
+        '--site-footer-height',
+        `${footerRef.current.offsetHeight}px`,
+      );
+    };
+
+    updateHeight();
+
+    let observer;
+    if (footerRef.current && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(updateHeight);
+      observer.observe(footerRef.current);
+    }
+
+    window.addEventListener('resize', updateHeight);
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, []);
 
   return (
-    <footer className="site-footer">
+    <footer ref={footerRef} className="site-footer">
       <small>oPyRuSo (TM) 2025 - {currentYear}</small>
     </footer>
   );

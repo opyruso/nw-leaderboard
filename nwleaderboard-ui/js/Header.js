@@ -50,6 +50,30 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     setOpenMenu(null);
   }, []);
 
+  React.useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!headerRef.current || headerRef.current.contains(event.target)) {
+        return;
+      }
+      closeMenus();
+    };
+
+    const handleFocusIn = (event) => {
+      if (!headerRef.current || headerRef.current.contains(event.target)) {
+        return;
+      }
+      closeMenus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('focusin', handleFocusIn);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('focusin', handleFocusIn);
+    };
+  }, [closeMenus]);
+
   React.useLayoutEffect(() => {
     function updateHeaderHeight() {
       if (headerRef.current) {
