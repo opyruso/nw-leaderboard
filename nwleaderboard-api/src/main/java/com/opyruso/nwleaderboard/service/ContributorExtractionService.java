@@ -917,108 +917,17 @@ public class ContributorExtractionService {
             return forcedAttempt.rows();
         }
 
-        int minOffset = Math.max(allowedMin, ROW_SCAN_START_OFFSET);
-        if (minOffset > allowedMax) {
-            minOffset = allowedMax;
+        int desiredOffset = 0;
+        if (desiredOffset < allowedMin) {
+            desiredOffset = allowedMin;
         }
-        int desiredMaxOffset = minOffset + ROW_SCAN_SWEEP_RANGE;
-        int maxOffset = Math.min(allowedMax, Math.min(ROW_SCAN_MAX_OFFSET, desiredMaxOffset));
-        if (maxOffset < minOffset) {
-            maxOffset = minOffset;
+        if (desiredOffset > allowedMax) {
+            desiredOffset = allowedMax;
         }
 
-        int currentOffset = minOffset;
-        int bestOffset = currentOffset;
-        double bestAverage = Double.NEGATIVE_INFINITY;
-        ContributionRunExtractionDto bestFirstRow = null;
-        boolean attempted = false;
-
-        while (true) {
-            attempted = true;
-            RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                    knownPlayers, knownPlayersByName, currentOffset, 0, 1);
-            double attemptAverage = attempt.averageConfidence();
-            List<ContributionRunExtractionDto> attemptRows = attempt.rows();
-            String playerSummary = summariseFirstRowPlayers(attemptRows);
-            LOG.infof("Row scan offset %d: avg confidence %.2f, players=%s", currentOffset, attemptAverage,
-                    playerSummary);
-            if (!attemptRows.isEmpty() && (attemptAverage > bestAverage || bestFirstRow == null)) {
-                bestAverage = attemptAverage;
-                bestOffset = currentOffset;
-                bestFirstRow = attemptRows.get(0);
-            }
-            if (attemptAverage >= 95.0d) {
-                break;
-            }
-            if (currentOffset >= maxOffset) {
-                break;
-            }
-            int nextOffset = Math.min(maxOffset, currentOffset + ROW_SCAN_STEP);
-            if (nextOffset == currentOffset) {
-                break;
-            }
-            currentOffset = nextOffset;
-        }
-
-        if (!attempted) {
-            RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                    knownPlayers, knownPlayersByName, bestOffset, 0, RUNS_PER_IMAGE);
-            return attempt.rows();
-        }
-
-        List<ContributionRunExtractionDto> rows = new ArrayList<>(RUNS_PER_IMAGE);
-        if (bestFirstRow != null) {
-            rows.add(bestFirstRow);
-        }
-
-        int startRowIndex = rows.isEmpty() ? 0 : 1;
-        int remainingRows = RUNS_PER_IMAGE - startRowIndex;
-        if (remainingRows > 0) {
-            RowsExtractionAttempt remainder = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                    knownPlayers, knownPlayersByName, bestOffset, startRowIndex, remainingRows);
-            rows.addAll(remainder.rows());
-        }
-
-        if (rows.isEmpty()) {
-            RowsExtractionAttempt fallback = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                    knownPlayers, knownPlayersByName, bestOffset, 0, RUNS_PER_IMAGE);
-            rows.addAll(fallback.rows());
-        }
-
-        return rows;
-    }
-
-    private String summariseFirstRowPlayers(List<ContributionRunExtractionDto> rows) {
-        if (rows == null || rows.isEmpty()) {
-            return "<none>";
-        }
-        ContributionRunExtractionDto firstRow = rows.get(0);
-        if (firstRow == null) {
-            return "<none>";
-        }
-        List<ContributionFieldExtractionDto> players = firstRow.players();
-        if (players == null || players.isEmpty()) {
-            return "<none>";
-        }
-        List<String> names = new ArrayList<>(players.size());
-        for (ContributionFieldExtractionDto player : players) {
-            if (player == null) {
-                names.add("<null>");
-                continue;
-            }
-            String value = player.normalized();
-            if (value == null || value.isBlank()) {
-                value = player.text();
-            }
-            if (value != null) {
-                value = value.strip();
-            }
-            if (value == null || value.isEmpty()) {
-                value = "<empty>";
-            }
-            names.add(value);
-        }
-        return String.join(", ", names);
+        RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
+                knownPlayers, knownPlayersByName, desiredOffset, 0, RUNS_PER_IMAGE);
+        return attempt.rows();
     }
 
     private OffsetBounds computeOffsetBounds(BufferedImage image, int slotCount, int rowsToConsider) {
