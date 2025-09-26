@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useParams } = ReactRouterDOM;
+
 function parseScoreValue(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -42,7 +44,9 @@ function formatScore(value) {
 
 export default function Score() {
   const { t } = React.useContext(LangContext);
+  const { dungeonId } = useParams();
   const pageTitle = capitaliseWords(t.scoreTitle || '');
+  const initialDungeonId = dungeonId ? String(dungeonId) : null;
 
   const chartConfig = React.useMemo(
     () => ({
@@ -90,6 +94,7 @@ export default function Score() {
       sortDirection="desc"
       chartConfig={chartConfig}
       showDungeonIconInTitle={false}
+      initialDungeonId={initialDungeonId}
     />
   );
 }

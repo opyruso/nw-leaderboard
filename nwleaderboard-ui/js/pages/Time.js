@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useParams } = ReactRouterDOM;
+
 function toSeconds(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -65,7 +67,9 @@ function formatTime(value) {
 
 export default function Time() {
   const { t } = React.useContext(LangContext);
+  const { dungeonId } = useParams();
   const pageTitle = capitaliseWords(t.timeTitle || '');
+  const initialDungeonId = dungeonId ? String(dungeonId) : null;
 
   const chartConfig = React.useMemo(
     () => ({
@@ -114,6 +118,7 @@ export default function Time() {
       sortDirection="asc"
       chartConfig={chartConfig}
       showDungeonIconInTitle={false}
+      initialDungeonId={initialDungeonId}
     />
   );
 }

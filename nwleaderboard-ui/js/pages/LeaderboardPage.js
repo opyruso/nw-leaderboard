@@ -100,6 +100,7 @@ export default function LeaderboardPage({
   sortDirection = 'desc',
   chartConfig,
   showDungeonIconInTitle = true,
+  initialDungeonId = null,
 }) {
   const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
@@ -152,7 +153,7 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
-      setSelectedDungeon((previous) => (previous === null ? previous : null));
+      setSelectedDungeon(null);
       return;
     }
     setSelectedDungeon((previous) => {
@@ -163,6 +164,20 @@ export default function LeaderboardPage({
       return first ? first.id : null;
     });
   }, [dungeons, lang]);
+
+  React.useEffect(() => {
+    if (initialDungeonId === undefined || initialDungeonId === null || initialDungeonId === '') {
+      return;
+    }
+    if (!Array.isArray(dungeons) || dungeons.length === 0) {
+      return;
+    }
+    const normalisedId = String(initialDungeonId);
+    if (!dungeons.some((dungeon) => dungeon.id === normalisedId)) {
+      return;
+    }
+    setSelectedDungeon((previous) => (previous === normalisedId ? previous : normalisedId));
+  }, [initialDungeonId, dungeons]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
