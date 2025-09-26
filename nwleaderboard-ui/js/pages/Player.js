@@ -1,6 +1,5 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonIconPath, getDungeonNameForLang, sortDungeons } from '../dungeons.js';
-import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import { capitaliseWords } from '../text.js';
@@ -557,7 +556,6 @@ export default function Player() {
         <DungeonIcon dungeonId={headingIconId} />
         <span>{heading}</span>
       </h1>
-      <HomeMenu />
       <section className="player-dungeon-section" aria-live="polite">
         {hasPlayerId && (playerDisplayName || playerIdentifier) ? (
           <header className="player-profile-header">

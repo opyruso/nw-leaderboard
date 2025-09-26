@@ -1,6 +1,4 @@
 import { LangContext } from '../i18n.js';
-import HomeMenu from '../components/HomeMenu.js';
-
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
@@ -72,7 +70,6 @@ export default function Individual() {
       <h1 id="individual-title" className="page-title">
         {t.individualTitle}
       </h1>
-      <HomeMenu />
       <p className="page-description">{t.individualDescription}</p>
 
       <div className="individual-controls" role="group" aria-label={t.individualModeLabel}>

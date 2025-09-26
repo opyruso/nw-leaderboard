@@ -1,5 +1,4 @@
 import { LangContext } from '../i18n.js';
-import HomeMenu from '../components/HomeMenu.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import {
   deriveFallbackName,
@@ -186,7 +185,6 @@ export default function Home() {
       <h1 id="home-title" className="page-title title-with-icon">
         <span>{pageTitle}</span>
       </h1>
-      <HomeMenu />
       <section className="highlight-section" aria-live="polite">
         {loading ? (
           <p className="highlight-status">{t.highlightLoading ?? t.leaderboardLoading}</p>
