@@ -12,6 +12,7 @@
   --surface-light-soft: rgba(255, 255, 255, 0.7);
   --border-dark: rgba(148, 163, 184, 0.25);
   --border-light: rgba(148, 163, 184, 0.35);
+  --site-header-height: 0px;
   --gradient-dark:
     radial-gradient(circle at 20% 20%, rgba(124, 92, 255, 0.28), transparent 55%),
     radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.18), transparent 45%),
@@ -79,7 +80,8 @@ body[data-theme='light'] {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--site-header-height, 0px));
+  padding-top: var(--site-header-height, 0px);
 }
 
 .site-main {
@@ -90,8 +92,10 @@ body[data-theme='light'] {
 }
 
 .site-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   background: rgba(10, 15, 27, 0.88);
   backdrop-filter: blur(18px);
@@ -244,7 +248,7 @@ body[data-theme='light'] .site-nav__link {
 
 .site-nav__dropdown-menu {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  top: 100%;
   left: 0;
   display: flex;
   flex-direction: column;

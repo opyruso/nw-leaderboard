@@ -36,6 +36,7 @@ function SiteNavButton({ onClick, children }) {
 export default function Header({ authenticated, canContribute = false, onLogout }) {
   const { t } = React.useContext(LangContext);
   const location = useLocation();
+  const headerRef = React.useRef(null);
   const [openMenu, setOpenMenu] = React.useState(null);
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
@@ -45,15 +46,45 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     location.pathname.startsWith('/time') ||
     location.pathname.startsWith('/individual');
 
+  const closeMenus = React.useCallback(() => {
+    setOpenMenu(null);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    function updateHeaderHeight() {
+      if (headerRef.current) {
+        document.documentElement.style.setProperty(
+          '--site-header-height',
+          `${headerRef.current.offsetHeight}px`,
+        );
+      }
+    }
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!showContribute && openMenu === 'contribute') {
       setOpenMenu(null);
     }
   }, [showContribute, openMenu]);
 
+  React.useEffect(() => {
+    closeMenus();
+  }, [location.pathname, closeMenus]);
+
   const createMenuHandlers = (menuKey) => ({
     onMouseEnter: () => setOpenMenu(menuKey),
-    onMouseLeave: () => setOpenMenu((current) => (current === menuKey ? null : current)),
+    onMouseLeave: (event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        setOpenMenu((current) => (current === menuKey ? null : current));
+      }
+    },
     onFocus: () => setOpenMenu(menuKey),
     onBlur: (event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -66,8 +97,15 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const contributeMenuOpen = openMenu === 'contribute' || contributeActive;
   const leaderboardMenuOpen = openMenu === 'leaderboard' || leaderboardActive;
 
+  const handleMenuKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      closeMenus();
+    }
+  };
+
   return (
-    <header className="site-header">
+    <header ref={headerRef} className="site-header" onKeyDown={handleMenuKeyDown}>
       <div className="site-header__inner">
         <div className="site-header__brand">
           <img
@@ -85,7 +123,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
           <div className="site-nav__sections">
             <ul className="site-nav__group site-nav__group--left">
               <li className="site-nav__item">
-                <SiteNavLink to="/" end>
+                <SiteNavLink to="/" end onClick={closeMenus}>
                   {homeLabel}
                 </SiteNavLink>
               </li>
@@ -104,6 +142,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     isActiveOverride={contributeActive}
                     aria-haspopup="true"
                     aria-expanded={contributeMenuOpen ? 'true' : 'false'}
+                    onClick={closeMenus}
                   >
                     {t.contribute}
                   </SiteNavLink>
@@ -115,27 +154,48 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     aria-hidden={contributeMenuOpen ? undefined : 'true'}
                   >
                     <li>
-                      <SiteNavLink to="/contribute" className="site-nav__sublink" end>
+                      <SiteNavLink
+                        to="/contribute"
+                        className="site-nav__sublink"
+                        end
+                        onClick={closeMenus}
+                      >
                         {t.contributeMenuDungeons}
                       </SiteNavLink>
                     </li>
                     <li>
-                      <SiteNavLink to="/contribute/import" className="site-nav__sublink">
+                      <SiteNavLink
+                        to="/contribute/import"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
                         {t.contributeMenuImport}
                       </SiteNavLink>
                     </li>
                     <li>
-                      <SiteNavLink to="/contribute/validate" className="site-nav__sublink">
+                      <SiteNavLink
+                        to="/contribute/validate"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
                         {t.contributeMenuValidate}
                       </SiteNavLink>
                     </li>
                     <li>
-                      <SiteNavLink to="/contribute/stats" className="site-nav__sublink">
+                      <SiteNavLink
+                        to="/contribute/stats"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
                         {t.contributeMenuStats}
                       </SiteNavLink>
                     </li>
                     <li>
-                      <SiteNavLink to="/contribute/players" className="site-nav__sublink">
+                      <SiteNavLink
+                        to="/contribute/players"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
                         {t.contributeMenuPlayers}
                       </SiteNavLink>
                     </li>
@@ -157,6 +217,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   aria-haspopup="true"
                   aria-expanded={leaderboardMenuOpen ? 'true' : 'false'}
                   aria-current={leaderboardActive ? 'page' : undefined}
+                  onClick={closeMenus}
                 >
                   {t.leaderboardMenuTitle}
                 </SiteNavLink>
@@ -168,17 +229,32 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   aria-hidden={leaderboardMenuOpen ? undefined : 'true'}
                 >
                   <li>
-                    <SiteNavLink to="/score" className="site-nav__sublink" end>
+                    <SiteNavLink
+                      to="/score"
+                      className="site-nav__sublink"
+                      end
+                      onClick={closeMenus}
+                    >
                       {t.score}
                     </SiteNavLink>
                   </li>
                   <li>
-                    <SiteNavLink to="/time" className="site-nav__sublink" end>
+                    <SiteNavLink
+                      to="/time"
+                      className="site-nav__sublink"
+                      end
+                      onClick={closeMenus}
+                    >
                       {t.time}
                     </SiteNavLink>
                   </li>
                   <li>
-                    <SiteNavLink to="/individual" className="site-nav__sublink" end>
+                    <SiteNavLink
+                      to="/individual"
+                      className="site-nav__sublink"
+                      end
+                      onClick={closeMenus}
+                    >
                       {t.individual}
                     </SiteNavLink>
                   </li>
@@ -189,6 +265,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   to="/player"
                   isActiveOverride={location.pathname.startsWith('/player')}
                   aria-current={location.pathname.startsWith('/player') ? 'page' : undefined}
+                  onClick={closeMenus}
                 >
                   {t.players || t.player}
                 </SiteNavLink>
@@ -203,23 +280,42 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     </SiteNavLink>
                   </li>
                   <li className="site-nav__item">
-                    <SiteNavButton onClick={onLogout}>{t.logout}</SiteNavButton>
+                    <SiteNavButton
+                      onClick={() => {
+                        closeMenus();
+                        onLogout();
+                      }}
+                    >
+                      {t.logout}
+                    </SiteNavButton>
                   </li>
                 </>
               ) : (
                 <>
                   <li className="site-nav__item">
-                    <SiteNavLink to="/register" isActiveOverride={location.pathname.startsWith('/register')}>
+                    <SiteNavLink
+                      to="/register"
+                      isActiveOverride={location.pathname.startsWith('/register')}
+                      onClick={closeMenus}
+                    >
                       {t.register}
                     </SiteNavLink>
                   </li>
                   <li className="site-nav__item">
-                    <SiteNavLink to="/forgot-password" isActiveOverride={location.pathname.startsWith('/forgot-password')}>
+                    <SiteNavLink
+                      to="/forgot-password"
+                      isActiveOverride={location.pathname.startsWith('/forgot-password')}
+                      onClick={closeMenus}
+                    >
                       {t.forgotPassword}
                     </SiteNavLink>
                   </li>
                   <li className="site-nav__item">
-                    <SiteNavLink to="/login" isActiveOverride={location.pathname.startsWith('/login')}>
+                    <SiteNavLink
+                      to="/login"
+                      isActiveOverride={location.pathname.startsWith('/login')}
+                      onClick={closeMenus}
+                    >
                       {t.login}
                     </SiteNavLink>
                   </li>
