@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useParams, useNavigate } = ReactRouterDOM;
+
 function toSeconds(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -66,6 +68,9 @@ function formatTime(value) {
 export default function Time() {
   const { t } = React.useContext(LangContext);
   const pageTitle = capitaliseWords(t.timeTitle || '');
+  const navigate = useNavigate();
+  const params = useParams();
+  const dungeonId = params?.dungeonId ? String(params.dungeonId) : null;
 
   const chartConfig = React.useMemo(
     () => ({
@@ -104,6 +109,20 @@ export default function Time() {
 
   const getSortValue = React.useCallback((entry) => toSeconds(entry.value), []);
 
+  const handleDungeonChange = React.useCallback(
+    (nextDungeonId) => {
+      if (!nextDungeonId) {
+        navigate('/leaderboard/time', { replace: false });
+        return;
+      }
+      if (nextDungeonId === dungeonId) {
+        return;
+      }
+      navigate(`/leaderboard/time/${encodeURIComponent(nextDungeonId)}`);
+    },
+    [navigate, dungeonId],
+  );
+
   return (
     <LeaderboardPage
       mode="time"
@@ -114,6 +133,8 @@ export default function Time() {
       sortDirection="asc"
       chartConfig={chartConfig}
       showDungeonIconInTitle={false}
+      selectedDungeonId={dungeonId}
+      onDungeonChange={handleDungeonChange}
     />
   );
 }

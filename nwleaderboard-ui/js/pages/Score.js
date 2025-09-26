@@ -2,6 +2,8 @@ import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
 import { capitaliseWords } from '../text.js';
 
+const { useParams, useNavigate } = ReactRouterDOM;
+
 function parseScoreValue(value) {
   if (value === undefined || value === null || value === '') {
     return Number.NaN;
@@ -43,6 +45,9 @@ function formatScore(value) {
 export default function Score() {
   const { t } = React.useContext(LangContext);
   const pageTitle = capitaliseWords(t.scoreTitle || '');
+  const navigate = useNavigate();
+  const params = useParams();
+  const dungeonId = params?.dungeonId ? String(params.dungeonId) : null;
 
   const chartConfig = React.useMemo(
     () => ({
@@ -80,6 +85,20 @@ export default function Score() {
 
   const getSortValue = React.useCallback((entry) => parseScoreValue(entry.value), []);
 
+  const handleDungeonChange = React.useCallback(
+    (nextDungeonId) => {
+      if (!nextDungeonId) {
+        navigate('/leaderboard/score', { replace: false });
+        return;
+      }
+      if (nextDungeonId === dungeonId) {
+        return;
+      }
+      navigate(`/leaderboard/score/${encodeURIComponent(nextDungeonId)}`);
+    },
+    [navigate, dungeonId],
+  );
+
   return (
     <LeaderboardPage
       mode="score"
@@ -90,6 +109,8 @@ export default function Score() {
       sortDirection="desc"
       chartConfig={chartConfig}
       showDungeonIconInTitle={false}
+      selectedDungeonId={dungeonId}
+      onDungeonChange={handleDungeonChange}
     />
   );
 }

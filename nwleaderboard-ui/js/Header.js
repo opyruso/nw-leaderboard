@@ -42,6 +42,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const showContribute = isAuthenticated && Boolean(canContribute);
   const contributeActive = location.pathname.startsWith('/contribute');
   const leaderboardActive =
+    location.pathname.startsWith('/leaderboard') ||
     location.pathname.startsWith('/score') ||
     location.pathname.startsWith('/time') ||
     location.pathname.startsWith('/individual');
@@ -235,7 +236,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                 {...createMenuHandlers('leaderboard')}
               >
                 <SiteNavLink
-                  to="/score"
+                  to="/leaderboard/score"
                   className="site-nav__link--parent"
                   isActiveOverride={leaderboardActive}
                   aria-haspopup="true"
@@ -254,7 +255,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                 >
                   <li>
                     <SiteNavLink
-                      to="/score"
+                      to="/leaderboard/score"
                       className="site-nav__sublink"
                       end
                       onClick={closeMenus}
@@ -264,7 +265,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   </li>
                   <li>
                     <SiteNavLink
-                      to="/time"
+                      to="/leaderboard/time"
                       className="site-nav__sublink"
                       end
                       onClick={closeMenus}
@@ -274,7 +275,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   </li>
                   <li>
                     <SiteNavLink
-                      to="/individual"
+                      to="/leaderboard/individual"
                       className="site-nav__sublink"
                       end
                       onClick={closeMenus}

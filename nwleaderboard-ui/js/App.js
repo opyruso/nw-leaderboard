@@ -79,8 +79,16 @@ export default function App() {
           <main className="site-main">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/leaderboard" element={<Navigate to="/leaderboard/score" replace />} />
+              <Route path="/leaderboard/score" element={<Score />} />
+              <Route path="/leaderboard/score/:dungeonId" element={<Score />} />
+              <Route path="/leaderboard/time" element={<Time />} />
+              <Route path="/leaderboard/time/:dungeonId" element={<Time />} />
+              <Route path="/leaderboard/individual" element={<Individual />} />
               <Route path="/score" element={<Score />} />
+              <Route path="/score/:dungeonId" element={<Score />} />
               <Route path="/time" element={<Time />} />
+              <Route path="/time/:dungeonId" element={<Time />} />
               <Route path="/individual" element={<Individual />} />
               <Route
                 path="/login"

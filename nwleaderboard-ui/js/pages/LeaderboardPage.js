@@ -100,6 +100,8 @@ export default function LeaderboardPage({
   sortDirection = 'desc',
   chartConfig,
   showDungeonIconInTitle = true,
+  selectedDungeonId = null,
+  onDungeonChange,
 }) {
   const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
@@ -109,6 +111,8 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
+
+  const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
   React.useEffect(() => {
     let active = true;
@@ -151,18 +155,30 @@ export default function LeaderboardPage({
   }, []);
 
   React.useEffect(() => {
-    if (!Array.isArray(dungeons) || dungeons.length === 0) {
-      setSelectedDungeon((previous) => (previous === null ? previous : null));
+    if (!Array.isArray(sortedDungeons) || sortedDungeons.length === 0) {
+      setSelectedDungeon(null);
       return;
     }
-    setSelectedDungeon((previous) => {
-      if (previous && dungeons.some((dungeon) => dungeon.id === previous)) {
-        return previous;
+
+    const availableIds = new Set(sortedDungeons.map((dungeon) => String(dungeon.id)));
+    const requestedId = selectedDungeonId ? String(selectedDungeonId) : null;
+    const fallbackId = sortedDungeons[0] ? String(sortedDungeons[0].id) : null;
+
+    setSelectedDungeon((current) => {
+      const currentId = current ? String(current) : null;
+      if (requestedId && availableIds.has(requestedId)) {
+        return requestedId;
       }
-      const [first] = sortDungeons(dungeons, lang);
-      return first ? first.id : null;
+      if (currentId && availableIds.has(currentId)) {
+        return currentId;
+      }
+      return fallbackId;
     });
-  }, [dungeons, lang]);
+
+    if (requestedId && !availableIds.has(requestedId) && fallbackId && typeof onDungeonChange === 'function') {
+      onDungeonChange(fallbackId);
+    }
+  }, [sortedDungeons, selectedDungeonId, onDungeonChange]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
@@ -225,8 +241,6 @@ export default function LeaderboardPage({
       controller.abort();
     };
   }, [mode, selectedDungeon, getValue]);
-
-  const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
   const formatWeekLabel = React.useCallback(
     (week) => {
@@ -492,9 +506,20 @@ export default function LeaderboardPage({
     return copy;
   }, [entries, getSortValue, sortDirection]);
 
-  const handleSelectDungeon = React.useCallback((dungeonId) => {
-    setSelectedDungeon(dungeonId);
-  }, []);
+  const handleSelectDungeon = React.useCallback(
+    (dungeonId) => {
+      const safeId = dungeonId ? String(dungeonId) : null;
+      const currentId = selectedDungeon ? String(selectedDungeon) : null;
+      if (safeId === currentId) {
+        return;
+      }
+      setSelectedDungeon(safeId);
+      if (safeId && typeof onDungeonChange === 'function') {
+        onDungeonChange(safeId);
+      }
+    },
+    [selectedDungeon, onDungeonChange],
+  );
 
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
 
@@ -517,13 +542,15 @@ export default function LeaderboardPage({
             <ul className="dungeon-list">
               {sortedDungeons.map((dungeon) => {
                 const displayName = getDungeonNameForLang(dungeon, lang);
-                const isActive = dungeon.id === selectedDungeon;
+                const dungeonId = String(dungeon.id);
+                const selectedId = selectedDungeon ? String(selectedDungeon) : '';
+                const isActive = dungeonId === selectedId;
                 return (
                   <li key={dungeon.id}>
                     <button
                       type="button"
                       className={isActive ? 'dungeon-button active' : 'dungeon-button'}
-                      onClick={() => handleSelectDungeon(dungeon.id)}
+                      onClick={() => handleSelectDungeon(dungeonId)}
                     >
                       <span className="dungeon-button-content">
                         <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
