@@ -5,6 +5,7 @@ const en = {
   time: 'Time',
   individual: 'Individual',
   player: 'Player',
+  players: 'Players',
   login: 'Log in',
   logout: 'Log out',
   register: 'Create account',
