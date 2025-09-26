@@ -70,39 +70,44 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        let networkResponse;
-        let networkError;
-        try {
-          networkResponse = await fetch(event.request);
-        } catch (error) {
-          networkError = error;
-        }
-
-        if (networkResponse) {
-          if (networkResponse.ok || networkResponse.type === 'opaqueredirect') {
-            return networkResponse;
+    const requestURL = new URL(event.request.url);
+    if (requestURL.origin === self.location.origin) {
+      event.respondWith(
+        (async () => {
+          const cache = await caches.open(CACHE_NAME);
+          const cachedResponse = await cache.match('/index.html');
+          if (cachedResponse) {
+            event.waitUntil(
+              (async () => {
+                try {
+                  const freshResponse = await fetch('/index.html', { cache: 'no-store' });
+                  if (freshResponse && freshResponse.ok) {
+                    await cache.put('/index.html', freshResponse.clone());
+                  }
+                } catch (error) {
+                  console.warn('Failed to refresh index.html from network', error);
+                }
+              })()
+            );
+            return cachedResponse.clone();
           }
-          if (networkResponse.status && networkResponse.status !== 404) {
-            return networkResponse;
-          }
-        }
 
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match('/index.html');
-        if (cachedResponse) {
-          return cachedResponse.clone();
-        }
-        if (networkResponse) {
-          return networkResponse;
-        }
-        if (networkError) {
-          throw networkError;
-        }
-        return fetch(event.request);
-      })()
-    );
+          try {
+            const networkResponse = await fetch('/index.html');
+            if (networkResponse && networkResponse.ok) {
+              await cache.put('/index.html', networkResponse.clone());
+              return networkResponse;
+            }
+            return networkResponse;
+          } catch (error) {
+            console.error('Network error fetching index.html for navigation', error);
+            throw error;
+          }
+        })()
+      );
+    } else {
+      event.respondWith(fetch(event.request));
+    }
     event.waitUntil(
       (async () => {
         const client = await self.clients.get(event.clientId);
