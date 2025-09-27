@@ -136,6 +136,20 @@ export default function LeaderboardPage({
   const filtersInitialisedRef = React.useRef(false);
   const hasUserAdjustedFiltersRef = React.useRef(false);
 
+  const mutationOptions = React.useMemo(() => {
+    const sortOptions = (values) =>
+      values
+        .map((value) => String(value).trim())
+        .filter((value) => value.length > 0)
+        .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+
+    return {
+      type: sortOptions(getAllMutationTypeIds()),
+      promotion: sortOptions(getAllMutationPromotionIds()),
+      curse: sortOptions(getAllMutationCurseIds()),
+    };
+  }, []);
+
   React.useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -352,20 +366,6 @@ export default function LeaderboardPage({
     setRequestedPage(1);
     setCurrentPage(1);
   }, [selectedDungeon]);
-
-  const mutationOptions = React.useMemo(() => {
-    const sortOptions = (values) =>
-      values
-        .map((value) => String(value).trim())
-        .filter((value) => value.length > 0)
-        .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
-
-    return {
-      type: sortOptions(getAllMutationTypeIds()),
-      promotion: sortOptions(getAllMutationPromotionIds()),
-      curse: sortOptions(getAllMutationCurseIds()),
-    };
-  }, []);
 
   React.useEffect(() => {
     setMutationFilters((previous) => {
