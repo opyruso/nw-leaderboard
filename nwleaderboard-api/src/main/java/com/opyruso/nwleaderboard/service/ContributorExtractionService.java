@@ -358,7 +358,7 @@ public class ContributorExtractionService {
     }
 
     @Transactional
-    public ContributionScanDetailDto rescanStoredScan(Long scanId, Integer forcedOffset)
+    public ContributionScanDetailDto rescanStoredScan(Long scanId, Integer forcedOffset, String requestedRegionId)
             throws ContributorRequestException {
         if (scanId == null) {
             return null;
@@ -384,7 +384,12 @@ public class ContributorExtractionService {
         }
 
         ImagePayload payload = new ImagePayload("stored-scan-" + scanId, copy, image);
-        String regionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
+        String regionCandidate = requestedRegionId != null ? requestedRegionId.strip() : null;
+        if (regionCandidate != null && regionCandidate.isEmpty()) {
+            regionCandidate = null;
+        }
+        String existingRegionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
+        String regionId = regionCandidate != null ? regionCandidate : existingRegionId;
         ProcessedImage processed = processImagePayload(payload, forcedOffset, regionId);
         if (processed == null || processed.response() == null) {
             return null;

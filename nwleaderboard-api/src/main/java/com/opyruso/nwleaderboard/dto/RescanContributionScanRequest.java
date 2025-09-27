@@ -8,5 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RescanContributionScanRequest(
-        @JsonProperty("offset") Integer offset) {
+        @JsonProperty("offset") Integer offset,
+        @JsonProperty("region") String region) {
 }
