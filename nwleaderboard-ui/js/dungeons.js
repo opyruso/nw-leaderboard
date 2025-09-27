@@ -70,6 +70,22 @@ export function getDungeonNameForLang(dungeon, lang) {
     return '';
   }
   const { names = {}, fallbackName = '', id = '' } = dungeon;
+  const formatName = (value, localeHint) => {
+    const text = safeString(value);
+    if (!text) {
+      return '';
+    }
+    const locale = toLocaleCode(localeHint);
+    try {
+      return text.toLocaleUpperCase(locale);
+    } catch (error) {
+      try {
+        return text.toLocaleUpperCase('en');
+      } catch (fallbackError) {
+        return text.toUpperCase();
+      }
+    }
+  };
   const requested = normaliseLanguageKey(lang);
   const priorities = [];
   if (requested) {
@@ -89,14 +105,14 @@ export function getDungeonNameForLang(dungeon, lang) {
   for (const code of priorities) {
     const value = safeString(names[code]);
     if (value) {
-      return value;
+      return formatName(value, code);
     }
   }
   const fallback = safeString(fallbackName);
   if (fallback) {
-    return fallback;
+    return formatName(fallback, lang);
   }
-  return String(id || '');
+  return formatName(String(id || ''), lang);
 }
 
 export function sortDungeons(list, lang) {
