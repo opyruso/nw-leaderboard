@@ -46,6 +46,35 @@ export function normaliseRegionList(rawRegions, fallback = DEFAULT_REGIONS) {
   return result;
 }
 
+export function extractRegionId(entry) {
+  if (!entry || typeof entry !== 'object') {
+    return '';
+  }
+
+  const candidates = [
+    entry.region,
+    entry.regionId,
+    entry.regionID,
+    entry.region_id,
+    entry.id_region,
+    entry.regionCode,
+    entry.region_code,
+    entry.regioncode,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+    const normalised = candidate.trim().toUpperCase();
+    if (normalised) {
+      return normalised;
+    }
+  }
+
+  return '';
+}
+
 export function translateRegion(t, regionId) {
   if (!regionId) {
     return '';
