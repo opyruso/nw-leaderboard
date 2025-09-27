@@ -134,7 +134,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
         <div className="site-header__brand">
           <img
             className="site-header__logo"
-            src="images/icons/logo.svg"
+            src="/images/icons/icon-512.png"
             alt={t.gameName || 'New World Leaderboard'}
             width="56"
             height="56"
