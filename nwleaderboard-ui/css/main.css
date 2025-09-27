@@ -1651,6 +1651,14 @@ body[data-theme='light'] .leaderboard-run {
   gap: 0.75rem;
 }
 
+.leaderboard-region {
+  font-weight: 600;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
 .leaderboard-week {
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -1724,47 +1732,56 @@ body[data-theme='light'] .leaderboard-run {
 .individual-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem 0.75rem;
   margin: 1.5rem 0 0.75rem;
 }
 
-.individual-mode-button {
-  border-radius: 999px;
-  border: 1px solid rgba(124, 92, 255, 0.28);
-  background: rgba(124, 92, 255, 0.12);
-  color: inherit;
-  padding: 0.5rem 1.35rem;
+.individual-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.individual-filter-legend {
+  font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.4px;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
-    transform 0.2s ease;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
-.individual-mode-button:hover,
-.individual-mode-button:focus-visible {
-  background: rgba(124, 92, 255, 0.22);
-  border-color: rgba(124, 92, 255, 0.4);
-  outline: none;
+.individual-filter-button {
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.35px;
 }
 
-.individual-mode-button.active {
+.individual-filter-button.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-accent-contrast);
-  box-shadow: 0 14px 26px rgba(124, 92, 255, 0.35);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.24);
 }
 
-body[data-theme='light'] .individual-mode-button {
-  border-color: rgba(124, 92, 255, 0.35);
-  background: rgba(124, 92, 255, 0.18);
+.individual-filter-button.active:hover,
+.individual-filter-button.active:focus-visible {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.32);
+  color: var(--color-accent-contrast);
 }
 
-body[data-theme='light'] .individual-mode-button:hover,
-body[data-theme='light'] .individual-mode-button:focus-visible {
-  background: rgba(124, 92, 255, 0.26);
-  border-color: rgba(124, 92, 255, 0.42);
+body[data-theme='light'] .individual-filter-button.active {
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.22);
+}
+
+.individual-region-cell {
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  white-space: nowrap;
 }
 
 .individual-results {
@@ -2036,6 +2053,20 @@ body[data-theme='light'] .player-search-container {
   color: inherit;
   font-size: 1rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+
+.player-search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.player-search-region-field {
+  flex: 0 0 220px;
+  max-width: 240px;
 }
 
 .player-search-input::placeholder {

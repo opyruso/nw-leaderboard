@@ -7,6 +7,7 @@ import RankBadge from '../components/RankBadge.js';
 import { capitaliseWords } from '../text.js';
 import { formatPlayerLinkProps, getPlayerNames } from '../playerNames.js';
 import { extractMutationIds } from '../mutations.js';
+import { translateRegion, extractRegionId, DEFAULT_REGIONS } from '../regions.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -150,12 +151,14 @@ export default function Player({ canContribute = false }) {
   const [searchError, setSearchError] = React.useState(false);
   const searchInputId = React.useId();
   const mainLinkInputId = React.useId();
+  const regionFilterId = React.useId();
   const [editingMainLink, setEditingMainLink] = React.useState(false);
   const [mainLinkName, setMainLinkName] = React.useState('');
   const [mainLinkError, setMainLinkError] = React.useState('');
   const [mainLinkLoading, setMainLinkLoading] = React.useState(false);
   const mainLinkSuggestionsListId = React.useId();
   const [mainLinkSuggestions, setMainLinkSuggestions] = React.useState([]);
+  const [regionFilter, setRegionFilter] = React.useState('');
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -267,7 +270,12 @@ export default function Player({ canContribute = false }) {
     setSearchError(false);
     setSearchResults([]);
 
-    fetch(`${API_BASE_URL}/player?q=${encodeURIComponent(trimmed)}&limit=8`, {
+    const params = new URLSearchParams({ q: trimmed, limit: '8' });
+    if (regionFilter) {
+      params.set('region', regionFilter);
+    }
+
+    fetch(`${API_BASE_URL}/player?${params.toString()}`, {
       signal: controller.signal,
     })
       .then((response) => {
@@ -323,7 +331,7 @@ export default function Player({ canContribute = false }) {
       active = false;
       controller.abort();
     };
-  }, [hasPlayerId, searchTerm]);
+  }, [hasPlayerId, regionFilter, searchTerm]);
 
   React.useEffect(() => {
     if (!hasPlayerId) {
@@ -609,6 +617,12 @@ export default function Player({ canContribute = false }) {
     setSearchTerm(event.target.value);
   }, []);
 
+  const handleRegionFilterChange = React.useCallback((event) => {
+    setRegionFilter(event.target.value);
+  }, []);
+
+  const availableRegions = React.useMemo(() => [''].concat(DEFAULT_REGIONS), []);
+
   const trimmedSearch = React.useMemo(() => searchTerm.trim(), [searchTerm]);
 
   const handleSearchSubmit = React.useCallback(
@@ -733,18 +747,24 @@ export default function Player({ canContribute = false }) {
   const showSearchNoResults =
     !searchLoading && !searchError && trimmedSearch.length >= 2 && searchResults.length === 0;
 
+  const profileRegionId = React.useMemo(() => extractRegionId(profile), [profile]);
+  const profileRegionLabel = React.useMemo(
+    () => (profileRegionId ? translateRegion(t, profileRegionId) : ''),
+    [profileRegionId, t],
+  );
+
   const heading = React.useMemo(() => {
     if (!hasPlayerId) {
       return capitaliseWords(t.playerBrowseTitle || '');
     }
     if (playerDisplayName) {
-      return playerDisplayName;
+      return profileRegionLabel ? `[${profileRegionLabel}] ${playerDisplayName}` : playerDisplayName;
     }
     if (loading) {
       return capitaliseWords(t.playerLoadingTitle || '');
     }
     return capitaliseWords(t.playerNotFoundTitle || '');
-  }, [hasPlayerId, playerDisplayName, loading, t]);
+  }, [hasPlayerId, playerDisplayName, loading, profileRegionLabel, t]);
 
   const headingIconId = React.useMemo(() => {
     for (const dungeon of preparedDungeons) {
@@ -864,6 +884,22 @@ export default function Player({ canContribute = false }) {
                 autoComplete="off"
                 spellCheck="false"
               />
+              <div className="player-search-filters">
+                <label className="form-field player-search-region-field" htmlFor={regionFilterId}>
+                  <span>{t.playerSearchRegionLabel || 'Region'}</span>
+                  <select
+                    id={regionFilterId}
+                    value={regionFilter}
+                    onChange={handleRegionFilterChange}
+                  >
+                    {availableRegions.map((region) => (
+                      <option key={region || 'all'} value={region}>
+                        {region ? translateRegion(t, region) : t.regionFilterAll || 'All'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               {t.playerSearchHint ? (
                 <p className="player-search-hint">{t.playerSearchHint}</p>
               ) : null}

@@ -6,6 +6,7 @@ package com.opyruso.nwleaderboard.dto;
 public record IndividualRankingEntryResponse(
         Long playerId,
         String playerName,
+        String region,
         int points,
         int scorePoints,
         int timePoints) {}

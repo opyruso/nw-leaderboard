@@ -40,7 +40,7 @@ public class PlayerRepository implements PanacheRepository<Player> {
      * @param limit maximum number of results to return (values &lt;= 0 fall back to a sensible default)
      * @return ordered list of matching players
      */
-    public List<Player> searchByName(String rawQuery, int limit) {
+    public List<Player> searchByName(String rawQuery, int limit, String rawRegionId) {
         if (rawQuery == null) {
             return List.of();
         }
@@ -56,6 +56,17 @@ public class PlayerRepository implements PanacheRepository<Player> {
                 .replace("%", "\\%")
                 .replace("_", "\\_");
         String pattern = "%" + escaped.replace(' ', '%') + "%";
+
+        String regionId = normaliseRegionId(rawRegionId);
+        if (regionId != null) {
+            return new ArrayList<>(
+                    find(
+                                    "LOWER(playerName) LIKE ?1 ESCAPE '\\' AND region.id = ?2 ORDER BY LOWER(playerName) ASC",
+                                    pattern,
+                                    regionId)
+                            .range(0, safeLimit - 1)
+                            .list());
+        }
 
         return new ArrayList<>(find("LOWER(playerName) LIKE ?1 ESCAPE '\\' ORDER BY LOWER(playerName) ASC", pattern)
                 .range(0, safeLimit - 1)
@@ -118,5 +129,16 @@ public class PlayerRepository implements PanacheRepository<Player> {
             return List.of();
         }
         return list("id IN ?1", ids);
+    }
+
+    private String normaliseRegionId(String rawRegionId) {
+        if (rawRegionId == null) {
+            return null;
+        }
+        String trimmed = rawRegionId.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 }

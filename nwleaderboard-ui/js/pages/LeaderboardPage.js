@@ -12,6 +12,7 @@ import {
   getMutationIconSources,
 } from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
+import { translateRegion, extractRegionId } from '../regions.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
@@ -331,6 +332,7 @@ export default function LeaderboardPage({
           return {
             id: String(id),
             week: week ? String(week) : '',
+            region: extractRegionId(entry),
             players,
             value,
             position,
@@ -1153,7 +1155,12 @@ export default function LeaderboardPage({
               ) : null}
               <ul className="leaderboard-list">
                 {displayEntries.map((entry) => {
-                  const weekDisplay = entry.week || t.leaderboardUnknownWeek;
+                  const regionLabel = entry.region ? translateRegion(t, entry.region) : '';
+                  const weekDisplay = entry.week
+                    ? typeof t.leaderboardWeekLabel === 'function'
+                      ? t.leaderboardWeekLabel(entry.week)
+                      : entry.week
+                    : t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
                   const mutations = entry.mutations ?? extractMutationIds(entry.raw);
                   return (
@@ -1165,6 +1172,9 @@ export default function LeaderboardPage({
                             label={t.individualRankHeader}
                             className="leaderboard-rank-badge"
                           />
+                          {regionLabel ? (
+                            <span className="leaderboard-region">[{regionLabel}]</span>
+                          ) : null}
                           <span className="leaderboard-week">{weekDisplay}</span>
                         </div>
                         <span className="leaderboard-value">{valueDisplay}</span>
