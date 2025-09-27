@@ -1763,6 +1763,7 @@ export default function ContributeValidate() {
       setErrorKey('contributeRescanInvalid');
       return;
     }
+    const regionValue = resultRegion || selectedRegion || (regions.length ? regions[0] : '');
     setRescanning(true);
     try {
       const response = await fetch(`${API_BASE_URL}/contributor/scans/${selectedScanId}/rescan`, {
@@ -1770,7 +1771,7 @@ export default function ContributeValidate() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ offset: parsed }),
+        body: JSON.stringify({ offset: parsed, region: regionValue || null }),
       });
       let data = null;
       try {

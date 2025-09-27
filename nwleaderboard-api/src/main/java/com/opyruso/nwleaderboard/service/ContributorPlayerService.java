@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -86,6 +87,7 @@ public class ContributorPlayerService {
                 player.setPlayerName(cleaned);
                 return new RenameResult(buildSummary(player), null);
             }
+            ensureSameRegionForMerge(player, target);
             mergePlayers(player, target);
             return new RenameResult(buildSummary(target), player.getId());
         }
@@ -136,6 +138,21 @@ public class ContributorPlayerService {
             dependant.setMainCharacter(resolved);
         }
         return buildSummary(player);
+    }
+
+    private void ensureSameRegionForMerge(Player source, Player target) {
+        String sourceRegion = normaliseRegionId(source);
+        String targetRegion = normaliseRegionId(target);
+        if (!Objects.equals(sourceRegion, targetRegion)) {
+            throw new ContributorPlayerException("Players must belong to the same region to be merged");
+        }
+    }
+
+    private String normaliseRegionId(Player player) {
+        if (player == null || player.getRegion() == null || player.getRegion().getId() == null) {
+            return null;
+        }
+        return player.getRegion().getId().strip().toUpperCase(Locale.ROOT);
     }
 
     private void mergePlayers(Player source, Player target) {

@@ -244,7 +244,8 @@ public class ContributorResource {
         }
         try {
             ContributionScanDetailDto detail = extractionService.rescanStoredScan(id,
-                    request != null ? request.offset() : null);
+                    request != null ? request.offset() : null,
+                    request != null ? request.region() : null);
             if (detail == null) {
                 return Response.status(Status.NOT_FOUND)
                         .entity(new ApiMessageResponse("Scan not found", null))
