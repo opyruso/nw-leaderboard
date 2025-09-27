@@ -1,5 +1,6 @@
 package com.opyruso.nwleaderboard.repository;
 
+import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
@@ -134,11 +135,21 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
      * @param score achieved score
      * @return list of matching runs or an empty list when no run matches the criteria
      */
-    public List<RunScore> listByDungeonWeekAndScore(Long dungeonId, Integer week, Integer score) {
+    public List<RunScore> listByDungeonWeekAndScore(Long dungeonId, Integer week, Integer score, Region region) {
         if (dungeonId == null || week == null || score == null) {
             return List.of();
         }
-        return find("dungeon.id = ?1 AND week = ?2 AND score = ?3", dungeonId, week, score).list();
+        String regionId = region != null ? region.getId() : null;
+        if (regionId == null || regionId.isBlank()) {
+            return find("dungeon.id = ?1 AND week = ?2 AND score = ?3", dungeonId, week, score).list();
+        }
+        return find(
+                        "dungeon.id = :dungeonId AND week = :week AND score = :score AND region.id = :region",
+                        Parameters.with("dungeonId", dungeonId)
+                                .and("week", week)
+                                .and("score", score)
+                                .and("region", regionId))
+                .list();
     }
 
     /**

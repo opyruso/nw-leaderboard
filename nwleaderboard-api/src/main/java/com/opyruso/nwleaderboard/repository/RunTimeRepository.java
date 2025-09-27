@@ -1,5 +1,6 @@
 package com.opyruso.nwleaderboard.repository;
 
+import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
@@ -134,11 +135,21 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
      * @param time duration in seconds
      * @return list of matching runs or an empty list when no run matches the criteria
      */
-    public List<RunTime> listByDungeonWeekAndTime(Long dungeonId, Integer week, Integer time) {
+    public List<RunTime> listByDungeonWeekAndTime(Long dungeonId, Integer week, Integer time, Region region) {
         if (dungeonId == null || week == null || time == null) {
             return List.of();
         }
-        return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+        String regionId = region != null ? region.getId() : null;
+        if (regionId == null || regionId.isBlank()) {
+            return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+        }
+        return find(
+                        "dungeon.id = :dungeonId AND week = :week AND timeInSecond = :time AND region.id = :region",
+                        Parameters.with("dungeonId", dungeonId)
+                                .and("week", week)
+                                .and("time", time)
+                                .and("region", regionId))
+                .list();
     }
 
     /**

@@ -29,6 +29,10 @@ public class RunTime extends Auditable {
     @JoinColumn(name = "id_dungeon", nullable = false)
     private Dungeon dungeon;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_region", nullable = false, columnDefinition = "VARCHAR(3) DEFAULT 'EUC'")
+    private Region region;
+
     @Column(name = "time_in_second", nullable = false)
     private Integer timeInSecond;
 
@@ -54,6 +58,14 @@ public class RunTime extends Auditable {
 
     public void setDungeon(Dungeon dungeon) {
         this.dungeon = dungeon;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public void setRegion(Region region) {
+        this.region = region;
     }
 
     public Integer getTimeInSecond() {

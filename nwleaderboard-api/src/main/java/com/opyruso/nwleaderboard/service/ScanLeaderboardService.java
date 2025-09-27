@@ -38,6 +38,9 @@ public class ScanLeaderboardService {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    RegionService regionService;
+
     @Transactional
     public void storeScan(BufferedImage image, byte[] picture, ContributionExtractionResponseDto extraction,
             Integer weekCandidate, Long dungeonIdCandidate, String leaderboardTypeCandidate) {
@@ -52,6 +55,7 @@ public class ScanLeaderboardService {
         scan.setDungeonId(Optional.ofNullable(dungeonIdCandidate).orElse(0L));
         scan.setLeaderboardType(normalizeLeaderboardType(leaderboardTypeCandidate));
         scan.setExtractData(writeExtraction(extraction));
+        scan.setRegion(regionService.requireDefaultRegion());
         repository.persist(scan);
     }
 
@@ -92,6 +96,9 @@ public class ScanLeaderboardService {
         ScanLeaderboard scan = repository.findById(id);
         if (scan == null) {
             return null;
+        }
+        if (scan.getRegion() == null) {
+            scan.setRegion(regionService.requireDefaultRegion());
         }
         if (extraction != null) {
             scan.setExtractData(writeExtraction(extraction));
