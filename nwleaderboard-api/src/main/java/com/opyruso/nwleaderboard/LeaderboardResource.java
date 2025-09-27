@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardPageResponse;
 import com.opyruso.nwleaderboard.dto.IndividualRankingEntryResponse;
 import com.opyruso.nwleaderboard.service.IndividualRankingService;
 import com.opyruso.nwleaderboard.service.LeaderboardService;
@@ -31,26 +32,40 @@ public class LeaderboardResource {
 
     @GET
     @Path("/score")
-    public Response getScore(@QueryParam("dungeonId") Long dungeonId, @QueryParam("limit") Integer limit) {
+    public Response getScore(
+            @QueryParam("dungeonId") Long dungeonId,
+            @QueryParam("page") Integer page,
+            @QueryParam("pageSize") Integer pageSize,
+            @QueryParam("mutationType") List<String> mutationTypeIds,
+            @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
+            @QueryParam("mutationCurse") List<String> mutationCurseIds) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
-        List<LeaderboardEntryResponse> entries = leaderboardService.getScoreEntries(dungeonId, limit);
-        return Response.ok(entries).build();
+        LeaderboardPageResponse response = leaderboardService.getScoreEntries(
+                dungeonId, page, pageSize, mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        return Response.ok(response).build();
     }
 
     @GET
     @Path("/time")
-    public Response getTime(@QueryParam("dungeonId") Long dungeonId, @QueryParam("limit") Integer limit) {
+    public Response getTime(
+            @QueryParam("dungeonId") Long dungeonId,
+            @QueryParam("page") Integer page,
+            @QueryParam("pageSize") Integer pageSize,
+            @QueryParam("mutationType") List<String> mutationTypeIds,
+            @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
+            @QueryParam("mutationCurse") List<String> mutationCurseIds) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
-        List<LeaderboardEntryResponse> entries = leaderboardService.getTimeEntries(dungeonId, limit);
-        return Response.ok(entries).build();
+        LeaderboardPageResponse response = leaderboardService.getTimeEntries(
+                dungeonId, page, pageSize, mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        return Response.ok(response).build();
     }
 
     @GET

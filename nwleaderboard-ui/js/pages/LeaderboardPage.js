@@ -17,7 +17,8 @@ import { capitaliseWords } from '../text.js';
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
-const PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = Object.freeze([25, 50, 100]);
 const MUTATION_FILTER_KEYS = ['type', 'promotion', 'curse'];
 
 function createEmptyMutationFilters() {
@@ -124,10 +125,16 @@ export default function LeaderboardPage({
   const [entriesError, setEntriesError] = React.useState(false);
   const [mutationFilters, setMutationFilters] = React.useState(() => createEmptyMutationFilters());
   const [isDungeonCollapsed, setIsDungeonCollapsed] = React.useState(false);
-  const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(false);
+  const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(true);
+  const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
+  const [requestedPage, setRequestedPage] = React.useState(1);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageInputValue, setPageInputValue] = React.useState('1');
+  const [totalEntries, setTotalEntries] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
   const mutationIconCache = React.useRef(new Map());
+  const filtersInitialisedRef = React.useRef(false);
+  const hasUserAdjustedFiltersRef = React.useRef(false);
 
   React.useEffect(() => {
     let active = true;
@@ -171,7 +178,14 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
-      setSelectedDungeon((previous) => (previous === null ? previous : null));
+      setSelectedDungeon((previous) => {
+        if (previous === null) {
+          return previous;
+        }
+        filtersInitialisedRef.current = false;
+        hasUserAdjustedFiltersRef.current = false;
+        return null;
+      });
       return;
     }
     setSelectedDungeon((previous) => {
@@ -179,7 +193,12 @@ export default function LeaderboardPage({
         return previous;
       }
       const [first] = sortDungeons(dungeons, lang);
-      return first ? first.id : null;
+      const nextId = first ? first.id : null;
+      if (nextId !== previous) {
+        filtersInitialisedRef.current = false;
+        hasUserAdjustedFiltersRef.current = false;
+      }
+      return nextId;
     });
   }, [dungeons, lang]);
 
@@ -188,6 +207,9 @@ export default function LeaderboardPage({
       setEntries([]);
       setEntriesLoading(false);
       setEntriesError(false);
+      setTotalEntries(0);
+      setTotalPages(1);
+      setCurrentPage(1);
       return;
     }
 
@@ -196,9 +218,45 @@ export default function LeaderboardPage({
     setEntriesLoading(true);
     setEntriesError(false);
 
-    const url = `${API_BASE_URL}/leaderboard/${mode}?dungeonId=${encodeURIComponent(selectedDungeon)}`;
+    const params = new URLSearchParams();
+    params.set('dungeonId', String(selectedDungeon));
+    const requested = Number.isFinite(Number(requestedPage)) ? Math.max(1, Number(requestedPage)) : 1;
+    params.set('page', String(requested));
+    params.set('pageSize', String(pageSize));
 
-    fetch(url, { signal: controller.signal })
+    const filterParamMap = {
+      type: 'mutationType',
+      promotion: 'mutationPromotion',
+      curse: 'mutationCurse',
+    };
+    const filtersReady = filtersInitialisedRef.current;
+
+    MUTATION_FILTER_KEYS.forEach((key) => {
+      const paramName = filterParamMap[key];
+      const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+      if (!paramName || available.length === 0) {
+        return;
+      }
+      const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
+      const uniqueSelected = Array.from(
+        new Set(selected.map((value) => (typeof value === 'string' ? value : String(value)))),
+      );
+      const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
+      if (!filtersReady) {
+        return;
+      }
+      const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
+      if (!shouldFilter) {
+        return;
+      }
+      if (sanitisedSelected.length === 0) {
+        params.append(paramName, '');
+        return;
+      }
+      sanitisedSelected.forEach((value) => params.append(paramName, value));
+    });
+
+    fetch(`${API_BASE_URL}/leaderboard/${mode}?${params.toString()}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to load leaderboard: ${response.status}`);
@@ -209,8 +267,35 @@ export default function LeaderboardPage({
         if (!active) {
           return;
         }
-        const safeArray = Array.isArray(data) ? data : [];
-        const normalisedEntries = safeArray.map((entry, index) => {
+        const entriesData = Array.isArray(data?.entries) ? data.entries : [];
+        const responsePage = Number(data?.page);
+        const responsePageSize = Number(data?.pageSize);
+        const responseTotal = Number(data?.totalEntries);
+        const responseTotalPages = Number(data?.totalPages);
+
+        const safePageSize = Number.isFinite(responsePageSize) && responsePageSize > 0
+          ? responsePageSize
+          : pageSize;
+        if (safePageSize !== pageSize) {
+          setPageSize(safePageSize);
+        }
+
+        const safeTotalEntries = Number.isFinite(responseTotal) && responseTotal >= 0
+          ? responseTotal
+          : entriesData.length;
+        setTotalEntries(safeTotalEntries);
+
+        const computedTotalPages = Number.isFinite(responseTotalPages) && responseTotalPages >= 1
+          ? Math.floor(responseTotalPages)
+          : Math.max(Math.ceil(safeTotalEntries / Math.max(safePageSize, 1)), 1);
+        setTotalPages(computedTotalPages);
+
+        const safePage = Number.isFinite(responsePage) && responsePage >= 1
+          ? Math.floor(responsePage)
+          : Math.max(1, requested);
+        setCurrentPage((previous) => (previous === safePage ? previous : safePage));
+
+        const normalisedEntries = entriesData.map((entry, index) => {
           const value = getValue(entry);
           const players = normalisePlayers(entry);
           const week = deriveWeek(entry);
@@ -244,6 +329,8 @@ export default function LeaderboardPage({
         console.error('Unable to load leaderboard entries', error);
         setEntriesError(true);
         setEntries([]);
+        setTotalEntries(0);
+        setTotalPages(1);
       })
       .finally(() => {
         if (active) {
@@ -255,12 +342,15 @@ export default function LeaderboardPage({
       active = false;
       controller.abort();
     };
-  }, [mode, selectedDungeon, getValue]);
+  }, [mode, selectedDungeon, getValue, requestedPage, pageSize, mutationFilters, mutationOptions]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
   React.useEffect(() => {
-    setMutationFilters(createEmptyMutationFilters());
+    filtersInitialisedRef.current = false;
+    hasUserAdjustedFiltersRef.current = false;
+    setRequestedPage(1);
+    setCurrentPage(1);
   }, [selectedDungeon]);
 
   const mutationOptions = React.useMemo(() => {
@@ -279,35 +369,45 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     setMutationFilters((previous) => {
-      if (!previous || typeof previous !== 'object') {
-        return previous;
-      }
+      const safePrevious =
+        previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
 
       let changed = false;
-      const next = { ...previous };
+      const next = {};
 
       MUTATION_FILTER_KEYS.forEach((key) => {
         const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
-        const currentValues = Array.isArray(next[key]) ? next[key] : [];
-        if (currentValues.length === 0) {
-          if (!Array.isArray(next[key])) {
-            next[key] = [];
-            changed = true;
+        const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
+        const uniqueValues = Array.from(
+          new Set(
+            currentValues.map((value) => (typeof value === 'string' ? value : String(value))),
+          ),
+        );
+        let finalValues = uniqueValues.filter((value) => available.includes(value));
+
+        if ((!filtersInitialisedRef.current || !hasUserAdjustedFiltersRef.current) && available.length > 0) {
+          if (finalValues.length !== available.length) {
+            finalValues = available.slice();
           }
-          return;
         }
-        const filteredValues = currentValues.filter((value) => available.includes(value));
-        if (filteredValues.length !== currentValues.length) {
-          next[key] = filteredValues;
+
+        if (
+          finalValues.length !== currentValues.length ||
+          finalValues.some((value, index) => value !== currentValues[index])
+        ) {
           changed = true;
         }
+
+        next[key] = finalValues;
       });
 
-      return changed ? next : previous;
+      filtersInitialisedRef.current = true;
+      return changed ? next : safePrevious;
     });
-  }, [mutationOptions]);
+  }, [mutationOptions, selectedDungeon]);
 
   React.useEffect(() => {
+    setRequestedPage(1);
     setCurrentPage(1);
   }, [selectedDungeon, mutationFilters]);
 
@@ -316,16 +416,18 @@ export default function LeaderboardPage({
       return;
     }
 
+    hasUserAdjustedFiltersRef.current = true;
     setMutationFilters((previous) => {
       const safePrevious =
         previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
       const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
-      const hasValue = currentValues.includes(value);
+      const normalisedValue = typeof value === 'string' ? value : String(value);
+      const hasValue = currentValues.includes(normalisedValue);
       let nextValues;
       if (hasValue) {
-        nextValues = currentValues.filter((item) => item !== value);
+        nextValues = currentValues.filter((item) => item !== normalisedValue);
       } else {
-        nextValues = currentValues.concat(value);
+        nextValues = currentValues.concat(normalisedValue);
       }
 
       if (nextValues.length === currentValues.length && hasValue) {
@@ -335,7 +437,8 @@ export default function LeaderboardPage({
         return safePrevious;
       }
 
-      return { ...safePrevious, [key]: nextValues };
+      const uniqueValues = Array.from(new Set(nextValues));
+      return { ...safePrevious, [key]: uniqueValues };
     });
   }, []);
 
@@ -667,14 +770,16 @@ export default function LeaderboardPage({
     return copy;
   }, [filteredEntries, getSortValue, sortDirection]);
 
-  const sortedEntriesLength = sortedEntries.length;
-  const totalPages = Math.max(1, Math.ceil(sortedEntriesLength / PAGE_SIZE));
-  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
 
   React.useEffect(() => {
     setCurrentPage((previous) => {
-      const clamped = Math.min(Math.max(previous, 1), totalPages);
-      return clamped;
+      const clamped = Math.min(Math.max(previous, 1), Math.max(totalPages, 1));
+      if (clamped !== previous) {
+        setRequestedPage(clamped);
+        return clamped;
+      }
+      return previous;
     });
   }, [totalPages]);
 
@@ -685,36 +790,62 @@ export default function LeaderboardPage({
     });
   }, [safeCurrentPage]);
 
-  const paginatedEntries = React.useMemo(() => {
-    if (sortedEntriesLength === 0) {
-      return [];
-    }
-    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
-    return sortedEntries.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [safeCurrentPage, sortedEntries, sortedEntriesLength]);
+  const displayEntries = sortedEntries;
 
   const isFirstPage = safeCurrentPage <= 1;
-  const isLastPage = safeCurrentPage >= totalPages;
+  const isLastPage = safeCurrentPage >= Math.max(totalPages, 1);
+
+  const requestPageChange = React.useCallback(
+    (nextPage) => {
+      const clamped = Math.min(Math.max(nextPage, 1), Math.max(totalPages, 1));
+      setRequestedPage(clamped);
+      setCurrentPage(clamped);
+    },
+    [totalPages],
+  );
+
+  const handlePageSizeChange = React.useCallback(
+    (event) => {
+      const value = Number(event?.target?.value ?? DEFAULT_PAGE_SIZE);
+      const candidate = Number.isFinite(value) ? Math.floor(value) : DEFAULT_PAGE_SIZE;
+      const allowed = PAGE_SIZE_OPTIONS.includes(candidate) ? candidate : DEFAULT_PAGE_SIZE;
+      if (allowed === pageSize) {
+        return;
+      }
+      setPageSize(allowed);
+      setRequestedPage(1);
+      setCurrentPage(1);
+    },
+    [pageSize],
+  );
 
   const handleSelectDungeon = React.useCallback((dungeonId) => {
-    setSelectedDungeon(dungeonId);
+    setSelectedDungeon((previous) => {
+      const nextId = dungeonId ?? null;
+      if (previous === nextId) {
+        return previous;
+      }
+      filtersInitialisedRef.current = false;
+      hasUserAdjustedFiltersRef.current = false;
+      return nextId;
+    });
   }, []);
 
   const handleFirstPage = React.useCallback(() => {
-    setCurrentPage(1);
-  }, []);
+    requestPageChange(1);
+  }, [requestPageChange]);
 
   const handlePreviousPage = React.useCallback(() => {
-    setCurrentPage((previous) => Math.max(1, previous - 1));
-  }, []);
+    requestPageChange(safeCurrentPage - 1);
+  }, [requestPageChange, safeCurrentPage]);
 
   const handleNextPage = React.useCallback(() => {
-    setCurrentPage((previous) => Math.min(totalPages, previous + 1));
-  }, [totalPages]);
+    requestPageChange(safeCurrentPage + 1);
+  }, [requestPageChange, safeCurrentPage]);
 
   const handleLastPage = React.useCallback(() => {
-    setCurrentPage(totalPages);
-  }, [totalPages]);
+    requestPageChange(totalPages);
+  }, [requestPageChange, totalPages]);
 
   const handlePageInputChange = React.useCallback((event) => {
     const value = event?.target?.value ?? '';
@@ -733,10 +864,10 @@ export default function LeaderboardPage({
       setPageInputValue(String(safeCurrentPage));
       return;
     }
-    const nextPage = Math.min(Math.max(Math.floor(numeric), 1), totalPages);
-    setCurrentPage(nextPage);
+    const nextPage = Math.min(Math.max(Math.floor(numeric), 1), Math.max(totalPages, 1));
+    requestPageChange(nextPage);
     setPageInputValue(String(nextPage));
-  }, [pageInputValue, safeCurrentPage, totalPages]);
+  }, [pageInputValue, requestPageChange, safeCurrentPage, totalPages]);
 
   const handlePageInputBlur = React.useCallback(() => {
     commitPageInput();
@@ -1015,7 +1146,7 @@ export default function LeaderboardPage({
                 </div>
               ) : null}
               <ul className="leaderboard-list">
-                {paginatedEntries.map((entry) => {
+                {displayEntries.map((entry) => {
                   const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
                   const mutations = entry.mutations ?? extractMutationIds(entry.raw);
@@ -1074,6 +1205,23 @@ export default function LeaderboardPage({
                 className="leaderboard-pagination"
                 aria-label={t.leaderboardPaginationLabel}
               >
+                <div className="leaderboard-page-size">
+                  <label className="leaderboard-page-size-label" htmlFor={`${mode}-page-size`}>
+                    {t.leaderboardPageSizeLabel}
+                  </label>
+                  <select
+                    id={`${mode}-page-size`}
+                    className="leaderboard-page-size-select"
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
+                  >
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   className="leaderboard-pagination-button"
@@ -1091,9 +1239,9 @@ export default function LeaderboardPage({
                   {t.leaderboardPaginationPrevious}
                 </button>
                 <div className="leaderboard-pagination-status">
-                  <span className="leaderboard-pagination-page-label">
-                    {t.leaderboardPaginationPageLabel}
-                  </span>
+                <span className="leaderboard-pagination-page-label">
+                  {t.leaderboardPaginationPageLabel}
+                </span>
                   <label className="leaderboard-pagination-input" htmlFor={`${mode}-page-input`}>
                     <span className="visually-hidden">{t.leaderboardPaginationInputLabel}</span>
                     <input
@@ -1107,8 +1255,8 @@ export default function LeaderboardPage({
                       onKeyDown={handlePageInputKeyDown}
                     />
                   </label>
-                  <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
-                  <span className="leaderboard-pagination-total">{totalPages}</span>
+                <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
+                <span className="leaderboard-pagination-total">{Math.max(totalPages, 1)}</span>
                 </div>
                 <button
                   type="button"

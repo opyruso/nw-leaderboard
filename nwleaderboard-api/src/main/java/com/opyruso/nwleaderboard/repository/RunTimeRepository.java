@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard.repository;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
+import io.quarkus.panache.common.Parameters;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.NoResultException;
 import java.util.Collection;
@@ -42,6 +43,38 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
         return find("dungeon.id = ?1 ORDER BY timeInSecond ASC, week DESC, id ASC", dungeonId)
                 .page(Page.of(pageIndex, pageSize))
                 .list();
+    }
+
+    public List<RunTime> listByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, int pageIndex, int pageSize) {
+        if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
+            return List.of();
+        }
+        if (weeks != null && weeks.isEmpty()) {
+            return List.of();
+        }
+        if (weeks == null) {
+            return find("dungeon.id = ?1 ORDER BY timeInSecond ASC, week DESC, id ASC", dungeonId)
+                    .page(Page.of(pageIndex, pageSize))
+                    .list();
+        }
+        return find(
+                        "dungeon.id = :dungeonId AND week IN :weeks ORDER BY timeInSecond ASC, week DESC, id ASC",
+                        Parameters.with("dungeonId", dungeonId).and("weeks", weeks))
+                .page(Page.of(pageIndex, pageSize))
+                .list();
+    }
+
+    public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks) {
+        if (dungeonId == null) {
+            return 0L;
+        }
+        if (weeks != null && weeks.isEmpty()) {
+            return 0L;
+        }
+        if (weeks == null) {
+            return count("dungeon.id = ?1", dungeonId);
+        }
+        return count("dungeon.id = :dungeonId AND week IN :weeks", Parameters.with("dungeonId", dungeonId).and("weeks", weeks));
     }
 
     /**

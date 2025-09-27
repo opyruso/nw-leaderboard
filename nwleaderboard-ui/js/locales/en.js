@@ -291,6 +291,7 @@ const en = {
   leaderboardPaginationPageLabel: 'Page',
   leaderboardPaginationInputLabel: 'Current page',
   leaderboardPaginationSeparator: 'of',
+  leaderboardPageSizeLabel: 'Runs per page',
   playerLoadingTitle: 'Loading player…',
   playerNotFoundTitle: 'Player unavailable',
   playerBrowseTitle: 'Player profiles',

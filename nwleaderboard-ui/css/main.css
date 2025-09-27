@@ -1308,6 +1308,35 @@ body[data-theme='light'] .leaderboard-chart {
   flex-wrap: wrap;
 }
 
+.leaderboard-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  font-size: 0.95rem;
+}
+
+.leaderboard-page-size-label {
+  font-weight: 500;
+}
+
+.leaderboard-page-size-select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.35);
+  color: inherit;
+  font: inherit;
+  min-width: 4.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.leaderboard-page-size-select:focus-visible {
+  outline: none;
+  border-color: rgba(124, 92, 255, 0.6);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.2);
+}
+
 .leaderboard-pagination-button {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
@@ -1389,6 +1418,12 @@ body[data-theme='light'] .leaderboard-pagination-button:not(:disabled):focus-vis
 body[data-theme='light'] .leaderboard-pagination-input input {
   background: rgba(255, 255, 255, 0.85);
   border-color: rgba(148, 163, 184, 0.45);
+}
+
+body[data-theme='light'] .leaderboard-page-size-select {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: inherit;
 }
 
 .leaderboard-run {

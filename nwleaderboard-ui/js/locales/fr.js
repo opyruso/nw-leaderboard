@@ -296,6 +296,7 @@ const fr = {
   leaderboardPaginationPageLabel: 'Page',
   leaderboardPaginationInputLabel: 'Page actuelle',
   leaderboardPaginationSeparator: 'sur',
+  leaderboardPageSizeLabel: 'Runs par page',
   playerLoadingTitle: 'Chargement du joueur…',
   playerNotFoundTitle: 'Joueur indisponible',
   playerBrowseTitle: 'Profils des joueurs',
