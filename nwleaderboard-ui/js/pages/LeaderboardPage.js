@@ -574,13 +574,15 @@ export default function LeaderboardPage({
                   const mutations = extractMutationIds(entry.raw);
                   return (
                     <li key={entry.id} className="leaderboard-run">
-                      <RankBadge
-                        position={entry.position ?? entry.raw?.position}
-                        label={t.individualRankHeader}
-                        className="leaderboard-rank-badge"
-                      />
                       <div className="leaderboard-run-header">
-                        <span className="leaderboard-week">{weekDisplay}</span>
+                        <div className="leaderboard-week-row">
+                          <RankBadge
+                            position={entry.position ?? entry.raw?.position}
+                            label={t.individualRankHeader}
+                            className="leaderboard-rank-badge"
+                          />
+                          <span className="leaderboard-week">{weekDisplay}</span>
+                        </div>
                         <span className="leaderboard-value">{valueDisplay}</span>
                       </div>
                       <ul className="leaderboard-player-grid">
