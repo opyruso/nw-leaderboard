@@ -4,13 +4,25 @@ import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
-import { extractMutationIds, getMutationIconSources } from '../mutations.js';
+import {
+  extractMutationIds,
+  getAllMutationCurseIds,
+  getAllMutationPromotionIds,
+  getAllMutationTypeIds,
+  getMutationIconSources,
+} from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
+const PAGE_SIZE = 50;
+const MUTATION_FILTER_KEYS = ['type', 'promotion', 'curse'];
+
+function createEmptyMutationFilters() {
+  return { type: [], promotion: [], curse: [] };
+}
 
 function normalisePlayers(entry) {
   const { players, members, team, squad, group, party } = entry || {};
@@ -110,13 +122,11 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
-  const [mutationFilters, setMutationFilters] = React.useState({
-    type: '',
-    promotion: '',
-    curse: '',
-  });
+  const [mutationFilters, setMutationFilters] = React.useState(() => createEmptyMutationFilters());
   const [isDungeonCollapsed, setIsDungeonCollapsed] = React.useState(false);
   const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageInputValue, setPageInputValue] = React.useState('1');
   const mutationIconCache = React.useRef(new Map());
 
   React.useEffect(() => {
@@ -250,77 +260,82 @@ export default function LeaderboardPage({
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
   React.useEffect(() => {
-    setMutationFilters({ type: '', promotion: '', curse: '' });
+    setMutationFilters(createEmptyMutationFilters());
   }, [selectedDungeon]);
 
   const mutationOptions = React.useMemo(() => {
-    if (!Array.isArray(entries) || entries.length === 0) {
-      return { types: [], promotions: [], curses: [] };
-    }
-
-    const typeSet = new Set();
-    const promotionSet = new Set();
-    const curseSet = new Set();
-
-    entries.forEach((entry) => {
-      const mutations = entry?.mutations;
-      if (!mutations) {
-        return;
-      }
-      const { typeId, promotionId, curseId } = mutations;
-      if (typeId) {
-        typeSet.add(typeId);
-      }
-      if (promotionId) {
-        promotionSet.add(promotionId);
-      }
-      if (curseId) {
-        curseSet.add(curseId);
-      }
-    });
-
     const sortOptions = (values) =>
-      Array.from(values).sort((left, right) =>
-        String(left).localeCompare(String(right), undefined, { sensitivity: 'base' }),
-      );
+      values
+        .map((value) => String(value).trim())
+        .filter((value) => value.length > 0)
+        .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
 
     return {
-      types: sortOptions(typeSet),
-      promotions: sortOptions(promotionSet),
-      curses: sortOptions(curseSet),
+      type: sortOptions(getAllMutationTypeIds()),
+      promotion: sortOptions(getAllMutationPromotionIds()),
+      curse: sortOptions(getAllMutationCurseIds()),
     };
-  }, [entries]);
+  }, []);
 
   React.useEffect(() => {
     setMutationFilters((previous) => {
-      if (!previous) {
+      if (!previous || typeof previous !== 'object') {
         return previous;
       }
+
       let changed = false;
       const next = { ...previous };
-      if (next.type && !mutationOptions.types.includes(next.type)) {
-        next.type = '';
-        changed = true;
-      }
-      if (next.promotion && !mutationOptions.promotions.includes(next.promotion)) {
-        next.promotion = '';
-        changed = true;
-      }
-      if (next.curse && !mutationOptions.curses.includes(next.curse)) {
-        next.curse = '';
-        changed = true;
-      }
+
+      MUTATION_FILTER_KEYS.forEach((key) => {
+        const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+        const currentValues = Array.isArray(next[key]) ? next[key] : [];
+        if (currentValues.length === 0) {
+          if (!Array.isArray(next[key])) {
+            next[key] = [];
+            changed = true;
+          }
+          return;
+        }
+        const filteredValues = currentValues.filter((value) => available.includes(value));
+        if (filteredValues.length !== currentValues.length) {
+          next[key] = filteredValues;
+          changed = true;
+        }
+      });
+
       return changed ? next : previous;
     });
   }, [mutationOptions]);
 
-  const handleMutationFilterChange = React.useCallback((key, value) => {
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDungeon, mutationFilters]);
+
+  const handleMutationFilterToggle = React.useCallback((key, value) => {
+    if (!MUTATION_FILTER_KEYS.includes(key)) {
+      return;
+    }
+
     setMutationFilters((previous) => {
-      const safePrevious = previous || { type: '', promotion: '', curse: '' };
-      if ((safePrevious[key] || '') === value) {
+      const safePrevious =
+        previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
+      const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
+      const hasValue = currentValues.includes(value);
+      let nextValues;
+      if (hasValue) {
+        nextValues = currentValues.filter((item) => item !== value);
+      } else {
+        nextValues = currentValues.concat(value);
+      }
+
+      if (nextValues.length === currentValues.length && hasValue) {
         return safePrevious;
       }
-      return { ...safePrevious, [key]: value };
+      if (!hasValue && nextValues.length === currentValues.length) {
+        return safePrevious;
+      }
+
+      return { ...safePrevious, [key]: nextValues };
     });
   }, []);
 
@@ -355,23 +370,33 @@ export default function LeaderboardPage({
       return [];
     }
 
-    const { type, promotion, curse } = mutationFilters;
-    if (!type && !promotion && !curse) {
+    const typeFilters = Array.isArray(mutationFilters?.type) ? mutationFilters.type : [];
+    const promotionFilters = Array.isArray(mutationFilters?.promotion)
+      ? mutationFilters.promotion
+      : [];
+    const curseFilters = Array.isArray(mutationFilters?.curse) ? mutationFilters.curse : [];
+
+    const hasTypeFilter = typeFilters.length > 0;
+    const hasPromotionFilter = promotionFilters.length > 0;
+    const hasCurseFilter = curseFilters.length > 0;
+
+    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter) {
       return entries;
     }
 
     return entries.filter((entry) => {
       const mutations = entry?.mutations ?? extractMutationIds(entry?.raw);
-      const typeId = mutations?.typeId || '';
-      const promotionId = mutations?.promotionId || '';
-      const curseId = mutations?.curseId || '';
-      if (type && type !== typeId) {
+      const typeId = mutations?.typeId ? String(mutations.typeId) : '';
+      const promotionId = mutations?.promotionId ? String(mutations.promotionId) : '';
+      const curseId = mutations?.curseId ? String(mutations.curseId) : '';
+
+      if (hasTypeFilter && !typeFilters.includes(typeId)) {
         return false;
       }
-      if (promotion && promotion !== promotionId) {
+      if (hasPromotionFilter && !promotionFilters.includes(promotionId)) {
         return false;
       }
-      if (curse && curse !== curseId) {
+      if (hasCurseFilter && !curseFilters.includes(curseId)) {
         return false;
       }
       return true;
@@ -642,18 +667,97 @@ export default function LeaderboardPage({
     return copy;
   }, [filteredEntries, getSortValue, sortDirection]);
 
+  const sortedEntriesLength = sortedEntries.length;
+  const totalPages = Math.max(1, Math.ceil(sortedEntriesLength / PAGE_SIZE));
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+  React.useEffect(() => {
+    setCurrentPage((previous) => {
+      const clamped = Math.min(Math.max(previous, 1), totalPages);
+      return clamped;
+    });
+  }, [totalPages]);
+
+  React.useEffect(() => {
+    setPageInputValue((previous) => {
+      const nextValue = String(safeCurrentPage);
+      return previous === nextValue ? previous : nextValue;
+    });
+  }, [safeCurrentPage]);
+
+  const paginatedEntries = React.useMemo(() => {
+    if (sortedEntriesLength === 0) {
+      return [];
+    }
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+    return sortedEntries.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [safeCurrentPage, sortedEntries, sortedEntriesLength]);
+
+  const isFirstPage = safeCurrentPage <= 1;
+  const isLastPage = safeCurrentPage >= totalPages;
+
   const handleSelectDungeon = React.useCallback((dungeonId) => {
     setSelectedDungeon(dungeonId);
   }, []);
 
+  const handleFirstPage = React.useCallback(() => {
+    setCurrentPage(1);
+  }, []);
+
+  const handlePreviousPage = React.useCallback(() => {
+    setCurrentPage((previous) => Math.max(1, previous - 1));
+  }, []);
+
+  const handleNextPage = React.useCallback(() => {
+    setCurrentPage((previous) => Math.min(totalPages, previous + 1));
+  }, [totalPages]);
+
+  const handleLastPage = React.useCallback(() => {
+    setCurrentPage(totalPages);
+  }, [totalPages]);
+
+  const handlePageInputChange = React.useCallback((event) => {
+    const value = event?.target?.value ?? '';
+    const digitsOnly = typeof value === 'string' ? value.replace(/[^0-9]/g, '') : '';
+    setPageInputValue(digitsOnly);
+  }, []);
+
+  const commitPageInput = React.useCallback(() => {
+    const trimmed = (pageInputValue || '').trim();
+    if (trimmed.length === 0) {
+      setPageInputValue(String(safeCurrentPage));
+      return;
+    }
+    const numeric = Number(trimmed);
+    if (!Number.isFinite(numeric)) {
+      setPageInputValue(String(safeCurrentPage));
+      return;
+    }
+    const nextPage = Math.min(Math.max(Math.floor(numeric), 1), totalPages);
+    setCurrentPage(nextPage);
+    setPageInputValue(String(nextPage));
+  }, [pageInputValue, safeCurrentPage, totalPages]);
+
+  const handlePageInputBlur = React.useCallback(() => {
+    commitPageInput();
+  }, [commitPageInput]);
+
+  const handlePageInputKeyDown = React.useCallback(
+    (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitPageInput();
+      }
+    },
+    [commitPageInput],
+  );
+
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
 
   const hasMutationData =
-    mutationOptions.types.length > 0 ||
-    mutationOptions.promotions.length > 0 ||
-    mutationOptions.curses.length > 0;
-  const showMutationEmptyMessage =
-    Boolean(selectedDungeon) && !entriesLoading && !entriesError && !hasMutationData;
+    mutationOptions.type.length > 0 ||
+    mutationOptions.promotion.length > 0 ||
+    mutationOptions.curse.length > 0;
   const mutationPanelId = React.useMemo(() => `${mode}-mutation-filter`, [mode]);
   const dungeonPanelId = React.useMemo(() => `${mode}-dungeon-list`, [mode]);
 
@@ -666,193 +770,193 @@ export default function LeaderboardPage({
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
           <section className="leaderboard-sidebar-section">
-            <h2 className="leaderboard-sidebar-title">
-              <button
-                type="button"
-                className="leaderboard-sidebar-toggle"
-                aria-expanded={!isMutationCollapsed}
-                aria-controls={mutationPanelId}
-                onClick={() => setIsMutationCollapsed((previous) => !previous)}
-              >
-                <span className="leaderboard-sidebar-toggle-label">{t.mutationFilterTitle}</span>
-                <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
-                <span className="visually-hidden">
-                  {isMutationCollapsed
-                    ? t.mutationFilterToggleExpand
-                    : t.mutationFilterToggleCollapse}
-                </span>
-              </button>
-            </h2>
+            <button
+              type="button"
+              className="leaderboard-sidebar-toggle"
+              aria-expanded={!isMutationCollapsed}
+              aria-controls={mutationPanelId}
+              onClick={() => setIsMutationCollapsed((previous) => !previous)}
+            >
+              <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
+                {t.mutationFilterTitle}
+              </span>
+              <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
+              <span className="visually-hidden">
+                {isMutationCollapsed
+                  ? t.mutationFilterToggleExpand
+                  : t.mutationFilterToggleCollapse}
+              </span>
+            </button>
             <div
               id={mutationPanelId}
               className="leaderboard-sidebar-content leaderboard-filter-panel"
               hidden={isMutationCollapsed}
             >
-              <div className="leaderboard-filter-groups">
-                <div className="mutation-filter-group">
-                  <h3 className="mutation-filter-group-title">{t.mutationFilterTypeLabel}</h3>
-                  <div className="mutation-filter-grid" role="group" aria-label={t.mutationFilterTypeLabel}>
-                    <button
-                      type="button"
-                      className="mutation-filter-option"
-                      aria-pressed={mutationFilters.type === ''}
-                      onClick={() => handleMutationFilterChange('type', '')}
+              {hasMutationData ? (
+                <div className="leaderboard-filter-groups">
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterTypeLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterTypeLabel}
                     >
-                      <span className="mutation-filter-option-label">{t.mutationFilterAnyOption}</span>
-                    </button>
-                    {mutationOptions.types.map((typeId) => {
-                      const isActive = mutationFilters.type === typeId;
-                      const iconSrc = getMutationIconSource('type', typeId);
-                      return (
-                        <button
-                          key={typeId}
-                          type="button"
-                          className={
-                            isActive
-                              ? 'mutation-filter-option active'
-                              : 'mutation-filter-option'
-                          }
-                          aria-pressed={isActive}
-                          onClick={() =>
-                            handleMutationFilterChange('type', isActive ? '' : typeId)
-                          }
-                          title={typeId}
-                        >
-                          {iconSrc ? (
-                            <img
-                              src={iconSrc}
-                              alt=""
-                              aria-hidden="true"
-                              className="mutation-filter-option-icon"
-                              loading="lazy"
-                              decoding="async"
-                              draggable="false"
-                            />
-                          ) : null}
-                          <span className="mutation-filter-option-label">{typeId}</span>
-                        </button>
-                      );
-                    })}
+                      {mutationOptions.type.map((typeId) => {
+                        const isActive = Array.isArray(mutationFilters.type)
+                          ? mutationFilters.type.includes(typeId)
+                          : false;
+                        const iconSrc = getMutationIconSource('type', typeId);
+                        return (
+                          <button
+                            key={typeId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('type', typeId)}
+                            title={typeId}
+                            aria-label={typeId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {typeId?.charAt ? typeId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{typeId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterPromotionLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterPromotionLabel}
+                    >
+                      {mutationOptions.promotion.map((promotionId) => {
+                        const isActive = Array.isArray(mutationFilters.promotion)
+                          ? mutationFilters.promotion.includes(promotionId)
+                          : false;
+                        const iconSrc = getMutationIconSource('promotion', promotionId);
+                        return (
+                          <button
+                            key={promotionId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('promotion', promotionId)}
+                            title={promotionId}
+                            aria-label={promotionId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {promotionId?.charAt ? promotionId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{promotionId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterCurseLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterCurseLabel}
+                    >
+                      {mutationOptions.curse.map((curseId) => {
+                        const isActive = Array.isArray(mutationFilters.curse)
+                          ? mutationFilters.curse.includes(curseId)
+                          : false;
+                        const iconSrc = getMutationIconSource('curse', curseId);
+                        return (
+                          <button
+                            key={curseId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('curse', curseId)}
+                            title={curseId}
+                            aria-label={curseId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {curseId?.charAt ? curseId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{curseId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-                <div className="mutation-filter-group">
-                  <h3 className="mutation-filter-group-title">{t.mutationFilterPromotionLabel}</h3>
-                  <div
-                    className="mutation-filter-grid"
-                    role="group"
-                    aria-label={t.mutationFilterPromotionLabel}
-                  >
-                    <button
-                      type="button"
-                      className="mutation-filter-option"
-                      aria-pressed={mutationFilters.promotion === ''}
-                      onClick={() => handleMutationFilterChange('promotion', '')}
-                    >
-                      <span className="mutation-filter-option-label">{t.mutationFilterAnyOption}</span>
-                    </button>
-                    {mutationOptions.promotions.map((promotionId) => {
-                      const isActive = mutationFilters.promotion === promotionId;
-                      const iconSrc = getMutationIconSource('promotion', promotionId);
-                      return (
-                        <button
-                          key={promotionId}
-                          type="button"
-                          className={
-                            isActive
-                              ? 'mutation-filter-option active'
-                              : 'mutation-filter-option'
-                          }
-                          aria-pressed={isActive}
-                          onClick={() =>
-                            handleMutationFilterChange('promotion', isActive ? '' : promotionId)
-                          }
-                          title={promotionId}
-                        >
-                          {iconSrc ? (
-                            <img
-                              src={iconSrc}
-                              alt=""
-                              aria-hidden="true"
-                              className="mutation-filter-option-icon"
-                              loading="lazy"
-                              decoding="async"
-                              draggable="false"
-                            />
-                          ) : null}
-                          <span className="mutation-filter-option-label">{promotionId}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="mutation-filter-group">
-                  <h3 className="mutation-filter-group-title">{t.mutationFilterCurseLabel}</h3>
-                  <div className="mutation-filter-grid" role="group" aria-label={t.mutationFilterCurseLabel}>
-                    <button
-                      type="button"
-                      className="mutation-filter-option"
-                      aria-pressed={mutationFilters.curse === ''}
-                      onClick={() => handleMutationFilterChange('curse', '')}
-                    >
-                      <span className="mutation-filter-option-label">{t.mutationFilterAnyOption}</span>
-                    </button>
-                    {mutationOptions.curses.map((curseId) => {
-                      const isActive = mutationFilters.curse === curseId;
-                      const iconSrc = getMutationIconSource('curse', curseId);
-                      return (
-                        <button
-                          key={curseId}
-                          type="button"
-                          className={
-                            isActive
-                              ? 'mutation-filter-option active'
-                              : 'mutation-filter-option'
-                          }
-                          aria-pressed={isActive}
-                          onClick={() =>
-                            handleMutationFilterChange('curse', isActive ? '' : curseId)
-                          }
-                          title={curseId}
-                        >
-                          {iconSrc ? (
-                            <img
-                              src={iconSrc}
-                              alt=""
-                              aria-hidden="true"
-                              className="mutation-filter-option-icon"
-                              loading="lazy"
-                              decoding="async"
-                              draggable="false"
-                            />
-                          ) : null}
-                          <span className="mutation-filter-option-label">{curseId}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              {showMutationEmptyMessage ? (
+              ) : (
                 <p className="leaderboard-filter-empty">{t.mutationFilterEmpty}</p>
-              ) : null}
+              )}
             </div>
           </section>
           <section className="leaderboard-sidebar-section">
-            <h2 className="leaderboard-sidebar-title">
-              <button
-                type="button"
-                className="leaderboard-sidebar-toggle"
-                aria-expanded={!isDungeonCollapsed}
-                aria-controls={dungeonPanelId}
-                onClick={() => setIsDungeonCollapsed((previous) => !previous)}
-              >
-                <span className="leaderboard-sidebar-toggle-label">{t.dungeonSelectorTitle}</span>
-                <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
-                <span className="visually-hidden">
-                  {isDungeonCollapsed ? t.dungeonSelectorToggleExpand : t.dungeonSelectorToggleCollapse}
-                </span>
-              </button>
-            </h2>
+            <button
+              type="button"
+              className="leaderboard-sidebar-toggle"
+              aria-expanded={!isDungeonCollapsed}
+              aria-controls={dungeonPanelId}
+              onClick={() => setIsDungeonCollapsed((previous) => !previous)}
+            >
+              <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
+                {t.dungeonSelectorTitle}
+              </span>
+              <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
+              <span className="visually-hidden">
+                {isDungeonCollapsed ? t.dungeonSelectorToggleExpand : t.dungeonSelectorToggleCollapse}
+              </span>
+            </button>
             <div id={dungeonPanelId} className="leaderboard-sidebar-content" hidden={isDungeonCollapsed}>
               {dungeonsLoading ? (
                 <p className="leaderboard-status">{t.leaderboardLoading}</p>
@@ -911,7 +1015,7 @@ export default function LeaderboardPage({
                 </div>
               ) : null}
               <ul className="leaderboard-list">
-                {sortedEntries.map((entry) => {
+                {paginatedEntries.map((entry) => {
                   const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
                   const mutations = entry.mutations ?? extractMutationIds(entry.raw);
@@ -966,6 +1070,63 @@ export default function LeaderboardPage({
                   );
                 })}
               </ul>
+              <nav
+                className="leaderboard-pagination"
+                aria-label={t.leaderboardPaginationLabel}
+              >
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleFirstPage}
+                  disabled={isFirstPage}
+                >
+                  {t.leaderboardPaginationFirst}
+                </button>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handlePreviousPage}
+                  disabled={isFirstPage}
+                >
+                  {t.leaderboardPaginationPrevious}
+                </button>
+                <div className="leaderboard-pagination-status">
+                  <span className="leaderboard-pagination-page-label">
+                    {t.leaderboardPaginationPageLabel}
+                  </span>
+                  <label className="leaderboard-pagination-input" htmlFor={`${mode}-page-input`}>
+                    <span className="visually-hidden">{t.leaderboardPaginationInputLabel}</span>
+                    <input
+                      id={`${mode}-page-input`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={pageInputValue}
+                      onChange={handlePageInputChange}
+                      onBlur={handlePageInputBlur}
+                      onKeyDown={handlePageInputKeyDown}
+                    />
+                  </label>
+                  <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
+                  <span className="leaderboard-pagination-total">{totalPages}</span>
+                </div>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleNextPage}
+                  disabled={isLastPage}
+                >
+                  {t.leaderboardPaginationNext}
+                </button>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleLastPage}
+                  disabled={isLastPage}
+                >
+                  {t.leaderboardPaginationLast}
+                </button>
+              </nav>
             </>
           )}
         </section>
