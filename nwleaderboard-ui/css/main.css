@@ -1305,7 +1305,7 @@ body[data-theme='light'] .leaderboard-chart {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1.25rem 1.5rem 3.25rem 1.5rem;
+  padding: 3.25rem 1.5rem 1.5rem 1.5rem;
   border-radius: 18px;
   background: var(--surface-dark);
   box-shadow: var(--shadow-elevated);
@@ -1356,8 +1356,8 @@ body[data-theme='light'] .leaderboard-run {
 
 .leaderboard-rank-badge {
   position: absolute;
-  right: 1.25rem;
-  bottom: 1.25rem;
+  top: 1.25rem;
+  left: 1.5rem;
   width: 3rem;
 }
 
@@ -1806,7 +1806,7 @@ body[data-theme='light'] .player-dungeon-card {
   display: grid;
   gap: 0.35rem;
   position: relative;
-  padding-top: 2.75rem;
+  padding-top: 3.25rem;
 }
 
 .player-dungeon-stat dt {
@@ -1848,7 +1848,7 @@ body[data-theme='light'] .player-dungeon-card {
 .player-rank-badge {
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
   width: 3rem;
 }
 
