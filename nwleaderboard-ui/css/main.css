@@ -68,6 +68,7 @@ body[data-theme='light'] {
   background: var(--gradient-light);
   background-color: var(--color-background-light);
   color: var(--color-foreground-light);
+  --color-accent-contrast: var(--color-foreground-light);
 }
 
 #root {
@@ -1251,6 +1252,11 @@ body[data-theme='light'] .highlight-metric {
   background: rgba(15, 23, 42, 0.55);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
   padding: 0.15rem;
+}
+
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--type,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--type {
+  filter: invert(1);
 }
 
 body[data-theme='light'] .mutation-icon {
