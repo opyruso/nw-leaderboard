@@ -241,7 +241,7 @@ export default function Suggestions({ isAdmin }) {
               name="content"
               value={form.content}
               onChange={updateField}
-              rows={20}
+              rows={10}
               maxLength={5000}
               required
             />
