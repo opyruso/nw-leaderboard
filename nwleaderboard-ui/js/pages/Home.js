@@ -1,5 +1,6 @@
 import { LangContext } from '../i18n.js';
 import DungeonIcon from '../components/DungeonIcon.js';
+import MutationIconList from '../components/MutationIconList.js';
 import {
   deriveFallbackName,
   getDungeonNameForLang,
@@ -7,6 +8,7 @@ import {
   sortDungeons,
   toPositiveInteger,
 } from '../dungeons.js';
+import { extractMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
@@ -57,10 +59,12 @@ function normaliseMetric(metric) {
   const value = metric.value ?? metric.score ?? metric.time ?? metric.points ?? null;
   const week = metric.week ?? metric.period ?? metric.season ?? null;
   const players = normalisePlayers(metric.players);
+  const mutations = extractMutationIds(metric);
   return {
     value: Number.isFinite(value) ? value : toPositiveInteger(value),
     week: toPositiveInteger(week),
     players,
+    mutations,
   };
 }
 
@@ -80,8 +84,8 @@ function normaliseHighlight(entry, index) {
     names.en = fallbackName;
   }
   const playerCount = toPositiveInteger(entry.player_count ?? entry.playerCount);
-  const score = normaliseMetric(entry.best_score ?? entry.bestScore);
-  const time = normaliseMetric(entry.best_time ?? entry.bestTime);
+  const score = normaliseMetric(entry.best_score ?? entry.score ?? entry.bestScore);
+  const time = normaliseMetric(entry.best_time ?? entry.time ?? entry.bestTime);
   return {
     id,
     names,
@@ -247,6 +251,10 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
+                      <MutationIconList
+                        {...(score?.mutations ?? {})}
+                        className="highlight-mutation-icons"
+                      />
                     </div>
                     <div className="highlight-metric">
                       <span className="highlight-metric-label">{t.highlightTimeLabel ?? t.playerBestTime}</span>
@@ -277,6 +285,10 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
+                      <MutationIconList
+                        {...(time?.mutations ?? {})}
+                        className="highlight-mutation-icons"
+                      />
                     </div>
                   </div>
                 </li>

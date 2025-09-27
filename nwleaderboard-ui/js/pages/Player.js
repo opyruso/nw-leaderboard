@@ -2,7 +2,9 @@ import { LangContext } from '../i18n.js';
 import { getDungeonIconPath, getDungeonNameForLang, sortDungeons } from '../dungeons.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
+import MutationIconList from '../components/MutationIconList.js';
 import { capitaliseWords } from '../text.js';
+import { extractMutationIds } from '../mutations.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -305,6 +307,38 @@ export default function Player() {
       bestTimeWeek: entry?.bestTimeWeek ?? null,
       minTime: entry?.minTime ?? null,
       maxTime: entry?.maxTime ?? null,
+      scoreMutations: extractMutationIds(
+        entry?.bestScoreMutations,
+        entry?.bestScoreMutation,
+        entry?.scoreMutations,
+        entry?.scoreMutation,
+        entry?.best_score_mutations,
+        entry?.best_score_mutation,
+        entry?.score_mutations,
+        entry?.score_mutation,
+        {
+          mutationTypeId: entry?.bestScoreMutationTypeId ?? entry?.best_score_mutation_type_id,
+          mutationPromotionId:
+            entry?.bestScoreMutationPromotionId ?? entry?.best_score_mutation_promotion_id,
+          mutationCurseId: entry?.bestScoreMutationCurseId ?? entry?.best_score_mutation_curse_id,
+        },
+      ),
+      timeMutations: extractMutationIds(
+        entry?.bestTimeMutations,
+        entry?.bestTimeMutation,
+        entry?.timeMutations,
+        entry?.timeMutation,
+        entry?.best_time_mutations,
+        entry?.best_time_mutation,
+        entry?.time_mutations,
+        entry?.time_mutation,
+        {
+          mutationTypeId: entry?.bestTimeMutationTypeId ?? entry?.best_time_mutation_type_id,
+          mutationPromotionId:
+            entry?.bestTimeMutationPromotionId ?? entry?.best_time_mutation_promotion_id,
+          mutationCurseId: entry?.bestTimeMutationCurseId ?? entry?.best_time_mutation_curse_id,
+        },
+      ),
       order: index,
     }));
     return sortDungeons(base, lang);
@@ -698,6 +732,10 @@ export default function Player() {
                               {scoreWeekLabel ? (
                                 <span className="player-dungeon-week">{scoreWeekLabel}</span>
                               ) : null}
+                              <MutationIconList
+                                {...(dungeon.scoreMutations ?? {})}
+                                className="player-mutation-icons"
+                              />
                             </>
                           ) : (
                             <span className="player-dungeon-empty">{t.playerNoScore}</span>
@@ -713,6 +751,10 @@ export default function Player() {
                               {timeWeekLabel ? (
                                 <span className="player-dungeon-week">{timeWeekLabel}</span>
                               ) : null}
+                              <MutationIconList
+                                {...(dungeon.timeMutations ?? {})}
+                                className="player-mutation-icons"
+                              />
                             </>
                           ) : (
                             <span className="player-dungeon-empty">{t.playerNoTime}</span>

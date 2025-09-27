@@ -1049,6 +1049,38 @@ body[data-theme='light'] .highlight-metric {
   gap: 0.75rem 1.5rem;
 }
 
+.mutation-icon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.mutation-icon-item {
+  display: flex;
+}
+
+.mutation-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.55);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  padding: 0.15rem;
+}
+
+body[data-theme='light'] .mutation-icon {
+  background: rgba(226, 232, 240, 0.75);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.highlight-mutation-icons {
+  align-self: flex-end;
+  margin-top: auto;
+}
+
 .highlight-player {
   display: flex;
   align-items: center;
@@ -1299,6 +1331,11 @@ body[data-theme='light'] .leaderboard-run {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1.5rem;
+}
+
+.leaderboard-mutation-icons {
+  align-self: flex-end;
+  margin-top: auto;
 }
 
 .leaderboard-player {
@@ -1760,6 +1797,12 @@ body[data-theme='light'] .player-dungeon-card {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.5rem;
+}
+
+.player-mutation-icons {
+  flex-basis: 100%;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
 }
 
 .player-dungeon-value {

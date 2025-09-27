@@ -1,7 +1,9 @@
 import { LangContext } from '../i18n.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
+import MutationIconList from '../components/MutationIconList.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
+import { extractMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
@@ -565,6 +567,7 @@ export default function LeaderboardPage({
                 {sortedEntries.map((entry) => {
                   const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
+                  const mutations = extractMutationIds(entry.raw);
                   return (
                     <li key={entry.id} className="leaderboard-run">
                       <div className="leaderboard-run-header">
@@ -597,6 +600,10 @@ export default function LeaderboardPage({
                           })
                         )}
                       </ul>
+                      <MutationIconList
+                        {...mutations}
+                        className="leaderboard-mutation-icons"
+                      />
                     </li>
                   );
                 })}

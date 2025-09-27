@@ -7,17 +7,20 @@ import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunTime;
+import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +52,9 @@ public class LeaderboardService {
     @Inject
     DungeonRepository dungeonRepository;
 
+    @Inject
+    WeekMutationDungeonRepository weekMutationDungeonRepository;
+
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<LeaderboardEntryResponse> getScoreEntries(Long dungeonId, Integer limit) {
         if (dungeonId == null) {
@@ -60,17 +66,22 @@ public class LeaderboardService {
             return List.of();
         }
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
+        Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (RunScore run : runs) {
             Long runId = run.getId();
             Integer score = run.getScore();
+            MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     run.getWeek(),
                     score,
                     score,
                     null,
-                    playersByRun.getOrDefault(runId, List.of())));
+                    playersByRun.getOrDefault(runId, List.of()),
+                    mutationIds.typeId(),
+                    mutationIds.promotionId(),
+                    mutationIds.curseId()));
         }
         return List.copyOf(responses);
     }
@@ -86,17 +97,22 @@ public class LeaderboardService {
             return List.of();
         }
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
+        Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (RunTime run : runs) {
             Long runId = run.getId();
             Integer time = run.getTimeInSecond();
+            MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     run.getWeek(),
                     time,
                     null,
                     time,
-                    playersByRun.getOrDefault(runId, List.of())));
+                    playersByRun.getOrDefault(runId, List.of()),
+                    mutationIds.typeId(),
+                    mutationIds.promotionId(),
+                    mutationIds.curseId()));
         }
         return List.copyOf(responses);
     }
@@ -112,6 +128,7 @@ public class LeaderboardService {
         LinkedHashMap<Long, RunTime> bestTimesByDungeon = new LinkedHashMap<>();
         List<RunScore> scoreRuns = new ArrayList<>();
         List<RunTime> timeRuns = new ArrayList<>();
+        Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
 
         for (Dungeon dungeon : highlighted) {
             if (dungeon == null || dungeon.getId() == null) {
@@ -141,17 +158,31 @@ public class LeaderboardService {
             Long dungeonId = dungeon.getId();
             RunScore bestScore = bestScoresByDungeon.get(dungeonId);
             RunTime bestTime = bestTimesByDungeon.get(dungeonId);
+            MutationIds scoreMutations = resolveMutationIds(
+                    bestScore != null ? bestScore.getWeek() : null,
+                    bestScore != null ? bestScore.getDungeon() : null,
+                    mutationCache);
             HighlightMetricResponse scoreMetric = bestScore != null
                     ? new HighlightMetricResponse(
                             bestScore.getScore(),
                             bestScore.getWeek(),
-                            scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()))
+                            scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()),
+                            scoreMutations.typeId(),
+                            scoreMutations.promotionId(),
+                            scoreMutations.curseId())
                     : null;
+            MutationIds timeMutations = resolveMutationIds(
+                    bestTime != null ? bestTime.getWeek() : null,
+                    bestTime != null ? bestTime.getDungeon() : null,
+                    mutationCache);
             HighlightMetricResponse timeMetric = bestTime != null
                     ? new HighlightMetricResponse(
                             bestTime.getTimeInSecond(),
                             bestTime.getWeek(),
-                            timePlayersByRun.getOrDefault(bestTime.getId(), List.of()))
+                            timePlayersByRun.getOrDefault(bestTime.getId(), List.of()),
+                            timeMutations.typeId(),
+                            timeMutations.promotionId(),
+                            timeMutations.curseId())
                     : null;
             Map<String, String> names = buildNameMap(dungeon);
             String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon.getNameLocalEn()));
@@ -279,6 +310,34 @@ public class LeaderboardService {
         }
         String trimmed = value.strip();
         return trimmed.isEmpty() ? "" : trimmed;
+    }
+
+    private MutationIds resolveMutationIds(Integer week, Dungeon dungeon, Map<MutationKey, MutationIds> cache) {
+        if (week == null || dungeon == null || dungeon.getId() == null) {
+            return MutationIds.EMPTY;
+        }
+        MutationKey key = new MutationKey(week, dungeon.getId());
+        return cache.computeIfAbsent(key, mutationKey -> {
+            WeekMutationDungeon mutation =
+                    weekMutationDungeonRepository.findByIds(mutationKey.week(), mutationKey.dungeonId());
+            if (mutation == null) {
+                return MutationIds.EMPTY;
+            }
+            String typeId = mutation.getMutationType() != null ? mutation.getMutationType().getId() : null;
+            String promotionId = mutation.getMutationPromotion() != null ? mutation.getMutationPromotion().getId() : null;
+            String curseId = mutation.getMutationCurse() != null ? mutation.getMutationCurse().getId() : null;
+            if (typeId == null && promotionId == null && curseId == null) {
+                return MutationIds.EMPTY;
+            }
+            return new MutationIds(typeId, promotionId, curseId);
+        });
+    }
+
+    private record MutationKey(Integer week, Long dungeonId) {
+    }
+
+    private record MutationIds(String typeId, String promotionId, String curseId) {
+        private static final MutationIds EMPTY = new MutationIds(null, null, null);
     }
 
     private record PlayerAssignment(Long runId, Long playerId, String playerName) {
