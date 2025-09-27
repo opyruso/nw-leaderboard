@@ -107,9 +107,7 @@ export default function App() {
               />
               <Route
                 path="/preferences"
-                element={
-                  authenticated ? <Preferences /> : <Navigate to="/login" replace />
-                }
+                element={<Preferences isAuthenticated={authenticated} />}
               />
               <Route
                 path="/contribute/*"

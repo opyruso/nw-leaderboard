@@ -305,24 +305,26 @@ export default function Header({ authenticated, canContribute = false, onLogout 
               </li>
             </ul>
             <ul className="site-nav__group site-nav__group--right">
+              <li className="site-nav__item">
+                <SiteNavLink
+                  to="/preferences"
+                  isActiveOverride={location.pathname.startsWith('/preferences')}
+                  onClick={closeMenus}
+                >
+                  {t.preferences}
+                </SiteNavLink>
+              </li>
               {isAuthenticated ? (
-                <>
-                  <li className="site-nav__item">
-                    <SiteNavLink to="/preferences" isActiveOverride={location.pathname.startsWith('/preferences')}>
-                      {t.preferences}
-                    </SiteNavLink>
-                  </li>
-                  <li className="site-nav__item">
-                    <SiteNavButton
-                      onClick={() => {
-                        closeMenus();
-                        onLogout();
-                      }}
-                    >
-                      {t.logout}
-                    </SiteNavButton>
-                  </li>
-                </>
+                <li className="site-nav__item">
+                  <SiteNavButton
+                    onClick={() => {
+                      closeMenus();
+                      onLogout();
+                    }}
+                  >
+                    {t.logout}
+                  </SiteNavButton>
+                </li>
               ) : (
                 <>
                   <li className="site-nav__item">
