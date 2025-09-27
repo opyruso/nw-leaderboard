@@ -189,6 +189,15 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     </li>
                     <li>
                       <SiteNavLink
+                        to="/contribute/mutations"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
+                        {t.contributeMenuMutations}
+                      </SiteNavLink>
+                    </li>
+                    <li>
+                      <SiteNavLink
                         to="/contribute/import"
                         className="site-nav__sublink"
                         onClick={closeMenus}

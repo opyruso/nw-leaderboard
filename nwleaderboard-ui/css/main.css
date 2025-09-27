@@ -677,6 +677,186 @@ body[data-theme='light'] .contribute-stats-table tbody tr:hover {
   text-align: right;
 }
 
+.contribute-mutations {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.contribute-mutations-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.contribute-mutations-toolbar-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.contribute-mutations-toolbar-actions button,
+.contribute-mutations-actions button {
+  padding: 0.65rem 1.5rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.contribute-mutations-toolbar-actions button.secondary,
+.contribute-mutations-actions button.secondary {
+  background: transparent;
+  color: inherit;
+  border: 2px solid currentColor;
+}
+
+.contribute-mutations-toolbar-actions button:disabled,
+.contribute-mutations-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.contribute-mutations-toolbar-actions button:hover:not(:disabled),
+.contribute-mutations-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(124, 92, 255, 0.32);
+}
+
+.contribute-mutations-table-container {
+  background: var(--surface-dark);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-elevated);
+  padding: 1.5rem;
+  backdrop-filter: blur(18px);
+  overflow-x: auto;
+}
+
+body[data-theme='light'] .contribute-mutations-table-container {
+  background: var(--surface-light);
+  box-shadow: none;
+}
+
+.contribute-mutations-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.contribute-mutations-table th,
+.contribute-mutations-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-dark);
+  text-align: left;
+  vertical-align: middle;
+}
+
+body[data-theme='light'] .contribute-mutations-table th,
+body[data-theme='light'] .contribute-mutations-table td {
+  border-bottom-color: var(--border-light);
+}
+
+.contribute-mutations-table thead th {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.contribute-mutations-table tbody tr:last-child th,
+.contribute-mutations-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.contribute-mutations-row.is-new {
+  background: rgba(124, 92, 255, 0.08);
+}
+
+body[data-theme='light'] .contribute-mutations-row.is-new {
+  background: rgba(124, 92, 255, 0.14);
+}
+
+.contribute-mutations-row.is-pending {
+  opacity: 0.6;
+}
+
+.contribute-mutations-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.contribute-mutations-cell {
+  position: relative;
+}
+
+.contribute-mutations-cell--editable {
+  cursor: pointer;
+}
+
+.contribute-mutations-cell--editable.is-editing {
+  cursor: default;
+}
+
+.contribute-mutations-cell.is-editing {
+  background: rgba(124, 92, 255, 0.16);
+}
+
+body[data-theme='light'] .contribute-mutations-cell.is-editing {
+  background: rgba(124, 92, 255, 0.22);
+}
+
+.contribute-mutations-cell--editable:not(.is-editing):hover {
+  background: rgba(124, 92, 255, 0.08);
+}
+
+body[data-theme='light'] .contribute-mutations-cell--editable:not(.is-editing):hover {
+  background: rgba(124, 92, 255, 0.12);
+}
+
+.contribute-mutations-row input[type='number'],
+.contribute-mutations-row select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark-soft);
+  color: inherit;
+}
+
+.contribute-mutations-row input[type='number']::-webkit-outer-spin-button,
+.contribute-mutations-row input[type='number']::-webkit-inner-spin-button {
+  margin: 0;
+}
+
+.contribute-mutations-row input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+body[data-theme='light'] .contribute-mutations-row input[type='number'],
+body[data-theme='light'] .contribute-mutations-row select {
+  background: var(--surface-light-soft);
+  border-color: var(--border-light);
+}
+
+.contribute-mutations-placeholder {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.contribute-mutations-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  opacity: 0.7;
+}
+
 .contribute-dungeon-checkbox {
   display: flex;
   align-items: flex-start;
