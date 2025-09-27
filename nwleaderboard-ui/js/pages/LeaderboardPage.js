@@ -54,13 +54,17 @@ function loadStoredFilters(mode) {
           .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
           .filter((value) => value.length > 0)
       : [];
-    return { mutation, regions };
+    const dungeon =
+      typeof parsed.dungeon === 'string' || typeof parsed.dungeon === 'number'
+        ? String(parsed.dungeon).trim()
+        : '';
+    return { mutation, regions, dungeon: dungeon || null };
   } catch (error) {
     return null;
   }
 }
 
-function saveStoredFilters(mode, mutationFilters, regionFilters) {
+function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
   if (!mode || typeof window === 'undefined' || !window.localStorage) {
     return;
   }
@@ -78,6 +82,10 @@ function saveStoredFilters(mode, mutationFilters, regionFilters) {
             .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
             .filter((value) => value.length > 0)
         : [],
+      dungeon:
+        typeof dungeonId === 'string' || typeof dungeonId === 'number'
+          ? String(dungeonId).trim()
+          : null,
     };
     window.localStorage.setItem(`${FILTER_STORAGE_PREFIX}${mode}`, JSON.stringify(payload));
   } catch (error) {
@@ -181,7 +189,12 @@ export default function LeaderboardPage({
   const [dungeons, setDungeons] = React.useState([]);
   const [dungeonsLoading, setDungeonsLoading] = React.useState(false);
   const [dungeonsError, setDungeonsError] = React.useState(false);
-  const [selectedDungeon, setSelectedDungeon] = React.useState(null);
+  const [selectedDungeon, setSelectedDungeon] = React.useState(() => {
+    if (!storedFilters?.dungeon) {
+      return null;
+    }
+    return storedFilters.dungeon;
+  });
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
@@ -329,6 +342,9 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
+      if (dungeonsLoading) {
+        return;
+      }
       setSelectedDungeon((previous) => {
         if (previous === null) {
           return previous;
@@ -338,14 +354,27 @@ export default function LeaderboardPage({
       return;
     }
     setSelectedDungeon((previous) => {
-      if (previous && dungeons.some((dungeon) => dungeon.id === previous)) {
-        return previous;
+      if (previous) {
+        const previousId = String(previous);
+        const hasPrevious = dungeons.some((dungeon) => {
+          const dungeonId =
+            typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+              ? String(dungeon.id)
+              : '';
+          return dungeonId === previousId;
+        });
+        if (hasPrevious) {
+          return previousId;
+        }
       }
       const [first] = sortDungeons(dungeons, lang);
-      const nextId = first ? first.id : null;
+      const nextId =
+        first && (typeof first.id === 'string' || typeof first.id === 'number')
+          ? String(first.id)
+          : null;
       return nextId;
     });
-  }, [dungeons, lang]);
+  }, [dungeons, lang, dungeonsLoading]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
@@ -681,8 +710,8 @@ export default function LeaderboardPage({
   }, []);
 
   React.useEffect(() => {
-    saveStoredFilters(mode, mutationFilters, regionFilters);
-  }, [mode, mutationFilters, regionFilters]);
+    saveStoredFilters(mode, mutationFilters, regionFilters, selectedDungeon);
+  }, [mode, mutationFilters, regionFilters, selectedDungeon]);
 
   const getMutationIconSource = React.useCallback(
     (kind, id) => {
@@ -1079,7 +1108,10 @@ export default function LeaderboardPage({
 
   const handleSelectDungeon = React.useCallback((dungeonId) => {
     setSelectedDungeon((previous) => {
-      const nextId = dungeonId ?? null;
+      const nextId =
+        typeof dungeonId === 'string' || typeof dungeonId === 'number'
+          ? String(dungeonId)
+          : null;
       if (previous === nextId) {
         return previous;
       }
@@ -1159,7 +1191,6 @@ export default function LeaderboardPage({
 
   const hasRegionData = sortedRegionOptions.length > 0;
   const regionPanelId = React.useMemo(() => `${mode}-region-filter`, [mode]);
-  const isAllRegionsSelected = regionFilters.length === 0;
 
   const hasMutationData =
     mutationOptions.type.length > 0 ||
@@ -1208,14 +1239,6 @@ export default function LeaderboardPage({
               {hasRegionData ? (
                 <div className="region-filter-panel">
                   <div className="region-filter-list" role="group" aria-label={t.regionFilterTitle}>
-                    <button
-                      type="button"
-                      className={`region-filter-button${isAllRegionsSelected ? ' active' : ''}`}
-                      onClick={() => handleRegionFilterToggle('')}
-                      aria-pressed={isAllRegionsSelected}
-                    >
-                      {t.regionFilterAll || 'All'}
-                    </button>
                     {sortedRegionOptions.map((regionId) => {
                       const isActive = regionFilters.includes(regionId);
                       return (
@@ -1438,13 +1461,17 @@ export default function LeaderboardPage({
                 <ul className="dungeon-list">
                   {sortedDungeons.map((dungeon) => {
                     const displayName = getDungeonNameForLang(dungeon, lang);
-                    const isActive = dungeon.id === selectedDungeon;
+                    const dungeonId =
+                      typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+                        ? String(dungeon.id)
+                        : '';
+                    const isActive = selectedDungeon === dungeonId;
                     return (
                       <li key={dungeon.id}>
                         <button
                           type="button"
                           className={isActive ? 'dungeon-button active' : 'dungeon-button'}
-                          onClick={() => handleSelectDungeon(dungeon.id)}
+                          onClick={() => handleSelectDungeon(dungeonId)}
                         >
                           <span className="dungeon-button-content">
                             <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
