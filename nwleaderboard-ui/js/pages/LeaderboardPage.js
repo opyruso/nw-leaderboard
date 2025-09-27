@@ -1,7 +1,8 @@
 import { LangContext } from '../i18n.js';
-import HomeMenu from '../components/HomeMenu.js';
 import ChartCanvas from '../components/ChartCanvas.js';
+import DungeonIcon from '../components/DungeonIcon.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
+import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -98,6 +99,7 @@ export default function LeaderboardPage({
   getSortValue,
   sortDirection = 'desc',
   chartConfig,
+  showDungeonIconInTitle = true,
 }) {
   const { t, lang } = React.useContext(LangContext);
   const [dungeons, setDungeons] = React.useState([]);
@@ -494,12 +496,14 @@ export default function LeaderboardPage({
     setSelectedDungeon(dungeonId);
   }, []);
 
+  const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
+
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
-      <h1 id={`${mode}-title`} className="page-title">
-        {pageTitle}
+      <h1 id={`${mode}-title`} className="page-title title-with-icon">
+        {showDungeonIconInTitle ? <DungeonIcon dungeonId={selectedDungeon} /> : null}
+        <span>{displayTitle}</span>
       </h1>
-      <HomeMenu />
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
           <h2 className="leaderboard-sidebar-title">{t.dungeonSelectorTitle}</h2>
@@ -513,18 +517,18 @@ export default function LeaderboardPage({
             <ul className="dungeon-list">
               {sortedDungeons.map((dungeon) => {
                 const displayName = getDungeonNameForLang(dungeon, lang);
+                const isActive = dungeon.id === selectedDungeon;
                 return (
                   <li key={dungeon.id}>
                     <button
                       type="button"
-                      className={
-                          dungeon.id === selectedDungeon
-                            ? 'dungeon-button active'
-                            : 'dungeon-button'
-                      }
+                      className={isActive ? 'dungeon-button active' : 'dungeon-button'}
                       onClick={() => handleSelectDungeon(dungeon.id)}
                     >
-                      {displayName}
+                      <span className="dungeon-button-content">
+                        <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
+                        <span className="dungeon-button-label">{displayName}</span>
+                      </span>
                     </button>
                   </li>
                 );

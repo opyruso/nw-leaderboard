@@ -76,6 +76,14 @@ public class ScanLeaderboardService {
     }
 
     @Transactional
+    public ScanLeaderboard findRawScan(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return repository.findById(id);
+    }
+
+    @Transactional
     public ContributionScanDetailDto updateScan(Long id, Integer weekCandidate, Long dungeonIdCandidate,
             String leaderboardTypeCandidate, ContributionExtractionResponseDto extraction) {
         if (id == null) {

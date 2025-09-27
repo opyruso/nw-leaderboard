@@ -1,5 +1,6 @@
 import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
+import { capitaliseWords } from '../text.js';
 
 function toSeconds(value) {
   if (value === undefined || value === null || value === '') {
@@ -64,6 +65,7 @@ function formatTime(value) {
 
 export default function Time() {
   const { t } = React.useContext(LangContext);
+  const pageTitle = capitaliseWords(t.timeTitle || '');
 
   const chartConfig = React.useMemo(
     () => ({
@@ -105,12 +107,13 @@ export default function Time() {
   return (
     <LeaderboardPage
       mode="time"
-      pageTitle={t.timeTitle}
+      pageTitle={pageTitle}
       getValue={getValue}
       formatValue={formatValue}
       getSortValue={getSortValue}
       sortDirection="asc"
       chartConfig={chartConfig}
+      showDungeonIconInTitle={false}
     />
   );
 }

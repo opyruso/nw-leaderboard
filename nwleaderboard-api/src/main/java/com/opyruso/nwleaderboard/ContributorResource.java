@@ -8,6 +8,7 @@ import com.opyruso.nwleaderboard.dto.ContributionScanSummaryDto;
 import com.opyruso.nwleaderboard.dto.ContributorWeeklyRunsResponse;
 import com.opyruso.nwleaderboard.dto.UpdateContributionScanRequest;
 import com.opyruso.nwleaderboard.dto.UpdateDungeonHighlightsRequest;
+import com.opyruso.nwleaderboard.dto.RescanContributionScanRequest;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService;
@@ -201,6 +202,37 @@ public class ContributorResource {
             LOG.error("Unable to load stored leaderboard scan", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to load stored scan", null))
+                    .build();
+        }
+    }
+
+    @POST
+    @Path("/scans/{id}/rescan")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response rescanStoredScan(@PathParam("id") Long id, RescanContributionScanRequest request) {
+        if (!hasContributorRole()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(new ApiMessageResponse("Contributor role required", null))
+                    .build();
+        }
+        try {
+            ContributionScanDetailDto detail = extractionService.rescanStoredScan(id,
+                    request != null ? request.offset() : null);
+            if (detail == null) {
+                return Response.status(Status.NOT_FOUND)
+                        .entity(new ApiMessageResponse("Scan not found", null))
+                        .build();
+            }
+            return Response.ok(detail).build();
+        } catch (ContributorRequestException e) {
+            LOG.debug("Unable to reprocess stored leaderboard scan", e);
+            return Response.status(Status.BAD_REQUEST)
+                    .entity(new ApiMessageResponse(e.getMessage(), null))
+                    .build();
+        } catch (Exception e) {
+            LOG.error("Unexpected error while reprocessing stored leaderboard scan", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to reprocess stored scan", null))
                     .build();
         }
     }

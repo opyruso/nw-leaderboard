@@ -384,6 +384,7 @@ export default function ContributeValidate() {
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [compactView, setCompactView] = React.useState(false);
   const [savingDraft, setSavingDraft] = React.useState(false);
+  const [rescanning, setRescanning] = React.useState(false);
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
 
@@ -1629,6 +1630,70 @@ export default function ContributeValidate() {
     }
   };
 
+  const handleRescan = async () => {
+    if (!API_BASE_URL || !selectedScanId) {
+      return;
+    }
+    resetFeedback();
+    const promptLabel = t.contributeRescanPrompt || 'Enter the vertical offset (pixels) to use:';
+    const input = window.prompt(promptLabel);
+    if (input === null) {
+      return;
+    }
+    const parsed = Number.parseInt(input, 10);
+    if (!Number.isFinite(parsed)) {
+      setErrorKey('contributeRescanInvalid');
+      return;
+    }
+    setRescanning(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/contributor/scans/${selectedScanId}/rescan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ offset: parsed }),
+      });
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = null;
+      }
+      if (!response.ok) {
+        const apiMessage = data && data.message ? data.message : null;
+        if (apiMessage) {
+          setErrorText(apiMessage);
+        } else {
+          setErrorKey('contributeRescanError');
+        }
+        return;
+      }
+      if (data) {
+        applyScanDetail(data);
+        setScans((current) =>
+          current.map((scan) => {
+            if (!scan || scan.id !== data.id) {
+              return scan;
+            }
+            return {
+              ...scan,
+              week: data.week ?? scan.week,
+              dungeon_id: data.dungeon_id ?? data.dungeonId ?? scan.dungeon_id,
+              leaderboard_type: data.leaderboard_type ?? data.leaderboardType ?? scan.leaderboard_type,
+            };
+          }),
+        );
+      }
+      setMessageKey('contributeRescanSuccess');
+    } catch (error) {
+      console.warn('Unable to rescan stored leaderboard scan', error);
+      setErrorKey('contributeRescanError');
+    } finally {
+      setRescanning(false);
+    }
+  };
+
   const loadScanDetail = async (scanId) => {
     if (!API_BASE_URL || !scanId) {
       return;
@@ -1754,24 +1819,36 @@ export default function ContributeValidate() {
             <div className={`form contribute-results${showSuccess ? '' : ' contribute-results--hide-success'}`}>
               <div className="contribute-results-top">
                 <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
-                <label className="contribute-toggle-success">
-                  <input
-                    type="checkbox"
-                    className="contribute-toggle-success-input"
-                    checked={showSuccess}
-                    onChange={(event) => setShowSuccess(event.target.checked)}
-                  />
-                  <span className="contribute-toggle-success-text">{t.contributeToggleSuccessLabel}</span>
-                </label>
-                <label className="contribute-toggle-compact">
-                  <input
-                    type="checkbox"
-                    className="contribute-toggle-success-input"
-                    checked={compactView}
-                    onChange={(event) => setCompactView(event.target.checked)}
-                  />
-                  <span className="contribute-toggle-success-text">{t.contributeToggleCompactLabel}</span>
-                </label>
+                <div className="contribute-results-actions">
+                  {selectedScanId ? (
+                    <button
+                      type="button"
+                      className="contribute-rescan-button"
+                      onClick={handleRescan}
+                      disabled={rescanning || loadingDetail}
+                    >
+                      {rescanning ? t.contributeRescanning : t.contributeRescan}
+                    </button>
+                  ) : null}
+                  <label className="contribute-toggle-success">
+                    <input
+                      type="checkbox"
+                      className="contribute-toggle-success-input"
+                      checked={showSuccess}
+                      onChange={(event) => setShowSuccess(event.target.checked)}
+                    />
+                    <span className="contribute-toggle-success-text">{t.contributeToggleSuccessLabel}</span>
+                  </label>
+                  <label className="contribute-toggle-compact">
+                    <input
+                      type="checkbox"
+                      className="contribute-toggle-success-input"
+                      checked={compactView}
+                      onChange={(event) => setCompactView(event.target.checked)}
+                    />
+                    <span className="contribute-toggle-success-text">{t.contributeToggleCompactLabel}</span>
+                  </label>
+                </div>
               </div>
               <article
                 className={`contribute-file-result${readyForSubmission ? ' contribute-file-result--ready' : ''}`}

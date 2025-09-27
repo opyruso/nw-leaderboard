@@ -1,5 +1,6 @@
 import LeaderboardPage from './LeaderboardPage.js';
 import { LangContext } from '../i18n.js';
+import { capitaliseWords } from '../text.js';
 
 function parseScoreValue(value) {
   if (value === undefined || value === null || value === '') {
@@ -41,6 +42,7 @@ function formatScore(value) {
 
 export default function Score() {
   const { t } = React.useContext(LangContext);
+  const pageTitle = capitaliseWords(t.scoreTitle || '');
 
   const chartConfig = React.useMemo(
     () => ({
@@ -81,12 +83,13 @@ export default function Score() {
   return (
     <LeaderboardPage
       mode="score"
-      pageTitle={t.scoreTitle}
+      pageTitle={pageTitle}
       getValue={getValue}
       formatValue={formatValue}
       getSortValue={getSortValue}
       sortDirection="desc"
       chartConfig={chartConfig}
+      showDungeonIconInTitle={false}
     />
   );
 }
