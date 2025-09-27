@@ -154,6 +154,8 @@ export default function Player({ canContribute = false }) {
   const [mainLinkName, setMainLinkName] = React.useState('');
   const [mainLinkError, setMainLinkError] = React.useState('');
   const [mainLinkLoading, setMainLinkLoading] = React.useState(false);
+  const mainLinkSuggestionsListId = React.useId();
+  const [mainLinkSuggestions, setMainLinkSuggestions] = React.useState([]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -169,7 +171,81 @@ export default function Player({ canContribute = false }) {
     setMainLinkName('');
     setMainLinkError('');
     setMainLinkLoading(false);
+    setMainLinkSuggestions([]);
   }, [normalisedPlayerId]);
+
+  const trimmedMainLinkName = React.useMemo(() => mainLinkName.trim(), [mainLinkName]);
+
+  React.useEffect(() => {
+    if (!editingMainLink) {
+      setMainLinkSuggestions([]);
+      return undefined;
+    }
+
+    if (trimmedMainLinkName.length < 3) {
+      setMainLinkSuggestions([]);
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    fetch(`${API_BASE_URL}/player?q=${encodeURIComponent(trimmedMainLinkName)}&limit=8`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to search main players: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+
+        const list = Array.isArray(data) ? data : [];
+        const mapped = [];
+        const seen = new Set();
+
+        list.forEach((entry) => {
+          if (!entry) {
+            return;
+          }
+
+          const info = formatPlayerLinkProps(entry);
+          if (!info || info.isAlt) {
+            return;
+          }
+
+          const name = typeof info.playerName === 'string' ? info.playerName.trim() : '';
+          if (!name) {
+            return;
+          }
+
+          const key = name.toLowerCase();
+          if (seen.has(key)) {
+            return;
+          }
+          seen.add(key);
+          mapped.push({ id: info.id || name, name });
+        });
+
+        setMainLinkSuggestions(mapped);
+      })
+      .catch((errorInstance) => {
+        if (!active || errorInstance.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to search main players', errorInstance);
+        setMainLinkSuggestions([]);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [editingMainLink, trimmedMainLinkName]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -570,6 +646,7 @@ export default function Player({ canContribute = false }) {
     setMainLinkName('');
     setMainLinkError('');
     setMainLinkLoading(false);
+    setMainLinkSuggestions([]);
   }, []);
 
   const handleMainLinkSubmit = React.useCallback(
@@ -733,7 +810,13 @@ export default function Player({ canContribute = false }) {
                   placeholder={t.playerMainLinkPlaceholder || 'Nom du personnage principal'}
                   autoComplete="off"
                   spellCheck="false"
+                  list={mainLinkSuggestionsListId}
                 />
+                <datalist id={mainLinkSuggestionsListId}>
+                  {mainLinkSuggestions.map((option) => (
+                    <option key={option.id} value={option.name} />
+                  ))}
+                </datalist>
                 <div className="player-main-link-actions">
                   <button type="submit" disabled={mainLinkLoading} className="player-main-link-submit">
                     {t.playerMainLinkSubmit || 'Lier'}
