@@ -441,12 +441,10 @@ body[data-theme='light'] .site-footer {
 
 .form,
 .highlight-list {
-  background: var(--surface-dark);
   border-radius: 18px;
   padding: 1.5rem;
   box-shadow: var(--shadow-elevated);
   backdrop-filter: blur(16px);
-  border: 1px solid var(--border-dark);
 }
 
 body[data-theme='light'] .form,
