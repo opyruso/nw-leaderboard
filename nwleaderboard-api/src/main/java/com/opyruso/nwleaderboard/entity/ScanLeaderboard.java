@@ -7,7 +7,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
@@ -43,6 +45,10 @@ public class ScanLeaderboard extends Auditable {
 
     @Column(name = "id_dungeon", nullable = false)
     private Long dungeonId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_region", nullable = false, columnDefinition = "VARCHAR(3) DEFAULT 'EUC'")
+    private Region region;
 
     @Column(name = "leaderboard_type", nullable = false)
     private String leaderboardType;
@@ -101,6 +107,14 @@ public class ScanLeaderboard extends Auditable {
 
     public void setDungeonId(Long dungeonId) {
         this.dungeonId = dungeonId;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public void setRegion(Region region) {
+        this.region = region;
     }
 
     public String getLeaderboardType() {

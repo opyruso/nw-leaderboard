@@ -1,5 +1,6 @@
 package com.opyruso.nwleaderboard.repository;
 
+import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
@@ -134,11 +135,21 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
      * @param time duration in seconds
      * @return list of matching runs or an empty list when no run matches the criteria
      */
-    public List<RunTime> listByDungeonWeekAndTime(Long dungeonId, Integer week, Integer time) {
+    public List<RunTime> listByDungeonWeekAndTime(Long dungeonId, Integer week, Integer time, Region region) {
         if (dungeonId == null || week == null || time == null) {
             return List.of();
         }
-        return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+        String regionId = region != null ? region.getId() : null;
+        if (regionId == null || regionId.isBlank()) {
+            return find("dungeon.id = ?1 AND week = ?2 AND timeInSecond = ?3", dungeonId, week, time).list();
+        }
+        return find(
+                        "dungeon.id = :dungeonId AND week = :week AND timeInSecond = :time AND region.id = :region",
+                        Parameters.with("dungeonId", dungeonId)
+                                .and("week", week)
+                                .and("time", time)
+                                .and("region", regionId))
+                .list();
     }
 
     /**
@@ -248,6 +259,32 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
                 continue;
             }
             result.put((Integer) weekValue, count);
+        }
+        return result;
+    }
+
+    /** Returns a nested map containing the number of time runs grouped by week and region. */
+    public Map<Integer, Map<String, Long>> countRunsGroupedByWeekAndRegion() {
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.week, run.region.id, COUNT(run) FROM RunTime run GROUP BY run.week, run.region.id",
+                        Object[].class)
+                .getResultList();
+        Map<Integer, Map<String, Long>> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 3) {
+                continue;
+            }
+            Object weekValue = row[0];
+            Object regionValue = row[1];
+            Object countValue = row[2];
+            if (!(weekValue instanceof Integer) || regionValue == null || !(countValue instanceof Number)) {
+                continue;
+            }
+            Integer week = (Integer) weekValue;
+            String region = regionValue.toString();
+            long count = ((Number) countValue).longValue();
+            result.computeIfAbsent(week, key -> new HashMap<>()).put(region, count);
         }
         return result;
     }

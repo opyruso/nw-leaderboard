@@ -11,5 +11,6 @@ public record UpdateContributionScanRequest(
         @JsonProperty("week") Integer week,
         @JsonProperty("dungeon_id") Long dungeonId,
         @JsonProperty("leaderboard_type") String leaderboardType,
+        @JsonProperty("region") String region,
         @JsonProperty("extraction") ContributionExtractionResponseDto extraction) {
 }

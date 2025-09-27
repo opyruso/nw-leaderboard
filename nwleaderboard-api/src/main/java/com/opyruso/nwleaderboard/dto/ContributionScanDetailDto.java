@@ -15,5 +15,6 @@ public record ContributionScanDetailDto(
         @JsonProperty("width") Integer width,
         @JsonProperty("height") Integer height,
         @JsonProperty("picture") String picture,
+        @JsonProperty("region") String region,
         @JsonProperty("extraction") ContributionExtractionResponseDto extraction) {
 }

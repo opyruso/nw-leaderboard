@@ -28,6 +28,10 @@ public class Player extends Auditable {
     @Column(name = "is_valid", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean valid = false;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_region", nullable = false, columnDefinition = "VARCHAR(3) DEFAULT 'EUC'")
+    private Region region;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_character")
     private Player mainCharacter;
@@ -54,6 +58,14 @@ public class Player extends Auditable {
 
     public void setValid(boolean valid) {
         this.valid = valid;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public void setRegion(Region region) {
+        this.region = region;
     }
 
     public Player getMainCharacter() {

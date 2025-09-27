@@ -118,6 +118,7 @@ public class ContributorExtractionService {
             throw new ContributorRequestException("No image provided for extraction");
         }
 
+        String regionId = resolveRegionId(input);
         List<ImagePayload> images = collectImages(input);
         if (images.isEmpty()) {
             throw new ContributorRequestException("No valid image part found in request");
@@ -130,7 +131,7 @@ public class ContributorExtractionService {
         List<ContributionRunExtractionDto> aggregatedRuns = new ArrayList<>();
 
         for (ImagePayload image : images) {
-            ContributionExtractionResponseDto partial = processImage(image);
+            ContributionExtractionResponseDto partial = processImage(image, regionId);
             if (partial == null) {
                 continue;
             }
@@ -249,10 +250,43 @@ public class ContributorExtractionService {
         return "image";
     }
 
-    private ContributionExtractionResponseDto processImage(ImagePayload payload) throws ContributorRequestException {
+    private ContributionExtractionResponseDto processImage(ImagePayload payload, String regionId)
+            throws ContributorRequestException {
         ProcessedImage processed = processImagePayload(payload, null);
-        storeExtraction(payload, processed);
+        storeExtraction(payload, processed, regionId);
         return processed != null ? processed.response() : null;
+    }
+
+    private String resolveRegionId(MultipartFormDataInput input) {
+        if (input == null) {
+            return null;
+        }
+        try {
+            Map<String, List<InputPart>> formData = input.getFormDataMap();
+            if (formData == null || formData.isEmpty()) {
+                return null;
+            }
+            List<InputPart> regionParts = formData.get("region");
+            if (regionParts == null || regionParts.isEmpty()) {
+                return null;
+            }
+            for (InputPart part : regionParts) {
+                if (part == null) {
+                    continue;
+                }
+                try {
+                    String value = part.getBody(String.class, null);
+                    if (value != null && !value.isBlank()) {
+                        return value.trim();
+                    }
+                } catch (Exception e) {
+                    LOG.debug("Unable to read region value from multipart part", e);
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("Unable to resolve region from multipart payload", e);
+        }
+        return null;
     }
 
     private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset)
@@ -286,7 +320,7 @@ public class ContributorExtractionService {
         return new ProcessedImage(response, detectedWeek, dungeonMatch, modeField);
     }
 
-    private void storeExtraction(ImagePayload payload, ProcessedImage processed) {
+    private void storeExtraction(ImagePayload payload, ProcessedImage processed, String regionId) {
         if (payload == null || processed == null || processed.response() == null) {
             return;
         }
@@ -314,7 +348,8 @@ public class ContributorExtractionService {
             }
         }
         try {
-            scanLeaderboardService.storeScan(payload.image(), payload.data(), response, week, dungeonId, leaderboardType);
+            scanLeaderboardService.storeScan(
+                    payload.image(), payload.data(), response, week, dungeonId, leaderboardType, regionId);
         } catch (Exception e) {
             LOG.warn("Unable to store leaderboard scan for later validation", e);
         }
@@ -376,8 +411,9 @@ public class ContributorExtractionService {
             }
         }
 
+        String regionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
         ContributionScanDetailDto updated = scanLeaderboardService.updateScan(scanId, week, dungeonId, leaderboardType,
-                processed.response());
+                regionId, processed.response());
         return updated;
     }
 

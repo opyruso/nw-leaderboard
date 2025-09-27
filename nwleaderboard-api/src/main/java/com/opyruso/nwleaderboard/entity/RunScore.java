@@ -29,6 +29,10 @@ public class RunScore extends Auditable {
     @JoinColumn(name = "id_dungeon", nullable = false)
     private Dungeon dungeon;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_region", nullable = false, columnDefinition = "VARCHAR(3) DEFAULT 'EUC'")
+    private Region region;
+
     @Column(name = "score", nullable = false)
     private Integer score;
 
@@ -54,6 +58,14 @@ public class RunScore extends Auditable {
 
     public void setDungeon(Dungeon dungeon) {
         this.dungeon = dungeon;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public void setRegion(Region region) {
+        this.region = region;
     }
 
     public Integer getScore() {

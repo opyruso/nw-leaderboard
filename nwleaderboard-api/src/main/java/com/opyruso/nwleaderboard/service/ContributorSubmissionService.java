@@ -4,6 +4,7 @@ import com.opyruso.nwleaderboard.dto.ContributionPlayerDto;
 import com.opyruso.nwleaderboard.dto.ContributionRunDto;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
+import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunScorePlayer;
 import com.opyruso.nwleaderboard.entity.RunScorePlayerId;
@@ -16,6 +17,7 @@ import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import com.opyruso.nwleaderboard.service.RegionService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -52,6 +54,9 @@ public class ContributorSubmissionService {
 
     @Inject
     RunTimePlayerRepository runTimePlayerRepository;
+
+    @Inject
+    RegionService regionService;
 
     /**
      * Persists the provided runs in a single transaction.
@@ -116,22 +121,23 @@ public class ContributorSubmissionService {
                     "Run contains " + players.size() + " players but expected " + expectedPlayerCount);
         }
 
-        List<Player> resolvedPlayers = resolvePlayers(players);
+        Region region = regionService.resolveRegionOrDefault(dto.region());
+        List<Player> resolvedPlayers = resolvePlayers(players, region);
 
         if (score != null && score > 0) {
-            if (scoreRunAlreadyExists(week, dungeon, score, resolvedPlayers)) {
+            if (scoreRunAlreadyExists(week, dungeon, score, resolvedPlayers, region)) {
                 LOG.infof("Skipping duplicate score run for dungeon %s (week %s, score %s, players: %s)",
                         dungeon.getId(), week, score, describePlayers(resolvedPlayers));
                 return;
             }
-            persistScoreRun(week, dungeon, score, resolvedPlayers);
+            persistScoreRun(week, dungeon, score, resolvedPlayers, region);
         } else if (time != null && time > 0) {
-            if (timeRunAlreadyExists(week, dungeon, time, resolvedPlayers)) {
+            if (timeRunAlreadyExists(week, dungeon, time, resolvedPlayers, region)) {
                 LOG.infof("Skipping duplicate time run for dungeon %s (week %s, time %s, players: %s)",
                         dungeon.getId(), week, time, describePlayers(resolvedPlayers));
                 return;
             }
-            persistTimeRun(week, dungeon, time, resolvedPlayers);
+            persistTimeRun(week, dungeon, time, resolvedPlayers, region);
         } else {
             throw new ContributorSubmissionException("Run data is incomplete");
         }
@@ -173,20 +179,23 @@ public class ContributorSubmissionService {
         return cleaned.isEmpty() ? null : cleaned;
     }
 
-    private List<Player> resolvePlayers(List<ContributionPlayerDto> players) throws ContributorSubmissionException {
+    private List<Player> resolvePlayers(List<ContributionPlayerDto> players, Region region)
+            throws ContributorSubmissionException {
         List<Player> resolved = new ArrayList<>(players.size());
         for (ContributionPlayerDto dto : players) {
-            resolved.add(resolvePlayer(dto));
+            resolved.add(resolvePlayer(dto, region));
         }
         return resolved;
     }
 
-    private boolean scoreRunAlreadyExists(Integer week, Dungeon dungeon, Integer score, List<Player> players) {
+    private boolean scoreRunAlreadyExists(
+            Integer week, Dungeon dungeon, Integer score, List<Player> players, Region region) {
         if (week == null || dungeon == null || score == null || players == null || players.isEmpty()) {
             return false;
         }
 
-        List<RunScore> candidates = runScoreRepository.listByDungeonWeekAndScore(dungeon.getId(), week, score);
+        List<RunScore> candidates =
+                runScoreRepository.listByDungeonWeekAndScore(dungeon.getId(), week, score, region);
         if (candidates.isEmpty()) {
             return false;
         }
@@ -224,12 +233,14 @@ public class ContributorSubmissionService {
         return false;
     }
 
-    private boolean timeRunAlreadyExists(Integer week, Dungeon dungeon, Integer time, List<Player> players) {
+    private boolean timeRunAlreadyExists(
+            Integer week, Dungeon dungeon, Integer time, List<Player> players, Region region) {
         if (week == null || dungeon == null || time == null || players == null || players.isEmpty()) {
             return false;
         }
 
-        List<RunTime> candidates = runTimeRepository.listByDungeonWeekAndTime(dungeon.getId(), week, time);
+        List<RunTime> candidates =
+                runTimeRepository.listByDungeonWeekAndTime(dungeon.getId(), week, time, region);
         if (candidates.isEmpty()) {
             return false;
         }
@@ -267,11 +278,12 @@ public class ContributorSubmissionService {
         return false;
     }
 
-    private void persistScoreRun(Integer week, Dungeon dungeon, Integer score, List<Player> players)
+    private void persistScoreRun(Integer week, Dungeon dungeon, Integer score, List<Player> players, Region region)
             throws ContributorSubmissionException {
         RunScore run = new RunScore();
         run.setWeek(week);
         run.setDungeon(dungeon);
+        run.setRegion(region);
         run.setScore(score);
         runScoreRepository.persistAndFlush(run);
 
@@ -284,11 +296,12 @@ public class ContributorSubmissionService {
         }
     }
 
-    private void persistTimeRun(Integer week, Dungeon dungeon, Integer time, List<Player> players)
+    private void persistTimeRun(Integer week, Dungeon dungeon, Integer time, List<Player> players, Region region)
             throws ContributorSubmissionException {
         RunTime run = new RunTime();
         run.setWeek(week);
         run.setDungeon(dungeon);
+        run.setRegion(region);
         run.setTimeInSecond(time);
         runTimeRepository.persistAndFlush(run);
 
@@ -301,11 +314,12 @@ public class ContributorSubmissionService {
         }
     }
 
-    private Player resolvePlayer(ContributionPlayerDto dto) throws ContributorSubmissionException {
+    private Player resolvePlayer(ContributionPlayerDto dto, Region region) throws ContributorSubmissionException {
         if (dto == null) {
             throw new ContributorSubmissionException("Missing player information");
         }
 
+        Region effectiveRegion = region != null ? region : regionService.requireDefaultRegion();
         Long playerId = dto.playerId();
         String name = normalisePlayerName(dto.playerName());
         if (playerId != null) {
@@ -316,6 +330,9 @@ public class ContributorSubmissionService {
             if (name != null && !existing.getPlayerName().equalsIgnoreCase(name)) {
                 existing.setPlayerName(name);
             }
+            if (existing.getRegion() == null) {
+                existing.setRegion(effectiveRegion);
+            }
             return existing;
         }
 
@@ -325,11 +342,16 @@ public class ContributorSubmissionService {
 
         Optional<Player> existing = playerRepository.findByPlayerNameIgnoreCase(name);
         if (existing.isPresent()) {
-            return existing.get();
+            Player resolved = existing.get();
+            if (resolved.getRegion() == null) {
+                resolved.setRegion(effectiveRegion);
+            }
+            return resolved;
         }
 
         Player player = new Player();
         player.setPlayerName(name);
+        player.setRegion(effectiveRegion);
         playerRepository.persistAndFlush(player);
         return player;
     }

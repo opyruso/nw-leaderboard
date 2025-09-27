@@ -12,5 +12,6 @@ public record ContributionScanSummaryDto(
         @JsonProperty("week") Integer week,
         @JsonProperty("dungeon_id") Long dungeonId,
         @JsonProperty("leaderboard_type") String leaderboardType,
+        @JsonProperty("region") String region,
         @JsonProperty("created_at") String createdAt) {
 }

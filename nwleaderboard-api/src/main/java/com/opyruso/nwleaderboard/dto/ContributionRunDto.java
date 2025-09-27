@@ -14,5 +14,6 @@ public record ContributionRunDto(
         @JsonProperty("score") Integer score,
         @JsonProperty("time") Integer time,
         @JsonProperty("expected_player_count") Integer expectedPlayerCount,
+        @JsonProperty("region") String region,
         @JsonProperty("players") List<ContributionPlayerDto> players) {
 }
