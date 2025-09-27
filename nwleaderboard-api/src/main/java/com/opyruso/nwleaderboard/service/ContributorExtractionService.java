@@ -6,6 +6,7 @@ import com.opyruso.nwleaderboard.dto.ContributionRunExtractionDto;
 import com.opyruso.nwleaderboard.dto.ContributionScanDetailDto;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
+import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.entity.ScanLeaderboard;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -252,7 +254,7 @@ public class ContributorExtractionService {
 
     private ContributionExtractionResponseDto processImage(ImagePayload payload, String regionId)
             throws ContributorRequestException {
-        ProcessedImage processed = processImagePayload(payload, null);
+        ProcessedImage processed = processImagePayload(payload, null, regionId);
         storeExtraction(payload, processed, regionId);
         return processed != null ? processed.response() : null;
     }
@@ -289,7 +291,7 @@ public class ContributorExtractionService {
         return null;
     }
 
-    private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset)
+    private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset, String regionId)
             throws ContributorRequestException {
         BufferedImage originalImage = payload.image();
         BufferedImage preparedImage = prepareContributorImage(originalImage);
@@ -311,7 +313,7 @@ public class ContributorExtractionService {
         ContributionFieldExtractionDto dungeonField = buildDungeonField(dungeonOcr, dungeonMatch, expectedPlayerCount);
 
         List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode,
-                expectedPlayerCount, forcedOffset);
+                expectedPlayerCount, regionId, forcedOffset);
         ensureRowCount(rows, expectedPlayerCount);
 
         ContributionExtractionResponseDto response = new ContributionExtractionResponseDto(weekField, dungeonField,
@@ -382,7 +384,8 @@ public class ContributorExtractionService {
         }
 
         ImagePayload payload = new ImagePayload("stored-scan-" + scanId, copy, image);
-        ProcessedImage processed = processImagePayload(payload, forcedOffset);
+        String regionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
+        ProcessedImage processed = processImagePayload(payload, forcedOffset, regionId);
         if (processed == null || processed.response() == null) {
             return null;
         }
@@ -411,7 +414,6 @@ public class ContributorExtractionService {
             }
         }
 
-        String regionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
         ContributionScanDetailDto updated = scanLeaderboardService.updateScan(scanId, week, dungeonId, leaderboardType,
                 regionId, processed.response());
         return updated;
@@ -932,8 +934,9 @@ public class ContributorExtractionService {
     }
 
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
-            ContributionMode declaredMode, int expectedPlayerCount, Integer forcedOffset) {
-        List<Player> knownPlayers = playerRepository.listAll();
+            ContributionMode declaredMode, int expectedPlayerCount, String regionId, Integer forcedOffset) {
+        List<Player> allPlayers = playerRepository.listAll();
+        List<Player> knownPlayers = filterPlayersByRegion(allPlayers, regionId);
         Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
         int slotCount = clampPlayerSlotCount(expectedPlayerCount);
 
@@ -964,6 +967,26 @@ public class ContributorExtractionService {
         RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
                 knownPlayers, knownPlayersByName, desiredOffset, 0, RUNS_PER_IMAGE);
         return attempt.rows();
+    }
+
+    private List<Player> filterPlayersByRegion(List<Player> players, String regionId) {
+        if (players == null || players.isEmpty()) {
+            return List.of();
+        }
+        if (regionId == null || regionId.isBlank()) {
+            return players;
+        }
+        String normalizedRegion = regionId.strip().toUpperCase(Locale.ROOT);
+        return players.stream()
+                .filter(Objects::nonNull)
+                .filter(player -> {
+                    Region playerRegion = player.getRegion();
+                    if (playerRegion == null || playerRegion.getId() == null) {
+                        return false;
+                    }
+                    return normalizedRegion.equals(playerRegion.getId().toUpperCase(Locale.ROOT));
+                })
+                .collect(Collectors.toList());
     }
 
     private OffsetBounds computeOffsetBounds(BufferedImage image, int slotCount, int rowsToConsider) {

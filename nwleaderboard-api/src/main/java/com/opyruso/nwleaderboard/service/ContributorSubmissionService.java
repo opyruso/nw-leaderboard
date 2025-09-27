@@ -330,6 +330,7 @@ public class ContributorSubmissionService {
             if (name != null && !existing.getPlayerName().equalsIgnoreCase(name)) {
                 existing.setPlayerName(name);
             }
+            ensurePlayerRegionCompatibility(existing, effectiveRegion);
             if (existing.getRegion() == null) {
                 existing.setRegion(effectiveRegion);
             }
@@ -343,6 +344,7 @@ public class ContributorSubmissionService {
         Optional<Player> existing = playerRepository.findByPlayerNameIgnoreCase(name);
         if (existing.isPresent()) {
             Player resolved = existing.get();
+            ensurePlayerRegionCompatibility(resolved, effectiveRegion);
             if (resolved.getRegion() == null) {
                 resolved.setRegion(effectiveRegion);
             }
@@ -354,6 +356,31 @@ public class ContributorSubmissionService {
         player.setRegion(effectiveRegion);
         playerRepository.persistAndFlush(player);
         return player;
+    }
+
+    private void ensurePlayerRegionCompatibility(Player player, Region expected)
+            throws ContributorSubmissionException {
+        if (player == null || expected == null) {
+            return;
+        }
+        Region current = player.getRegion();
+        if (current == null) {
+            return;
+        }
+        String currentId = current.getId();
+        String expectedId = expected.getId();
+        if (currentId == null || expectedId == null) {
+            return;
+        }
+        if (!currentId.equalsIgnoreCase(expectedId)) {
+            String playerName = player.getPlayerName();
+            if (playerName == null || playerName.isBlank()) {
+                playerName = String.valueOf(player.getId());
+            }
+            throw new ContributorSubmissionException(
+                    String.format("Player %s belongs to region %s and cannot be added to region %s", playerName,
+                            currentId, expectedId));
+        }
     }
 
     /**
