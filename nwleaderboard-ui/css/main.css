@@ -2232,7 +2232,14 @@ body[data-theme='light'] .dungeon-button:focus-visible {
 }
 
 body[data-theme='light'] .dungeon-button.active {
-  color: var(--color-accent-contrast);
+  background: linear-gradient(135deg, #7c5cff 0%, #6950ff 100%);
+  border-color: #6f56ff;
+  color: #f8f9ff;
+  box-shadow: 0 12px 28px rgba(124, 92, 255, 0.32);
+}
+
+body[data-theme='light'] .dungeon-button.active .dungeon-button-icon {
+  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.3));
 }
 
 .contribute-form {
