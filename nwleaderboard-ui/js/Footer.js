@@ -36,7 +36,17 @@ export default function Footer() {
   return (
     <footer ref={footerRef} className="site-footer">
       <div className="site-footer__content">
-        <small>oPyRuSo (TM) 2025 - {currentYear}</small>
+        <small className="site-footer__brand">
+          <img
+            className="site-footer__brand-logo"
+            src="/images/icons/logo.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <span className="site-footer__brand-text">
+            oPyRuSo (TM) 2025 - {currentYear}
+          </span>
+        </small>
         <nav className="site-footer__links" aria-label="Footer links">
           <Link className="site-footer__link" to="/suggestions">
             Bug / Suggestion

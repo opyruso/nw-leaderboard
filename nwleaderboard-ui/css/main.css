@@ -354,6 +354,23 @@ body[data-theme='light'] .site-nav__dropdown-menu {
   flex: 1 1 auto;
 }
 
+.site-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+}
+
+.site-footer__brand-logo {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: block;
+}
+
+.site-footer__brand-text {
+  line-height: 1.3;
+}
+
 .site-footer__link {
   color: inherit;
   text-decoration: none;
