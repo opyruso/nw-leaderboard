@@ -12,8 +12,9 @@ import {
   getMutationIconSources,
 } from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
-import { translateRegion, extractRegionId } from '../regions.js';
+import { translateRegion, extractRegionId, normaliseRegionList, DEFAULT_REGIONS } from '../regions.js';
 import { capitaliseWords } from '../text.js';
+import { ThemeContext } from '../theme.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -21,9 +22,75 @@ const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\
 const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = Object.freeze([25, 50, 100]);
 const MUTATION_FILTER_KEYS = ['type', 'promotion', 'curse'];
+const FILTER_STORAGE_PREFIX = 'nwleaderboard:filters:';
 
 function createEmptyMutationFilters() {
   return { type: [], promotion: [], curse: [] };
+}
+
+function loadStoredFilters(mode) {
+  if (!mode || typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(`${FILTER_STORAGE_PREFIX}${mode}`);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    const storedMutation = parsed.mutation && typeof parsed.mutation === 'object' ? parsed.mutation : {};
+    const mutation = createEmptyMutationFilters();
+    MUTATION_FILTER_KEYS.forEach((key) => {
+      const values = Array.isArray(storedMutation[key]) ? storedMutation[key] : [];
+      mutation[key] = values
+        .map((value) => (typeof value === 'string' ? value.trim() : String(value || '').trim()))
+        .filter((value) => value.length > 0);
+    });
+    const regions = Array.isArray(parsed.regions)
+      ? parsed.regions
+          .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
+          .filter((value) => value.length > 0)
+      : [];
+    const dungeon =
+      typeof parsed.dungeon === 'string' || typeof parsed.dungeon === 'number'
+        ? String(parsed.dungeon).trim()
+        : '';
+    return { mutation, regions, dungeon: dungeon || null };
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
+  if (!mode || typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  try {
+    const payload = {
+      mutation: MUTATION_FILTER_KEYS.reduce((result, key) => {
+        const values = Array.isArray(mutationFilters?.[key]) ? mutationFilters[key] : [];
+        result[key] = values
+          .map((value) => (typeof value === 'string' ? value.trim() : String(value || '').trim()))
+          .filter((value) => value.length > 0);
+        return result;
+      }, {}),
+      regions: Array.isArray(regionFilters)
+        ? regionFilters
+            .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
+            .filter((value) => value.length > 0)
+        : [],
+      dungeon:
+        typeof dungeonId === 'string' || typeof dungeonId === 'number'
+          ? String(dungeonId).trim()
+          : null,
+    };
+    window.localStorage.setItem(`${FILTER_STORAGE_PREFIX}${mode}`, JSON.stringify(payload));
+  } catch (error) {
+    // ignore storage errors
+  }
 }
 
 function normalisePlayers(entry) {
@@ -117,15 +184,40 @@ export default function LeaderboardPage({
   showDungeonIconInTitle = true,
 }) {
   const { t, lang } = React.useContext(LangContext);
+  const { theme } = React.useContext(ThemeContext);
+  const storedFilters = React.useMemo(() => loadStoredFilters(mode), [mode]);
   const [dungeons, setDungeons] = React.useState([]);
   const [dungeonsLoading, setDungeonsLoading] = React.useState(false);
   const [dungeonsError, setDungeonsError] = React.useState(false);
-  const [selectedDungeon, setSelectedDungeon] = React.useState(null);
+  const [selectedDungeon, setSelectedDungeon] = React.useState(() => {
+    if (!storedFilters?.dungeon) {
+      return null;
+    }
+    return storedFilters.dungeon;
+  });
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
-  const [mutationFilters, setMutationFilters] = React.useState(() => createEmptyMutationFilters());
+  const [mutationFilters, setMutationFilters] = React.useState(() => {
+    if (storedFilters?.mutation) {
+      const initial = createEmptyMutationFilters();
+      MUTATION_FILTER_KEYS.forEach((key) => {
+        initial[key] = Array.isArray(storedFilters.mutation[key])
+          ? storedFilters.mutation[key]
+          : [];
+      });
+      return initial;
+    }
+    return createEmptyMutationFilters();
+  });
+  const [regionFilters, setRegionFilters] = React.useState(() =>
+    Array.isArray(storedFilters?.regions) ? storedFilters.regions : [],
+  );
+  const [regionOptions, setRegionOptions] = React.useState([]);
+  const [regionLoading, setRegionLoading] = React.useState(false);
+  const [regionError, setRegionError] = React.useState(false);
   const [isDungeonCollapsed, setIsDungeonCollapsed] = React.useState(false);
+  const [isRegionCollapsed, setIsRegionCollapsed] = React.useState(false);
   const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(true);
   const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
   const [requestedPage, setRequestedPage] = React.useState(1);
@@ -134,11 +226,28 @@ export default function LeaderboardPage({
   const [totalEntries, setTotalEntries] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
   const mutationIconCache = React.useRef(new Map());
-  const filtersInitialisedRef = React.useRef(false);
-  const hasUserAdjustedFiltersRef = React.useRef(false);
+  const mutationFiltersInitialisedRef = React.useRef(false);
+  const hasUserAdjustedMutationFiltersRef = React.useRef(false);
+  const regionFiltersInitialisedRef = React.useRef(false);
+  const hasUserAdjustedRegionFiltersRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (storedFilters?.mutation) {
+      mutationFiltersInitialisedRef.current = true;
+      hasUserAdjustedMutationFiltersRef.current = true;
+    }
+    if (Array.isArray(storedFilters?.regions) && storedFilters.regions.length > 0) {
+      regionFiltersInitialisedRef.current = true;
+      hasUserAdjustedRegionFiltersRef.current = true;
+    }
+  }, [storedFilters]);
 
   const handleMutationPanelToggle = React.useCallback(() => {
     setIsMutationCollapsed((previous) => !previous);
+  }, []);
+
+  const handleRegionPanelToggle = React.useCallback(() => {
+    setIsRegionCollapsed((previous) => !previous);
   }, []);
 
   const mutationOptions = React.useMemo(() => {
@@ -154,6 +263,42 @@ export default function LeaderboardPage({
       curse: sortOptions(getAllMutationCurseIds()),
     };
   }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setRegionLoading(true);
+    setRegionError(false);
+
+    fetch(`${API_BASE_URL}/leaderboard/regions`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load regions: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const normalised = normaliseRegionList(data, DEFAULT_REGIONS);
+        setRegionOptions(normalised);
+        setRegionLoading(false);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setRegionOptions(normaliseRegionList([], DEFAULT_REGIONS));
+        setRegionError(true);
+        setRegionLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [mode]);
 
   React.useEffect(() => {
     let active = true;
@@ -197,29 +342,39 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
+      if (dungeonsLoading) {
+        return;
+      }
       setSelectedDungeon((previous) => {
         if (previous === null) {
           return previous;
         }
-        filtersInitialisedRef.current = false;
-        hasUserAdjustedFiltersRef.current = false;
         return null;
       });
       return;
     }
     setSelectedDungeon((previous) => {
-      if (previous && dungeons.some((dungeon) => dungeon.id === previous)) {
-        return previous;
+      if (previous) {
+        const previousId = String(previous);
+        const hasPrevious = dungeons.some((dungeon) => {
+          const dungeonId =
+            typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+              ? String(dungeon.id)
+              : '';
+          return dungeonId === previousId;
+        });
+        if (hasPrevious) {
+          return previousId;
+        }
       }
       const [first] = sortDungeons(dungeons, lang);
-      const nextId = first ? first.id : null;
-      if (nextId !== previous) {
-        filtersInitialisedRef.current = false;
-        hasUserAdjustedFiltersRef.current = false;
-      }
+      const nextId =
+        first && (typeof first.id === 'string' || typeof first.id === 'number')
+          ? String(first.id)
+          : null;
       return nextId;
     });
-  }, [dungeons, lang]);
+  }, [dungeons, lang, dungeonsLoading]);
 
   React.useEffect(() => {
     if (!selectedDungeon) {
@@ -248,7 +403,8 @@ export default function LeaderboardPage({
       promotion: 'mutationPromotion',
       curse: 'mutationCurse',
     };
-    const filtersReady = filtersInitialisedRef.current;
+    const mutationFiltersReady = mutationFiltersInitialisedRef.current;
+    const regionFiltersReady = regionFiltersInitialisedRef.current;
 
     MUTATION_FILTER_KEYS.forEach((key) => {
       const paramName = filterParamMap[key];
@@ -261,7 +417,7 @@ export default function LeaderboardPage({
         new Set(selected.map((value) => (typeof value === 'string' ? value : String(value)))),
       );
       const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
-      if (!filtersReady) {
+      if (!mutationFiltersReady) {
         return;
       }
       const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
@@ -274,6 +430,26 @@ export default function LeaderboardPage({
       }
       sanitisedSelected.forEach((value) => params.append(paramName, value));
     });
+
+    if (regionFiltersReady) {
+      const availableRegions = Array.isArray(regionOptions) ? regionOptions : [];
+      const selectedRegions = Array.isArray(regionFilters) ? regionFilters : [];
+      const uniqueRegions = Array.from(
+        new Set(
+          selectedRegions.map((value) =>
+            typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
+          ),
+        ),
+      );
+      const sanitisedRegions = uniqueRegions.filter((value) => availableRegions.includes(value));
+      const shouldFilter =
+        sanitisedRegions.length > 0 && sanitisedRegions.length < availableRegions.length;
+      if (shouldFilter) {
+        sanitisedRegions.forEach((value) => params.append('region', value));
+      } else if (sanitisedRegions.length === 0 && selectedRegions.length > 0) {
+        params.append('region', '');
+      }
+    }
 
     fetch(`${API_BASE_URL}/leaderboard/${mode}?${params.toString()}`, { signal: controller.signal })
       .then((response) => {
@@ -362,16 +538,19 @@ export default function LeaderboardPage({
       active = false;
       controller.abort();
     };
-  }, [mode, selectedDungeon, getValue, requestedPage, pageSize, mutationFilters, mutationOptions]);
+  }, [
+    mode,
+    selectedDungeon,
+    getValue,
+    requestedPage,
+    pageSize,
+    mutationFilters,
+    mutationOptions,
+    regionFilters,
+    regionOptions,
+  ]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
-
-  React.useEffect(() => {
-    filtersInitialisedRef.current = false;
-    hasUserAdjustedFiltersRef.current = false;
-    setRequestedPage(1);
-    setCurrentPage(1);
-  }, [selectedDungeon]);
 
   React.useEffect(() => {
     setMutationFilters((previous) => {
@@ -391,8 +570,24 @@ export default function LeaderboardPage({
         );
         let finalValues = uniqueValues.filter((value) => available.includes(value));
 
-        if ((!filtersInitialisedRef.current || !hasUserAdjustedFiltersRef.current) && available.length > 0) {
-          if (finalValues.length !== available.length) {
+        if (!mutationFiltersInitialisedRef.current && available.length > 0) {
+          const storedValues = storedFilters?.mutation && Array.isArray(storedFilters.mutation[key])
+            ? storedFilters.mutation[key]
+            : [];
+          if (storedValues.length > 0) {
+            const storedUnique = Array.from(
+              new Set(
+                storedValues.map((value) => (typeof value === 'string' ? value : String(value))),
+              ),
+            );
+            const sanitisedStored = storedUnique.filter((value) => available.includes(value));
+            if (sanitisedStored.length > 0) {
+              finalValues = sanitisedStored;
+              hasUserAdjustedMutationFiltersRef.current = true;
+            }
+          }
+
+          if (!hasUserAdjustedMutationFiltersRef.current && finalValues.length !== available.length) {
             finalValues = available.slice();
           }
         }
@@ -407,27 +602,74 @@ export default function LeaderboardPage({
         next[key] = finalValues;
       });
 
-      filtersInitialisedRef.current = true;
+      mutationFiltersInitialisedRef.current = true;
       return changed ? next : safePrevious;
     });
-  }, [mutationOptions, selectedDungeon]);
+  }, [mutationOptions, selectedDungeon, storedFilters]);
+
+  React.useEffect(() => {
+    setRegionFilters((previous) => {
+      const currentValues = Array.isArray(previous) ? previous : [];
+      const uniqueValues = Array.from(
+        new Set(
+          currentValues.map((value) =>
+            typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
+          ),
+        ),
+      );
+      const available = Array.isArray(regionOptions) ? regionOptions : [];
+      let finalValues = uniqueValues.filter((value) => available.includes(value));
+
+      if (!regionFiltersInitialisedRef.current) {
+        const stored = Array.isArray(storedFilters?.regions) ? storedFilters.regions : [];
+        if (stored.length > 0) {
+          const storedUnique = Array.from(
+            new Set(
+              stored.map((value) =>
+                typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
+              ),
+            ),
+          );
+          const sanitisedStored = storedUnique.filter((value) => available.includes(value));
+          if (sanitisedStored.length > 0) {
+            finalValues = sanitisedStored;
+            hasUserAdjustedRegionFiltersRef.current = true;
+          }
+        }
+        regionFiltersInitialisedRef.current = true;
+      }
+
+      if (
+        finalValues.length !== currentValues.length ||
+        finalValues.some((value, index) => value !== currentValues[index])
+      ) {
+        return finalValues;
+      }
+      return currentValues;
+    });
+  }, [regionOptions, storedFilters]);
 
   React.useEffect(() => {
     setRequestedPage(1);
     setCurrentPage(1);
-  }, [selectedDungeon, mutationFilters]);
+  }, [selectedDungeon, mutationFilters, regionFilters]);
 
   const handleMutationFilterToggle = React.useCallback((key, value) => {
     if (!MUTATION_FILTER_KEYS.includes(key)) {
       return;
     }
 
-    hasUserAdjustedFiltersRef.current = true;
+    mutationFiltersInitialisedRef.current = true;
+    hasUserAdjustedMutationFiltersRef.current = true;
     setMutationFilters((previous) => {
       const safePrevious =
         previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
       const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
-      const normalisedValue = typeof value === 'string' ? value : String(value);
+      const rawValue = typeof value === 'string' ? value : String(value);
+      const normalisedValue = rawValue.trim();
+      if (!normalisedValue) {
+        return safePrevious;
+      }
       const hasValue = currentValues.includes(normalisedValue);
       let nextValues;
       if (hasValue) {
@@ -447,6 +689,29 @@ export default function LeaderboardPage({
       return { ...safePrevious, [key]: uniqueValues };
     });
   }, []);
+
+  const handleRegionFilterToggle = React.useCallback((value) => {
+    const normalised = typeof value === 'string' ? value.trim().toUpperCase() : '';
+    regionFiltersInitialisedRef.current = true;
+    if (!normalised) {
+      hasUserAdjustedRegionFiltersRef.current = true;
+      setRegionFilters([]);
+      return;
+    }
+    hasUserAdjustedRegionFiltersRef.current = true;
+    setRegionFilters((previous) => {
+      const currentValues = Array.isArray(previous) ? previous : [];
+      const hasValue = currentValues.includes(normalised);
+      if (hasValue) {
+        return currentValues.filter((item) => item !== normalised);
+      }
+      return Array.from(new Set([...currentValues, normalised]));
+    });
+  }, []);
+
+  React.useEffect(() => {
+    saveStoredFilters(mode, mutationFilters, regionFilters, selectedDungeon);
+  }, [mode, mutationFilters, regionFilters, selectedDungeon]);
 
   const getMutationIconSource = React.useCallback(
     (kind, id) => {
@@ -484,12 +749,14 @@ export default function LeaderboardPage({
       ? mutationFilters.promotion
       : [];
     const curseFilters = Array.isArray(mutationFilters?.curse) ? mutationFilters.curse : [];
+    const regionFilterValues = Array.isArray(regionFilters) ? regionFilters : [];
 
     const hasTypeFilter = typeFilters.length > 0;
     const hasPromotionFilter = promotionFilters.length > 0;
     const hasCurseFilter = curseFilters.length > 0;
+    const hasRegionFilter = regionFilterValues.length > 0;
 
-    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter) {
+    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter && !hasRegionFilter) {
       return entries;
     }
 
@@ -508,9 +775,21 @@ export default function LeaderboardPage({
       if (hasCurseFilter && !curseFilters.includes(curseId)) {
         return false;
       }
+      if (hasRegionFilter) {
+        const entryRegion =
+          typeof entry?.region === 'string' ? entry.region.trim().toUpperCase() : '';
+        if (entryRegion && regionFilterValues.includes(entryRegion)) {
+          return true;
+        }
+        const fallbackRegion = extractRegionId(entry?.raw);
+        if (!fallbackRegion || !regionFilterValues.includes(fallbackRegion)) {
+          return false;
+        }
+        return true;
+      }
       return true;
     });
-  }, [entries, mutationFilters]);
+  }, [entries, mutationFilters, regionFilters]);
 
   const formatWeekLabel = React.useCallback(
     (week) => {
@@ -530,6 +809,8 @@ export default function LeaderboardPage({
     if (!chartConfig || typeof chartConfig.extractValue !== 'function') {
       return null;
     }
+
+    const legendColor = theme === 'light' ? 'rgba(30, 41, 59, 0.78)' : 'rgba(226, 232, 240, 0.92)';
 
     const points = filteredEntries
       .map((entry) => {
@@ -698,7 +979,7 @@ export default function LeaderboardPage({
       },
       plugins: {
         legend: {
-          labels: { usePointStyle: true, color: 'inherit' },
+          labels: { usePointStyle: true, color: legendColor },
         },
         tooltip: {
           callbacks: {
@@ -747,7 +1028,7 @@ export default function LeaderboardPage({
       },
       options,
     };
-  }, [chartConfig, filteredEntries, formatWeekLabel, t]);
+  }, [chartConfig, filteredEntries, formatWeekLabel, t, theme]);
 
   const sortedEntries = React.useMemo(() => {
     if (filteredEntries.length === 0) {
@@ -827,12 +1108,13 @@ export default function LeaderboardPage({
 
   const handleSelectDungeon = React.useCallback((dungeonId) => {
     setSelectedDungeon((previous) => {
-      const nextId = dungeonId ?? null;
+      const nextId =
+        typeof dungeonId === 'string' || typeof dungeonId === 'number'
+          ? String(dungeonId)
+          : null;
       if (previous === nextId) {
         return previous;
       }
-      filtersInitialisedRef.current = false;
-      hasUserAdjustedFiltersRef.current = false;
       return nextId;
     });
   }, []);
@@ -891,6 +1173,25 @@ export default function LeaderboardPage({
 
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
 
+  const sortedRegionOptions = React.useMemo(() => {
+    const options = Array.isArray(regionOptions) ? regionOptions : [];
+    if (options.length === 0) {
+      return [];
+    }
+    const collator = new Intl.Collator(lang || undefined, { sensitivity: 'base' });
+    return options
+      .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
+      .filter((value) => value.length > 0)
+      .sort((left, right) => {
+        const leftLabel = translateRegion(t, left) || left;
+        const rightLabel = translateRegion(t, right) || right;
+        return collator.compare(leftLabel, rightLabel);
+      });
+  }, [regionOptions, t, lang]);
+
+  const hasRegionData = sortedRegionOptions.length > 0;
+  const regionPanelId = React.useMemo(() => `${mode}-region-filter`, [mode]);
+
   const hasMutationData =
     mutationOptions.type.length > 0 ||
     mutationOptions.promotion.length > 0 ||
@@ -906,6 +1207,59 @@ export default function LeaderboardPage({
       </h1>
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
+          <section className="leaderboard-sidebar-section">
+            <button
+              type="button"
+              className="leaderboard-sidebar-toggle"
+              aria-expanded={!isRegionCollapsed}
+              aria-controls={regionPanelId}
+              onClick={handleRegionPanelToggle}
+            >
+              <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
+                {t.regionFilterTitle}
+              </span>
+              <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
+              <span className="visually-hidden">
+                {isRegionCollapsed ? t.regionFilterToggleExpand : t.regionFilterToggleCollapse}
+              </span>
+            </button>
+            <div
+              id={regionPanelId}
+              className="leaderboard-sidebar-content leaderboard-filter-panel"
+              hidden={isRegionCollapsed}
+              aria-hidden={isRegionCollapsed}
+              style={isRegionCollapsed ? { display: 'none' } : undefined}
+            >
+              {regionLoading ? (
+                <p className="leaderboard-status">{t.regionFilterLoading}</p>
+              ) : null}
+              {regionError ? (
+                <p className="leaderboard-status error">{t.regionFilterError}</p>
+              ) : null}
+              {hasRegionData ? (
+                <div className="region-filter-panel">
+                  <div className="region-filter-list" role="group" aria-label={t.regionFilterTitle}>
+                    {sortedRegionOptions.map((regionId) => {
+                      const isActive = regionFilters.includes(regionId);
+                      return (
+                        <button
+                          key={regionId}
+                          type="button"
+                          className={`region-filter-button${isActive ? ' active' : ''}`}
+                          onClick={() => handleRegionFilterToggle(regionId)}
+                          aria-pressed={isActive}
+                        >
+                          {translateRegion(t, regionId)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : !regionLoading ? (
+                <p className="leaderboard-filter-empty">{t.regionFilterEmpty}</p>
+              ) : null}
+            </div>
+          </section>
           <section className="leaderboard-sidebar-section">
             <button
               type="button"
@@ -1107,13 +1461,17 @@ export default function LeaderboardPage({
                 <ul className="dungeon-list">
                   {sortedDungeons.map((dungeon) => {
                     const displayName = getDungeonNameForLang(dungeon, lang);
-                    const isActive = dungeon.id === selectedDungeon;
+                    const dungeonId =
+                      typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+                        ? String(dungeon.id)
+                        : '';
+                    const isActive = selectedDungeon === dungeonId;
                     return (
                       <li key={dungeon.id}>
                         <button
                           type="button"
                           className={isActive ? 'dungeon-button active' : 'dungeon-button'}
-                          onClick={() => handleSelectDungeon(dungeon.id)}
+                          onClick={() => handleSelectDungeon(dungeonId)}
                         >
                           <span className="dungeon-button-content">
                             <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />

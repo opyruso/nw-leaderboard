@@ -2584,6 +2584,56 @@ body[data-theme='light'] .dungeon-button.active .dungeon-button-icon {
   gap: 1.5rem;
 }
 
+.region-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.region-filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.region-filter-button {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.12);
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.region-filter-button:hover,
+.region-filter-button:focus-visible {
+  outline: none;
+  border-color: rgba(124, 92, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.2);
+}
+
+.region-filter-button.active,
+.region-filter-button[aria-pressed='true'] {
+  background: rgba(124, 92, 255, 0.2);
+  border-color: rgba(124, 92, 255, 0.55);
+  box-shadow: 0 6px 18px rgba(124, 92, 255, 0.22);
+}
+
+body[data-theme='light'] .region-filter-button {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+body[data-theme='light'] .region-filter-button.active,
+body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
+  background: rgba(124, 92, 255, 0.18);
+  border-color: rgba(124, 92, 255, 0.5);
+  box-shadow: 0 6px 18px rgba(124, 92, 255, 0.2);
+}
+
 .mutation-filter-group {
   display: flex;
   flex-direction: column;

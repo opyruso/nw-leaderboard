@@ -5,8 +5,10 @@ import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPageResponse;
 import com.opyruso.nwleaderboard.dto.IndividualRankingEntryResponse;
+import com.opyruso.nwleaderboard.dto.RegionResponse;
 import com.opyruso.nwleaderboard.service.IndividualRankingService;
 import com.opyruso.nwleaderboard.service.LeaderboardService;
+import com.opyruso.nwleaderboard.service.RegionService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -16,6 +18,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * REST resource exposing leaderboard entries grouped by dungeon and mode.
@@ -30,6 +33,9 @@ public class LeaderboardResource {
     @Inject
     IndividualRankingService individualRankingService;
 
+    @Inject
+    RegionService regionService;
+
     @GET
     @Path("/score")
     public Response getScore(
@@ -38,14 +44,21 @@ public class LeaderboardResource {
             @QueryParam("pageSize") Integer pageSize,
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
-            @QueryParam("mutationCurse") List<String> mutationCurseIds) {
+            @QueryParam("mutationCurse") List<String> mutationCurseIds,
+            @QueryParam("region") List<String> regionIds) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
         LeaderboardPageResponse response = leaderboardService.getScoreEntries(
-                dungeonId, page, pageSize, mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+                dungeonId,
+                page,
+                pageSize,
+                mutationTypeIds,
+                mutationPromotionIds,
+                mutationCurseIds,
+                regionIds);
         return Response.ok(response).build();
     }
 
@@ -57,14 +70,21 @@ public class LeaderboardResource {
             @QueryParam("pageSize") Integer pageSize,
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
-            @QueryParam("mutationCurse") List<String> mutationCurseIds) {
+            @QueryParam("mutationCurse") List<String> mutationCurseIds,
+            @QueryParam("region") List<String> regionIds) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
         LeaderboardPageResponse response = leaderboardService.getTimeEntries(
-                dungeonId, page, pageSize, mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+                dungeonId,
+                page,
+                pageSize,
+                mutationTypeIds,
+                mutationPromotionIds,
+                mutationCurseIds,
+                regionIds);
         return Response.ok(response).build();
     }
 
@@ -81,5 +101,14 @@ public class LeaderboardResource {
         IndividualRankingService.Mode mode = IndividualRankingService.Mode.fromQuery(modeParam);
         List<IndividualRankingEntryResponse> entries = individualRankingService.getRanking(mode);
         return Response.ok(entries).build();
+    }
+
+    @GET
+    @Path("/regions")
+    public Response listRegions() {
+        List<RegionResponse> regions = regionService.listRegions().stream()
+                .map(region -> new RegionResponse(region.getId()))
+                .collect(Collectors.toList());
+        return Response.ok(regions).build();
     }
 }
