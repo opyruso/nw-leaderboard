@@ -136,6 +136,10 @@ export default function LeaderboardPage({
   const filtersInitialisedRef = React.useRef(false);
   const hasUserAdjustedFiltersRef = React.useRef(false);
 
+  const handleMutationPanelToggle = React.useCallback(() => {
+    setIsMutationCollapsed((previous) => !previous);
+  }, []);
+
   const mutationOptions = React.useMemo(() => {
     const sortOptions = (values) =>
       values
@@ -906,7 +910,7 @@ export default function LeaderboardPage({
               className="leaderboard-sidebar-toggle"
               aria-expanded={!isMutationCollapsed}
               aria-controls={mutationPanelId}
-              onClick={() => setIsMutationCollapsed((previous) => !previous)}
+              onClick={handleMutationPanelToggle}
             >
               <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
                 {t.mutationFilterTitle}
@@ -922,6 +926,8 @@ export default function LeaderboardPage({
               id={mutationPanelId}
               className="leaderboard-sidebar-content leaderboard-filter-panel"
               hidden={isMutationCollapsed}
+              aria-hidden={isMutationCollapsed}
+              style={isMutationCollapsed ? { display: 'none' } : undefined}
             >
               {hasMutationData ? (
                 <div className="leaderboard-filter-groups">

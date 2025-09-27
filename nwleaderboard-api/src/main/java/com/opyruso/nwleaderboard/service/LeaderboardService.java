@@ -392,10 +392,17 @@ public class LeaderboardService {
         Set<String> typeSet = sanitiseMutationIds(typeIds);
         Set<String> promotionSet = sanitiseMutationIds(promotionIds);
         Set<String> curseSet = sanitiseMutationIds(curseIds);
-        boolean typeRequested = typeIds != null;
-        boolean promotionRequested = promotionIds != null;
-        boolean curseRequested = curseIds != null;
-        return new MutationFilter(typeSet, promotionSet, curseSet, typeRequested, promotionRequested, curseRequested);
+
+        boolean typeRequested = typeIds != null && !typeSet.isEmpty();
+        boolean promotionRequested = promotionIds != null && !promotionSet.isEmpty();
+        boolean curseRequested = curseIds != null && !curseSet.isEmpty();
+
+        Set<String> safeTypeSet = typeRequested ? typeSet : Set.of();
+        Set<String> safePromotionSet = promotionRequested ? promotionSet : Set.of();
+        Set<String> safeCurseSet = curseRequested ? curseSet : Set.of();
+
+        return new MutationFilter(
+                safeTypeSet, safePromotionSet, safeCurseSet, typeRequested, promotionRequested, curseRequested);
     }
 
     private Set<String> sanitiseMutationIds(List<String> values) {
