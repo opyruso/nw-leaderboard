@@ -2,7 +2,7 @@ package com.opyruso.nwleaderboard.repository;
 
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeonId;
-import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 
@@ -10,7 +10,7 @@ import java.util.List;
  * Repository exposing CRUD operations for {@link WeekMutationDungeon} entities.
  */
 @ApplicationScoped
-public class WeekMutationDungeonRepository implements PanacheRepository<WeekMutationDungeon> {
+public class WeekMutationDungeonRepository implements PanacheRepositoryBase<WeekMutationDungeon, WeekMutationDungeonId> {
 
     public List<WeekMutationDungeon> listAllWithRelations() {
         return getEntityManager()
