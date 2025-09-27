@@ -1260,7 +1260,6 @@ body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--type {
 }
 
 body[data-theme='light'] .mutation-icon {
-  background: rgba(226, 232, 240, 0.75);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
 }
 
