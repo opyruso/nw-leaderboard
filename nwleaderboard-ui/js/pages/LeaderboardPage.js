@@ -4,13 +4,26 @@ import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
-import { extractMutationIds } from '../mutations.js';
+import {
+  extractMutationIds,
+  getAllMutationCurseIds,
+  getAllMutationPromotionIds,
+  getAllMutationTypeIds,
+  getMutationIconSources,
+} from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
+const DEFAULT_PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = Object.freeze([25, 50, 100]);
+const MUTATION_FILTER_KEYS = ['type', 'promotion', 'curse'];
+
+function createEmptyMutationFilters() {
+  return { type: [], promotion: [], curse: [] };
+}
 
 function normalisePlayers(entry) {
   const { players, members, team, squad, group, party } = entry || {};
@@ -110,6 +123,36 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
+  const [mutationFilters, setMutationFilters] = React.useState(() => createEmptyMutationFilters());
+  const [isDungeonCollapsed, setIsDungeonCollapsed] = React.useState(false);
+  const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(true);
+  const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
+  const [requestedPage, setRequestedPage] = React.useState(1);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageInputValue, setPageInputValue] = React.useState('1');
+  const [totalEntries, setTotalEntries] = React.useState(0);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const mutationIconCache = React.useRef(new Map());
+  const filtersInitialisedRef = React.useRef(false);
+  const hasUserAdjustedFiltersRef = React.useRef(false);
+
+  const handleMutationPanelToggle = React.useCallback(() => {
+    setIsMutationCollapsed((previous) => !previous);
+  }, []);
+
+  const mutationOptions = React.useMemo(() => {
+    const sortOptions = (values) =>
+      values
+        .map((value) => String(value).trim())
+        .filter((value) => value.length > 0)
+        .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+
+    return {
+      type: sortOptions(getAllMutationTypeIds()),
+      promotion: sortOptions(getAllMutationPromotionIds()),
+      curse: sortOptions(getAllMutationCurseIds()),
+    };
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -153,7 +196,14 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
-      setSelectedDungeon((previous) => (previous === null ? previous : null));
+      setSelectedDungeon((previous) => {
+        if (previous === null) {
+          return previous;
+        }
+        filtersInitialisedRef.current = false;
+        hasUserAdjustedFiltersRef.current = false;
+        return null;
+      });
       return;
     }
     setSelectedDungeon((previous) => {
@@ -161,7 +211,12 @@ export default function LeaderboardPage({
         return previous;
       }
       const [first] = sortDungeons(dungeons, lang);
-      return first ? first.id : null;
+      const nextId = first ? first.id : null;
+      if (nextId !== previous) {
+        filtersInitialisedRef.current = false;
+        hasUserAdjustedFiltersRef.current = false;
+      }
+      return nextId;
     });
   }, [dungeons, lang]);
 
@@ -170,6 +225,9 @@ export default function LeaderboardPage({
       setEntries([]);
       setEntriesLoading(false);
       setEntriesError(false);
+      setTotalEntries(0);
+      setTotalPages(1);
+      setCurrentPage(1);
       return;
     }
 
@@ -178,9 +236,45 @@ export default function LeaderboardPage({
     setEntriesLoading(true);
     setEntriesError(false);
 
-    const url = `${API_BASE_URL}/leaderboard/${mode}?dungeonId=${encodeURIComponent(selectedDungeon)}`;
+    const params = new URLSearchParams();
+    params.set('dungeonId', String(selectedDungeon));
+    const requested = Number.isFinite(Number(requestedPage)) ? Math.max(1, Number(requestedPage)) : 1;
+    params.set('page', String(requested));
+    params.set('pageSize', String(pageSize));
 
-    fetch(url, { signal: controller.signal })
+    const filterParamMap = {
+      type: 'mutationType',
+      promotion: 'mutationPromotion',
+      curse: 'mutationCurse',
+    };
+    const filtersReady = filtersInitialisedRef.current;
+
+    MUTATION_FILTER_KEYS.forEach((key) => {
+      const paramName = filterParamMap[key];
+      const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+      if (!paramName || available.length === 0) {
+        return;
+      }
+      const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
+      const uniqueSelected = Array.from(
+        new Set(selected.map((value) => (typeof value === 'string' ? value : String(value)))),
+      );
+      const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
+      if (!filtersReady) {
+        return;
+      }
+      const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
+      if (!shouldFilter) {
+        return;
+      }
+      if (sanitisedSelected.length === 0) {
+        params.append(paramName, '');
+        return;
+      }
+      sanitisedSelected.forEach((value) => params.append(paramName, value));
+    });
+
+    fetch(`${API_BASE_URL}/leaderboard/${mode}?${params.toString()}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to load leaderboard: ${response.status}`);
@@ -191,13 +285,48 @@ export default function LeaderboardPage({
         if (!active) {
           return;
         }
-        const safeArray = Array.isArray(data) ? data : [];
-        const normalisedEntries = safeArray.map((entry, index) => {
+        const entriesData = Array.isArray(data?.entries) ? data.entries : [];
+        const responsePage = Number(data?.page);
+        const responsePageSize = Number(data?.pageSize);
+        const responseTotal = Number(data?.totalEntries);
+        const responseTotalPages = Number(data?.totalPages);
+
+        const safePageSize = Number.isFinite(responsePageSize) && responsePageSize > 0
+          ? responsePageSize
+          : pageSize;
+        if (safePageSize !== pageSize) {
+          setPageSize(safePageSize);
+        }
+
+        const safeTotalEntries = Number.isFinite(responseTotal) && responseTotal >= 0
+          ? responseTotal
+          : entriesData.length;
+        setTotalEntries(safeTotalEntries);
+
+        const computedTotalPages = Number.isFinite(responseTotalPages) && responseTotalPages >= 1
+          ? Math.floor(responseTotalPages)
+          : Math.max(Math.ceil(safeTotalEntries / Math.max(safePageSize, 1)), 1);
+        setTotalPages(computedTotalPages);
+
+        const safePage = Number.isFinite(responsePage) && responsePage >= 1
+          ? Math.floor(responsePage)
+          : Math.max(1, requested);
+        setCurrentPage((previous) => (previous === safePage ? previous : safePage));
+
+        const normalisedEntries = entriesData.map((entry, index) => {
           const value = getValue(entry);
           const players = normalisePlayers(entry);
           const week = deriveWeek(entry);
           const position =
             entry?.position ?? entry?.rank ?? entry?.place ?? entry?.standing ?? entry?.pos ?? null;
+          const mutations = extractMutationIds(
+            entry,
+            entry?.mutations,
+            entry?.mutation,
+            entry?.mutationInfo,
+            entry?.mutation_ids,
+            entry?.mutationIds,
+          );
           const id = entry?.id ?? entry?.entryId ?? `${week || 'entry'}-${index}`;
           return {
             id: String(id),
@@ -205,6 +334,7 @@ export default function LeaderboardPage({
             players,
             value,
             position,
+            mutations,
             raw: entry,
           };
         });
@@ -217,6 +347,8 @@ export default function LeaderboardPage({
         console.error('Unable to load leaderboard entries', error);
         setEntriesError(true);
         setEntries([]);
+        setTotalEntries(0);
+        setTotalPages(1);
       })
       .finally(() => {
         if (active) {
@@ -228,9 +360,155 @@ export default function LeaderboardPage({
       active = false;
       controller.abort();
     };
-  }, [mode, selectedDungeon, getValue]);
+  }, [mode, selectedDungeon, getValue, requestedPage, pageSize, mutationFilters, mutationOptions]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
+
+  React.useEffect(() => {
+    filtersInitialisedRef.current = false;
+    hasUserAdjustedFiltersRef.current = false;
+    setRequestedPage(1);
+    setCurrentPage(1);
+  }, [selectedDungeon]);
+
+  React.useEffect(() => {
+    setMutationFilters((previous) => {
+      const safePrevious =
+        previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
+
+      let changed = false;
+      const next = {};
+
+      MUTATION_FILTER_KEYS.forEach((key) => {
+        const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+        const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
+        const uniqueValues = Array.from(
+          new Set(
+            currentValues.map((value) => (typeof value === 'string' ? value : String(value))),
+          ),
+        );
+        let finalValues = uniqueValues.filter((value) => available.includes(value));
+
+        if ((!filtersInitialisedRef.current || !hasUserAdjustedFiltersRef.current) && available.length > 0) {
+          if (finalValues.length !== available.length) {
+            finalValues = available.slice();
+          }
+        }
+
+        if (
+          finalValues.length !== currentValues.length ||
+          finalValues.some((value, index) => value !== currentValues[index])
+        ) {
+          changed = true;
+        }
+
+        next[key] = finalValues;
+      });
+
+      filtersInitialisedRef.current = true;
+      return changed ? next : safePrevious;
+    });
+  }, [mutationOptions, selectedDungeon]);
+
+  React.useEffect(() => {
+    setRequestedPage(1);
+    setCurrentPage(1);
+  }, [selectedDungeon, mutationFilters]);
+
+  const handleMutationFilterToggle = React.useCallback((key, value) => {
+    if (!MUTATION_FILTER_KEYS.includes(key)) {
+      return;
+    }
+
+    hasUserAdjustedFiltersRef.current = true;
+    setMutationFilters((previous) => {
+      const safePrevious =
+        previous && typeof previous === 'object' ? previous : createEmptyMutationFilters();
+      const currentValues = Array.isArray(safePrevious[key]) ? safePrevious[key] : [];
+      const normalisedValue = typeof value === 'string' ? value : String(value);
+      const hasValue = currentValues.includes(normalisedValue);
+      let nextValues;
+      if (hasValue) {
+        nextValues = currentValues.filter((item) => item !== normalisedValue);
+      } else {
+        nextValues = currentValues.concat(normalisedValue);
+      }
+
+      if (nextValues.length === currentValues.length && hasValue) {
+        return safePrevious;
+      }
+      if (!hasValue && nextValues.length === currentValues.length) {
+        return safePrevious;
+      }
+
+      const uniqueValues = Array.from(new Set(nextValues));
+      return { ...safePrevious, [key]: uniqueValues };
+    });
+  }, []);
+
+  const getMutationIconSource = React.useCallback(
+    (kind, id) => {
+      if (!id) {
+        return null;
+      }
+      const cacheKey = `${kind}:${id}`;
+      const cache = mutationIconCache.current;
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
+      }
+      let sources = [];
+      if (kind === 'type') {
+        sources = getMutationIconSources({ typeId: id });
+      } else if (kind === 'promotion') {
+        sources = getMutationIconSources({ promotionId: id });
+      } else if (kind === 'curse') {
+        sources = getMutationIconSources({ curseId: id });
+      }
+      const [first] = sources;
+      const src = first?.src || null;
+      cache.set(cacheKey, src);
+      return src;
+    },
+    [],
+  );
+
+  const filteredEntries = React.useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return [];
+    }
+
+    const typeFilters = Array.isArray(mutationFilters?.type) ? mutationFilters.type : [];
+    const promotionFilters = Array.isArray(mutationFilters?.promotion)
+      ? mutationFilters.promotion
+      : [];
+    const curseFilters = Array.isArray(mutationFilters?.curse) ? mutationFilters.curse : [];
+
+    const hasTypeFilter = typeFilters.length > 0;
+    const hasPromotionFilter = promotionFilters.length > 0;
+    const hasCurseFilter = curseFilters.length > 0;
+
+    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter) {
+      return entries;
+    }
+
+    return entries.filter((entry) => {
+      const mutations = entry?.mutations ?? extractMutationIds(entry?.raw);
+      const typeId = mutations?.typeId ? String(mutations.typeId) : '';
+      const promotionId = mutations?.promotionId ? String(mutations.promotionId) : '';
+      const curseId = mutations?.curseId ? String(mutations.curseId) : '';
+
+      if (hasTypeFilter && !typeFilters.includes(typeId)) {
+        return false;
+      }
+      if (hasPromotionFilter && !promotionFilters.includes(promotionId)) {
+        return false;
+      }
+      if (hasCurseFilter && !curseFilters.includes(curseId)) {
+        return false;
+      }
+      return true;
+    });
+  }, [entries, mutationFilters]);
 
   const formatWeekLabel = React.useCallback(
     (week) => {
@@ -251,7 +529,7 @@ export default function LeaderboardPage({
       return null;
     }
 
-    const points = entries
+    const points = filteredEntries
       .map((entry) => {
         const numericValue = chartConfig.extractValue(entry);
         if (!Number.isFinite(numericValue)) {
@@ -467,13 +745,13 @@ export default function LeaderboardPage({
       },
       options,
     };
-  }, [chartConfig, entries, formatWeekLabel, t]);
+  }, [chartConfig, filteredEntries, formatWeekLabel, t]);
 
   const sortedEntries = React.useMemo(() => {
-    if (entries.length === 0) {
+    if (filteredEntries.length === 0) {
       return [];
     }
-    const copy = entries.slice();
+    const copy = filteredEntries.slice();
     copy.sort((a, b) => {
       const aValue = getSortValue(a);
       const bValue = getSortValue(b);
@@ -494,13 +772,129 @@ export default function LeaderboardPage({
       return sortDirection === 'asc' ? safeA - safeB : safeB - safeA;
     });
     return copy;
-  }, [entries, getSortValue, sortDirection]);
+  }, [filteredEntries, getSortValue, sortDirection]);
+
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
+
+  React.useEffect(() => {
+    setCurrentPage((previous) => {
+      const clamped = Math.min(Math.max(previous, 1), Math.max(totalPages, 1));
+      if (clamped !== previous) {
+        setRequestedPage(clamped);
+        return clamped;
+      }
+      return previous;
+    });
+  }, [totalPages]);
+
+  React.useEffect(() => {
+    setPageInputValue((previous) => {
+      const nextValue = String(safeCurrentPage);
+      return previous === nextValue ? previous : nextValue;
+    });
+  }, [safeCurrentPage]);
+
+  const displayEntries = sortedEntries;
+
+  const isFirstPage = safeCurrentPage <= 1;
+  const isLastPage = safeCurrentPage >= Math.max(totalPages, 1);
+
+  const requestPageChange = React.useCallback(
+    (nextPage) => {
+      const clamped = Math.min(Math.max(nextPage, 1), Math.max(totalPages, 1));
+      setRequestedPage(clamped);
+      setCurrentPage(clamped);
+    },
+    [totalPages],
+  );
+
+  const handlePageSizeChange = React.useCallback(
+    (event) => {
+      const value = Number(event?.target?.value ?? DEFAULT_PAGE_SIZE);
+      const candidate = Number.isFinite(value) ? Math.floor(value) : DEFAULT_PAGE_SIZE;
+      const allowed = PAGE_SIZE_OPTIONS.includes(candidate) ? candidate : DEFAULT_PAGE_SIZE;
+      if (allowed === pageSize) {
+        return;
+      }
+      setPageSize(allowed);
+      setRequestedPage(1);
+      setCurrentPage(1);
+    },
+    [pageSize],
+  );
 
   const handleSelectDungeon = React.useCallback((dungeonId) => {
-    setSelectedDungeon(dungeonId);
+    setSelectedDungeon((previous) => {
+      const nextId = dungeonId ?? null;
+      if (previous === nextId) {
+        return previous;
+      }
+      filtersInitialisedRef.current = false;
+      hasUserAdjustedFiltersRef.current = false;
+      return nextId;
+    });
   }, []);
 
+  const handleFirstPage = React.useCallback(() => {
+    requestPageChange(1);
+  }, [requestPageChange]);
+
+  const handlePreviousPage = React.useCallback(() => {
+    requestPageChange(safeCurrentPage - 1);
+  }, [requestPageChange, safeCurrentPage]);
+
+  const handleNextPage = React.useCallback(() => {
+    requestPageChange(safeCurrentPage + 1);
+  }, [requestPageChange, safeCurrentPage]);
+
+  const handleLastPage = React.useCallback(() => {
+    requestPageChange(totalPages);
+  }, [requestPageChange, totalPages]);
+
+  const handlePageInputChange = React.useCallback((event) => {
+    const value = event?.target?.value ?? '';
+    const digitsOnly = typeof value === 'string' ? value.replace(/[^0-9]/g, '') : '';
+    setPageInputValue(digitsOnly);
+  }, []);
+
+  const commitPageInput = React.useCallback(() => {
+    const trimmed = (pageInputValue || '').trim();
+    if (trimmed.length === 0) {
+      setPageInputValue(String(safeCurrentPage));
+      return;
+    }
+    const numeric = Number(trimmed);
+    if (!Number.isFinite(numeric)) {
+      setPageInputValue(String(safeCurrentPage));
+      return;
+    }
+    const nextPage = Math.min(Math.max(Math.floor(numeric), 1), Math.max(totalPages, 1));
+    requestPageChange(nextPage);
+    setPageInputValue(String(nextPage));
+  }, [pageInputValue, requestPageChange, safeCurrentPage, totalPages]);
+
+  const handlePageInputBlur = React.useCallback(() => {
+    commitPageInput();
+  }, [commitPageInput]);
+
+  const handlePageInputKeyDown = React.useCallback(
+    (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitPageInput();
+      }
+    },
+    [commitPageInput],
+  );
+
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
+
+  const hasMutationData =
+    mutationOptions.type.length > 0 ||
+    mutationOptions.promotion.length > 0 ||
+    mutationOptions.curse.length > 0;
+  const mutationPanelId = React.useMemo(() => `${mode}-mutation-filter`, [mode]);
+  const dungeonPanelId = React.useMemo(() => `${mode}-dungeon-list`, [mode]);
 
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
@@ -510,35 +904,227 @@ export default function LeaderboardPage({
       </h1>
       <div className="leaderboard-layout">
         <aside className="leaderboard-sidebar">
-          <h2 className="leaderboard-sidebar-title">{t.dungeonSelectorTitle}</h2>
-          {dungeonsLoading ? (
-            <p className="leaderboard-status">{t.leaderboardLoading}</p>
-          ) : dungeonsError ? (
-            <p className="leaderboard-status error">{t.dungeonSelectorError}</p>
-          ) : dungeons.length === 0 ? (
-            <p className="leaderboard-status">{t.dungeonSelectorEmpty}</p>
-          ) : (
-            <ul className="dungeon-list">
-              {sortedDungeons.map((dungeon) => {
-                const displayName = getDungeonNameForLang(dungeon, lang);
-                const isActive = dungeon.id === selectedDungeon;
-                return (
-                  <li key={dungeon.id}>
-                    <button
-                      type="button"
-                      className={isActive ? 'dungeon-button active' : 'dungeon-button'}
-                      onClick={() => handleSelectDungeon(dungeon.id)}
+          <section className="leaderboard-sidebar-section">
+            <button
+              type="button"
+              className="leaderboard-sidebar-toggle"
+              aria-expanded={!isMutationCollapsed}
+              aria-controls={mutationPanelId}
+              onClick={handleMutationPanelToggle}
+            >
+              <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
+                {t.mutationFilterTitle}
+              </span>
+              <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
+              <span className="visually-hidden">
+                {isMutationCollapsed
+                  ? t.mutationFilterToggleExpand
+                  : t.mutationFilterToggleCollapse}
+              </span>
+            </button>
+            <div
+              id={mutationPanelId}
+              className="leaderboard-sidebar-content leaderboard-filter-panel"
+              hidden={isMutationCollapsed}
+              aria-hidden={isMutationCollapsed}
+              style={isMutationCollapsed ? { display: 'none' } : undefined}
+            >
+              {hasMutationData ? (
+                <div className="leaderboard-filter-groups">
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterTypeLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterTypeLabel}
                     >
-                      <span className="dungeon-button-content">
-                        <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
-                        <span className="dungeon-button-label">{displayName}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      {mutationOptions.type.map((typeId) => {
+                        const isActive = Array.isArray(mutationFilters.type)
+                          ? mutationFilters.type.includes(typeId)
+                          : false;
+                        const iconSrc = getMutationIconSource('type', typeId);
+                        return (
+                          <button
+                            key={typeId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('type', typeId)}
+                            title={typeId}
+                            aria-label={typeId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {typeId?.charAt ? typeId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{typeId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterPromotionLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterPromotionLabel}
+                    >
+                      {mutationOptions.promotion.map((promotionId) => {
+                        const isActive = Array.isArray(mutationFilters.promotion)
+                          ? mutationFilters.promotion.includes(promotionId)
+                          : false;
+                        const iconSrc = getMutationIconSource('promotion', promotionId);
+                        return (
+                          <button
+                            key={promotionId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('promotion', promotionId)}
+                            title={promotionId}
+                            aria-label={promotionId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {promotionId?.charAt ? promotionId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{promotionId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mutation-filter-group">
+                    <h3 className="mutation-filter-group-title">{t.mutationFilterCurseLabel}</h3>
+                    <div
+                      className="mutation-filter-grid"
+                      role="group"
+                      aria-label={t.mutationFilterCurseLabel}
+                    >
+                      {mutationOptions.curse.map((curseId) => {
+                        const isActive = Array.isArray(mutationFilters.curse)
+                          ? mutationFilters.curse.includes(curseId)
+                          : false;
+                        const iconSrc = getMutationIconSource('curse', curseId);
+                        return (
+                          <button
+                            key={curseId}
+                            type="button"
+                            className={
+                              isActive
+                                ? 'mutation-filter-option active'
+                                : 'mutation-filter-option'
+                            }
+                            aria-pressed={isActive}
+                            onClick={() => handleMutationFilterToggle('curse', curseId)}
+                            title={curseId}
+                            aria-label={curseId}
+                          >
+                            {iconSrc ? (
+                              <img
+                                src={iconSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="mutation-filter-option-icon"
+                                loading="lazy"
+                                decoding="async"
+                                draggable="false"
+                              />
+                            ) : (
+                              <span className="mutation-filter-option-fallback" aria-hidden="true">
+                                {curseId?.charAt ? curseId.charAt(0) : ''}
+                              </span>
+                            )}
+                            <span className="visually-hidden">{curseId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="leaderboard-filter-empty">{t.mutationFilterEmpty}</p>
+              )}
+            </div>
+          </section>
+          <section className="leaderboard-sidebar-section">
+            <button
+              type="button"
+              className="leaderboard-sidebar-toggle"
+              aria-expanded={!isDungeonCollapsed}
+              aria-controls={dungeonPanelId}
+              onClick={() => setIsDungeonCollapsed((previous) => !previous)}
+            >
+              <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
+                {t.dungeonSelectorTitle}
+              </span>
+              <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
+              <span className="visually-hidden">
+                {isDungeonCollapsed ? t.dungeonSelectorToggleExpand : t.dungeonSelectorToggleCollapse}
+              </span>
+            </button>
+            <div id={dungeonPanelId} className="leaderboard-sidebar-content" hidden={isDungeonCollapsed}>
+              {dungeonsLoading ? (
+                <p className="leaderboard-status">{t.leaderboardLoading}</p>
+              ) : dungeonsError ? (
+                <p className="leaderboard-status error">{t.dungeonSelectorError}</p>
+              ) : dungeons.length === 0 ? (
+                <p className="leaderboard-status">{t.dungeonSelectorEmpty}</p>
+              ) : (
+                <ul className="dungeon-list">
+                  {sortedDungeons.map((dungeon) => {
+                    const displayName = getDungeonNameForLang(dungeon, lang);
+                    const isActive = dungeon.id === selectedDungeon;
+                    return (
+                      <li key={dungeon.id}>
+                        <button
+                          type="button"
+                          className={isActive ? 'dungeon-button active' : 'dungeon-button'}
+                          onClick={() => handleSelectDungeon(dungeon.id)}
+                        >
+                          <span className="dungeon-button-content">
+                            <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
+                            <span className="dungeon-button-label">{displayName}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </section>
         </aside>
         <section className="leaderboard-results" aria-live="polite">
           {entriesLoading ? (
@@ -566,10 +1152,10 @@ export default function LeaderboardPage({
                 </div>
               ) : null}
               <ul className="leaderboard-list">
-                {sortedEntries.map((entry) => {
+                {displayEntries.map((entry) => {
                   const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
-                  const mutations = extractMutationIds(entry.raw);
+                  const mutations = entry.mutations ?? extractMutationIds(entry.raw);
                   return (
                     <li key={entry.id} className="leaderboard-run">
                       <div className="leaderboard-run-header">
@@ -621,6 +1207,80 @@ export default function LeaderboardPage({
                   );
                 })}
               </ul>
+              <nav
+                className="leaderboard-pagination"
+                aria-label={t.leaderboardPaginationLabel}
+              >
+                <div className="leaderboard-page-size">
+                  <label className="leaderboard-page-size-label" htmlFor={`${mode}-page-size`}>
+                    {t.leaderboardPageSizeLabel}
+                  </label>
+                  <select
+                    id={`${mode}-page-size`}
+                    className="leaderboard-page-size-select"
+                    value={pageSize}
+                    onChange={handlePageSizeChange}
+                  >
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleFirstPage}
+                  disabled={isFirstPage}
+                >
+                  {t.leaderboardPaginationFirst}
+                </button>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handlePreviousPage}
+                  disabled={isFirstPage}
+                >
+                  {t.leaderboardPaginationPrevious}
+                </button>
+                <div className="leaderboard-pagination-status">
+                <span className="leaderboard-pagination-page-label">
+                  {t.leaderboardPaginationPageLabel}
+                </span>
+                  <label className="leaderboard-pagination-input" htmlFor={`${mode}-page-input`}>
+                    <span className="visually-hidden">{t.leaderboardPaginationInputLabel}</span>
+                    <input
+                      id={`${mode}-page-input`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={pageInputValue}
+                      onChange={handlePageInputChange}
+                      onBlur={handlePageInputBlur}
+                      onKeyDown={handlePageInputKeyDown}
+                    />
+                  </label>
+                <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
+                <span className="leaderboard-pagination-total">{Math.max(totalPages, 1)}</span>
+                </div>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleNextPage}
+                  disabled={isLastPage}
+                >
+                  {t.leaderboardPaginationNext}
+                </button>
+                <button
+                  type="button"
+                  className="leaderboard-pagination-button"
+                  onClick={handleLastPage}
+                  disabled={isLastPage}
+                >
+                  {t.leaderboardPaginationLast}
+                </button>
+              </nav>
             </>
           )}
         </section>

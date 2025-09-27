@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard.service;
 import com.opyruso.nwleaderboard.dto.HighlightMetricResponse;
 import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardPageResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,8 +39,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class LeaderboardService {
 
-    private static final int DEFAULT_LIMIT = 50;
-    private static final int MAX_LIMIT = 100;
+    private static final int DEFAULT_PAGE_SIZE = 25;
+    private static final int MAX_PAGE_SIZE = 100;
 
     @Inject
     RunScoreRepository runScoreRepository;
@@ -59,80 +61,101 @@ public class LeaderboardService {
     WeekMutationDungeonRepository weekMutationDungeonRepository;
 
     @Transactional(Transactional.TxType.SUPPORTS)
-    public List<LeaderboardEntryResponse> getScoreEntries(Long dungeonId, Integer limit) {
+    public LeaderboardPageResponse getScoreEntries(
+            Long dungeonId,
+            Integer pageParam,
+            Integer pageSizeParam,
+            List<String> mutationTypeIds,
+            List<String> mutationPromotionIds,
+            List<String> mutationCurseIds) {
+        int safePageSize = sanitisePageSize(pageSizeParam);
+        int requestedPage = sanitisePage(pageParam);
         if (dungeonId == null) {
-            return List.of();
+            return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
-        int safeLimit = sanitiseLimit(limit);
-        List<RunScore> candidateRuns = collectScoreRuns(dungeonId, safeLimit);
-        if (candidateRuns.isEmpty()) {
-            return List.of();
+
+        MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
+        if (weekFilter != null && weekFilter.isEmpty()) {
+            return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
-        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(candidateRuns);
-        List<RunScore> runs = filterScoreRuns(candidateRuns, playersByRun, safeLimit);
-        if (runs.isEmpty()) {
-            return List.of();
+
+        long totalRuns = runScoreRepository.countByDungeonAndWeeks(dungeonId, weekFilter);
+        int totalPages = computeTotalPages(totalRuns, safePageSize);
+        int safePage = clampPage(requestedPage, totalPages);
+        if (totalRuns == 0) {
+            return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
-        Map<Long, List<LeaderboardPlayerResponse>> filteredPlayers = new LinkedHashMap<>();
-        for (RunScore run : runs) {
-            if (run == null || run.getId() == null) {
-                continue;
-            }
-            filteredPlayers.put(run.getId(), playersByRun.getOrDefault(run.getId(), List.of()));
-        }
+
+        List<RunScore> runs = runScoreRepository.listByDungeonAndWeeks(dungeonId, weekFilter, safePage - 1, safePageSize);
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
+        int startIndex = (safePage - 1) * safePageSize;
         for (int index = 0; index < runs.size(); index++) {
             RunScore run = runs.get(index);
+            if (run == null) {
+                continue;
+            }
             Long runId = run.getId();
-            Integer score = run.getScore();
-            Integer position = index + 1;
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
+            int position = startIndex + index + 1;
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     position,
                     run.getWeek(),
-                    score,
-                    score,
+                    run.getScore(),
+                    run.getScore(),
                     null,
-                    filteredPlayers.getOrDefault(runId, List.of()),
+                    playersByRun.getOrDefault(runId, List.of()),
                     mutationIds.typeId(),
                     mutationIds.promotionId(),
                     mutationIds.curseId()));
         }
-        return List.copyOf(responses);
+        return new LeaderboardPageResponse(responses, totalRuns, safePage, safePageSize, totalPages);
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
-    public List<LeaderboardEntryResponse> getTimeEntries(Long dungeonId, Integer limit) {
+    public LeaderboardPageResponse getTimeEntries(
+            Long dungeonId,
+            Integer pageParam,
+            Integer pageSizeParam,
+            List<String> mutationTypeIds,
+            List<String> mutationPromotionIds,
+            List<String> mutationCurseIds) {
+        int safePageSize = sanitisePageSize(pageSizeParam);
+        int requestedPage = sanitisePage(pageParam);
         if (dungeonId == null) {
-            return List.of();
+            return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
-        int safeLimit = sanitiseLimit(limit);
-        List<RunTime> candidateRuns = collectTimeRuns(dungeonId, safeLimit);
-        if (candidateRuns.isEmpty()) {
-            return List.of();
+
+        MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
+        if (weekFilter != null && weekFilter.isEmpty()) {
+            return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
-        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(candidateRuns);
-        List<RunTime> runs = filterTimeRuns(candidateRuns, playersByRun, safeLimit);
-        if (runs.isEmpty()) {
-            return List.of();
+
+        long totalRuns = runTimeRepository.countByDungeonAndWeeks(dungeonId, weekFilter);
+        int totalPages = computeTotalPages(totalRuns, safePageSize);
+        int safePage = clampPage(requestedPage, totalPages);
+        if (totalRuns == 0) {
+            return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
-        Map<Long, List<LeaderboardPlayerResponse>> filteredPlayers = new LinkedHashMap<>();
-        for (RunTime run : runs) {
-            if (run == null || run.getId() == null) {
-                continue;
-            }
-            filteredPlayers.put(run.getId(), playersByRun.getOrDefault(run.getId(), List.of()));
-        }
+
+        List<RunTime> runs = runTimeRepository.listByDungeonAndWeeks(dungeonId, weekFilter, safePage - 1, safePageSize);
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
+        int startIndex = (safePage - 1) * safePageSize;
         for (int index = 0; index < runs.size(); index++) {
             RunTime run = runs.get(index);
+            if (run == null) {
+                continue;
+            }
             Long runId = run.getId();
-            Integer time = run.getTimeInSecond();
-            Integer position = index + 1;
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
+            int position = startIndex + index + 1;
+            Integer time = run.getTimeInSecond();
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     position,
@@ -140,12 +163,12 @@ public class LeaderboardService {
                     time,
                     null,
                     time,
-                    filteredPlayers.getOrDefault(runId, List.of()),
+                    playersByRun.getOrDefault(runId, List.of()),
                     mutationIds.typeId(),
                     mutationIds.promotionId(),
                     mutationIds.curseId()));
         }
-        return List.copyOf(responses);
+        return new LeaderboardPageResponse(responses, totalRuns, safePage, safePageSize, totalPages);
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
@@ -284,100 +307,6 @@ public class LeaderboardService {
         return new PlayerAssignment(runId, playerId, playerName, mainId, mainName);
     }
 
-    private List<RunScore> collectScoreRuns(Long dungeonId, int limit) {
-        if (dungeonId == null || limit <= 0) {
-            return List.of();
-        }
-        int pageSize = Math.max(limit, 25);
-        int maxPages = 10;
-        List<RunScore> collected = new ArrayList<>();
-        for (int page = 0; page < maxPages; page++) {
-            List<RunScore> pageRuns =
-                    runScoreRepository.listTopByDungeonPaged(dungeonId, page, pageSize);
-            if (pageRuns.isEmpty()) {
-                break;
-            }
-            collected.addAll(pageRuns);
-            if (collected.size() >= limit * 3L) {
-                break;
-            }
-        }
-        return collected;
-    }
-
-    private List<RunTime> collectTimeRuns(Long dungeonId, int limit) {
-        if (dungeonId == null || limit <= 0) {
-            return List.of();
-        }
-        int pageSize = Math.max(limit, 25);
-        int maxPages = 10;
-        List<RunTime> collected = new ArrayList<>();
-        for (int page = 0; page < maxPages; page++) {
-            List<RunTime> pageRuns =
-                    runTimeRepository.listTopByDungeonPaged(dungeonId, page, pageSize);
-            if (pageRuns.isEmpty()) {
-                break;
-            }
-            collected.addAll(pageRuns);
-            if (collected.size() >= limit * 3L) {
-                break;
-            }
-        }
-        return collected;
-    }
-
-    private List<RunScore> filterScoreRuns(
-            List<RunScore> runs, Map<Long, List<LeaderboardPlayerResponse>> playersByRun, int limit) {
-        if (runs == null || runs.isEmpty() || limit <= 0) {
-            return List.of();
-        }
-        List<RunScore> filtered = new ArrayList<>();
-        Set<String> seenTeams = new HashSet<>();
-        for (RunScore run : runs) {
-            if (run == null || run.getId() == null) {
-                continue;
-            }
-            String teamKey = buildTeamKey(playersByRun.getOrDefault(run.getId(), List.of()));
-            if (teamKey.isEmpty()) {
-                teamKey = "run:" + run.getId();
-            }
-            if (!seenTeams.add(teamKey)) {
-                continue;
-            }
-            filtered.add(run);
-            if (filtered.size() >= limit) {
-                break;
-            }
-        }
-        return filtered;
-    }
-
-    private List<RunTime> filterTimeRuns(
-            List<RunTime> runs, Map<Long, List<LeaderboardPlayerResponse>> playersByRun, int limit) {
-        if (runs == null || runs.isEmpty() || limit <= 0) {
-            return List.of();
-        }
-        List<RunTime> filtered = new ArrayList<>();
-        Set<String> seenTeams = new HashSet<>();
-        for (RunTime run : runs) {
-            if (run == null || run.getId() == null) {
-                continue;
-            }
-            String teamKey = buildTeamKey(playersByRun.getOrDefault(run.getId(), List.of()));
-            if (teamKey.isEmpty()) {
-                teamKey = "run:" + run.getId();
-            }
-            if (!seenTeams.add(teamKey)) {
-                continue;
-            }
-            filtered.add(run);
-            if (filtered.size() >= limit) {
-                break;
-            }
-        }
-        return filtered;
-    }
-
     private Map<Long, List<LeaderboardPlayerResponse>> organisePlayers(List<Long> runIds, List<PlayerAssignment> assignments) {
         if (runIds.isEmpty()) {
             return Map.of();
@@ -431,34 +360,6 @@ public class LeaderboardService {
         return List.copyOf(unique.values());
     }
 
-    private String buildTeamKey(List<LeaderboardPlayerResponse> players) {
-        if (players == null || players.isEmpty()) {
-            return "";
-        }
-        Set<String> identifiers = new HashSet<>();
-        for (LeaderboardPlayerResponse player : players) {
-            if (player == null) {
-                continue;
-            }
-            Long canonicalId = player.mainPlayerId() != null ? player.mainPlayerId() : player.playerId();
-            if (canonicalId != null) {
-                identifiers.add("id:" + canonicalId);
-                continue;
-            }
-            String canonicalName = player.mainPlayerName() != null ? player.mainPlayerName() : player.playerName();
-            String normalised = normaliseName(canonicalName);
-            if (normalised != null) {
-                identifiers.add("name:" + normalised.toLowerCase(Locale.ROOT));
-            }
-        }
-        if (identifiers.isEmpty()) {
-            return "";
-        }
-        List<String> sorted = new ArrayList<>(identifiers);
-        sorted.sort(String::compareTo);
-        return String.join("|", sorted);
-    }
-
     private String normaliseName(String value) {
         if (value == null) {
             return null;
@@ -486,11 +387,90 @@ public class LeaderboardService {
         return current;
     }
 
-    private int sanitiseLimit(Integer limit) {
-        if (limit == null || limit <= 0) {
-            return DEFAULT_LIMIT;
+    private MutationFilter sanitiseMutationFilter(
+            List<String> typeIds, List<String> promotionIds, List<String> curseIds) {
+        Set<String> typeSet = sanitiseMutationIds(typeIds);
+        Set<String> promotionSet = sanitiseMutationIds(promotionIds);
+        Set<String> curseSet = sanitiseMutationIds(curseIds);
+
+        boolean typeRequested = typeIds != null && !typeSet.isEmpty();
+        boolean promotionRequested = promotionIds != null && !promotionSet.isEmpty();
+        boolean curseRequested = curseIds != null && !curseSet.isEmpty();
+
+        Set<String> safeTypeSet = typeRequested ? typeSet : Set.of();
+        Set<String> safePromotionSet = promotionRequested ? promotionSet : Set.of();
+        Set<String> safeCurseSet = curseRequested ? curseSet : Set.of();
+
+        return new MutationFilter(
+                safeTypeSet, safePromotionSet, safeCurseSet, typeRequested, promotionRequested, curseRequested);
+    }
+
+    private Set<String> sanitiseMutationIds(List<String> values) {
+        if (values == null) {
+            return Set.of();
         }
-        return Math.min(limit, MAX_LIMIT);
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String value : values) {
+            if (value == null) {
+                continue;
+            }
+            String trimmed = value.trim();
+            if (!trimmed.isEmpty()) {
+                unique.add(trimmed);
+            }
+        }
+        return unique.isEmpty() ? Set.of() : Collections.unmodifiableSet(unique);
+    }
+
+    private List<Integer> resolveWeekFilter(Long dungeonId, MutationFilter filter) {
+        if (filter == null || !filter.hasAnyRequestedFilter()) {
+            return null;
+        }
+        if ((filter.typeFilterRequested() && filter.typeIds().isEmpty())
+                || (filter.promotionFilterRequested() && filter.promotionIds().isEmpty())
+                || (filter.curseFilterRequested() && filter.curseIds().isEmpty())) {
+            return List.of();
+        }
+        return weekMutationDungeonRepository.findWeekNumbersByFilters(
+                dungeonId,
+                filter.typeFilterRequested() ? filter.typeIds() : null,
+                filter.promotionFilterRequested() ? filter.promotionIds() : null,
+                filter.curseFilterRequested() ? filter.curseIds() : null);
+    }
+
+    private int sanitisePage(Integer page) {
+        if (page == null || page < 1) {
+            return 1;
+        }
+        return page;
+    }
+
+    private int sanitisePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(pageSize, MAX_PAGE_SIZE);
+    }
+
+    private int computeTotalPages(long totalEntries, int pageSize) {
+        if (pageSize <= 0) {
+            return 1;
+        }
+        if (totalEntries <= 0) {
+            return 1;
+        }
+        long pages = (totalEntries + pageSize - 1) / pageSize;
+        return pages >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) pages;
+    }
+
+    private int clampPage(int requestedPage, int totalPages) {
+        if (totalPages <= 0) {
+            return 1;
+        }
+        if (requestedPage < 1) {
+            return 1;
+        }
+        return Math.min(requestedPage, totalPages);
     }
 
     private Map<String, String> buildNameMap(Dungeon dungeon) {
@@ -543,6 +523,19 @@ public class LeaderboardService {
 
     private record MutationIds(String typeId, String promotionId, String curseId) {
         private static final MutationIds EMPTY = new MutationIds(null, null, null);
+    }
+
+    private record MutationFilter(
+            Set<String> typeIds,
+            Set<String> promotionIds,
+            Set<String> curseIds,
+            boolean typeFilterRequested,
+            boolean promotionFilterRequested,
+            boolean curseFilterRequested) {
+
+        boolean hasAnyRequestedFilter() {
+            return typeFilterRequested || promotionFilterRequested || curseFilterRequested;
+        }
     }
 
     private record PlayerAssignment(

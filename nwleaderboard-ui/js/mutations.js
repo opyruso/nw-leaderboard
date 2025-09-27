@@ -25,6 +25,10 @@ const CURSE_KEYS = [
 
 const CURSE_GENERIC_KEYS = ['curseId', 'curse_id', 'curse'];
 
+const DEFAULT_MUTATION_TYPES = Object.freeze(['Eternal', 'Hellfire', 'Icebound', 'Overgrown']);
+const DEFAULT_MUTATION_PROMOTIONS = Object.freeze(['Barbaric', 'Indomitable', 'Oppressive', 'Savage']);
+const DEFAULT_MUTATION_CURSES = Object.freeze(['Censored', 'Desiccated', 'Fiendish', 'Frenzied']);
+
 const NESTED_KEYS = ['mutation', 'mutations', 'mutationInfo', 'mutation_ids', 'mutationIds'];
 
 function normaliseId(value) {
@@ -133,4 +137,37 @@ export function getMutationIconSources({ typeId, promotionId, curseId }) {
     icons.push({ kind: 'curse', id: curseId, src: `/images/icons/mutations/curse/${encodeURIComponent(curseId)}.png` });
   }
   return icons;
+}
+
+function getConfiguredMutationList(key, fallback) {
+  try {
+    const configRoot = typeof window !== 'undefined' ? window.CONFIG : undefined;
+    const filterOptions = configRoot?.mutationFilterOptions;
+    const options = Array.isArray(filterOptions?.[key]) ? filterOptions[key] : null;
+    if (!options) {
+      return fallback;
+    }
+    const unique = Array.from(
+      new Set(
+        options
+          .map((value) => normaliseId(value))
+          .filter((value) => typeof value === 'string' && value.length > 0),
+      ),
+    );
+    return unique.length > 0 ? unique : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+export function getAllMutationTypeIds() {
+  return getConfiguredMutationList('types', DEFAULT_MUTATION_TYPES);
+}
+
+export function getAllMutationPromotionIds() {
+  return getConfiguredMutationList('promotions', DEFAULT_MUTATION_PROMOTIONS);
+}
+
+export function getAllMutationCurseIds() {
+  return getConfiguredMutationList('curses', DEFAULT_MUTATION_CURSES);
 }
