@@ -120,17 +120,17 @@ export function hasMutationIds(mutations) {
 export function getMutationIconSources({ typeId, promotionId, curseId }) {
   const icons = [];
   if (typeId) {
-    icons.push({ kind: 'type', id: typeId, src: `images/icons/mutations/type/${encodeURIComponent(typeId)}.png` });
+    icons.push({ kind: 'type', id: typeId, src: `/images/icons/mutations/type/${encodeURIComponent(typeId)}.png` });
   }
   if (promotionId) {
     icons.push({
       kind: 'promotion',
       id: promotionId,
-      src: `images/icons/mutations/promotion/${encodeURIComponent(promotionId)}.png`,
+      src: `/images/icons/mutations/promotion/${encodeURIComponent(promotionId)}.png`,
     });
   }
   if (curseId) {
-    icons.push({ kind: 'curse', id: curseId, src: `images/icons/mutations/curse/${encodeURIComponent(curseId)}.png` });
+    icons.push({ kind: 'curse', id: curseId, src: `/images/icons/mutations/curse/${encodeURIComponent(curseId)}.png` });
   }
   return icons;
 }
