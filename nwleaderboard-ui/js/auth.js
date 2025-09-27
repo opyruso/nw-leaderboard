@@ -167,6 +167,22 @@ export function hasContributorRole(tokens) {
   return hasClientRole(payload, 'nwleaderboard-app', 'contributor');
 }
 
+export function hasAdminRole(tokens) {
+  const source = tokens || readStoredTokens();
+  if (!source || !source.access_token) {
+    return false;
+  }
+  const payload = decodeAccessToken(source.access_token);
+  if (!payload) {
+    return false;
+  }
+  const roles = collectRolesFromPayload(payload);
+  if (roles.some((role) => role.toLowerCase() === 'admin')) {
+    return true;
+  }
+  return hasClientRole(payload, 'nwleaderboard-app', 'admin');
+}
+
 export function setupAuthFetch() {
   if (fetchInitialised) return;
   fetchInitialised = true;
