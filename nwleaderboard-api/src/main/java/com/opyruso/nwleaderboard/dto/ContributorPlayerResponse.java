@@ -14,4 +14,5 @@ public record ContributorPlayerResponse(
         @JsonProperty("total_run_count") long totalRunCount,
         @JsonProperty("main_player_id") Long mainPlayerId,
         @JsonProperty("main_player_name") String mainPlayerName,
-        @JsonProperty("alternate_count") long alternateCount) {}
+        @JsonProperty("alternate_count") long alternateCount,
+        @JsonProperty("region") String region) {}

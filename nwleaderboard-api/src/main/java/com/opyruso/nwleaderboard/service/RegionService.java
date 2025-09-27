@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -60,20 +61,54 @@ public class RegionService {
     /** Returns the default region used when none is provided explicitly. */
     @Transactional(Transactional.TxType.SUPPORTS)
     public Region requireDefaultRegion() {
-        return requireRegion(Region.ID_EUROPE_CENTRAL);
+        return resolveRegionOrDefault(Region.ID_EUROPE_CENTRAL);
     }
 
     /** Resolves a region by its identifier or throws an {@link IllegalStateException} when missing. */
     @Transactional(Transactional.TxType.SUPPORTS)
     public Region requireRegion(String rawId) {
-        if (rawId == null || rawId.isBlank()) {
-            throw new IllegalStateException("Region identifier is required");
-        }
-        String normalised = rawId.trim().toUpperCase(Locale.ROOT);
-        Region region = regionRepository.findById(normalised);
+        Region region = resolveRegion(rawId);
         if (region == null) {
-            throw new IllegalStateException("Unknown region " + normalised);
+            throw new IllegalStateException("Unknown region " + (rawId != null ? rawId : ""));
         }
         return region;
+    }
+
+    /** Returns the region matching the provided identifier or {@code null} when it cannot be resolved. */
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public Region resolveRegion(String rawId) {
+        if (rawId == null || rawId.isBlank()) {
+            return null;
+        }
+        String normalised = rawId.trim().toUpperCase(Locale.ROOT);
+        return regionRepository.findById(normalised);
+    }
+
+    /** Resolves a region or falls back to the default region when none is provided. */
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public Region resolveRegionOrDefault(String rawId) {
+        Region region = resolveRegion(rawId);
+        if (region != null) {
+            return region;
+        }
+        Region fallback = regionRepository.findById(Region.ID_EUROPE_CENTRAL);
+        if (fallback == null) {
+            throw new IllegalStateException("Default region is not available");
+        }
+        return fallback;
+    }
+
+    /** Returns all supported regions ordered by their identifier. */
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public List<Region> listRegions() {
+        List<Region> regions = new ArrayList<>(SUPPORTED_REGION_IDS.size());
+        for (String regionId : SUPPORTED_REGION_IDS) {
+            Region region = regionRepository.findById(regionId);
+            if (region == null) {
+                region = new Region(regionId);
+            }
+            regions.add(region);
+        }
+        return regions;
     }
 }

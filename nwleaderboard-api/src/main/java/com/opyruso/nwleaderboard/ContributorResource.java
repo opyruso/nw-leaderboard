@@ -8,6 +8,7 @@ import com.opyruso.nwleaderboard.dto.ContributionScanSummaryDto;
 import com.opyruso.nwleaderboard.dto.ContributorWeeklyRunsResponse;
 import com.opyruso.nwleaderboard.dto.UpdateContributionScanRequest;
 import com.opyruso.nwleaderboard.dto.UpdateDungeonHighlightsRequest;
+import com.opyruso.nwleaderboard.dto.RegionResponse;
 import com.opyruso.nwleaderboard.dto.RescanContributionScanRequest;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService;
 import com.opyruso.nwleaderboard.service.ContributorExtractionService.ContributorRequestException;
@@ -15,6 +16,7 @@ import com.opyruso.nwleaderboard.service.ContributorSubmissionService;
 import com.opyruso.nwleaderboard.service.ContributorSubmissionService.ContributorSubmissionException;
 import com.opyruso.nwleaderboard.service.ContributorStatisticsService;
 import com.opyruso.nwleaderboard.service.DungeonService;
+import com.opyruso.nwleaderboard.service.RegionService;
 import com.opyruso.nwleaderboard.service.ScanLeaderboardService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -34,6 +36,7 @@ import jakarta.ws.rs.core.Response.Status;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
@@ -68,6 +71,9 @@ public class ContributorResource {
 
     @Inject
     ScanLeaderboardService scanLeaderboardService;
+
+    @Inject
+    RegionService regionService;
 
     @POST
     @Path("/extract")
@@ -159,6 +165,27 @@ public class ContributorResource {
             LOG.error("Unable to load contributor run statistics", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to load run statistics", null))
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/regions")
+    public Response listRegions() {
+        if (!hasContributorRole()) {
+            return Response.status(Status.FORBIDDEN)
+                    .entity(new ApiMessageResponse("Contributor role required", null))
+                    .build();
+        }
+        try {
+            List<RegionResponse> regions = regionService.listRegions().stream()
+                    .map(region -> new RegionResponse(region.getId()))
+                    .collect(Collectors.toList());
+            return Response.ok(regions).build();
+        } catch (Exception e) {
+            LOG.error("Unable to list supported regions", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to list regions", null))
                     .build();
         }
     }
@@ -270,6 +297,7 @@ public class ContributorResource {
                     request != null ? request.week() : null,
                     request != null ? request.dungeonId() : null,
                     request != null ? request.leaderboardType() : null,
+                    request != null ? request.region() : null,
                     request != null ? request.extraction() : null);
             if (updated == null) {
                 return Response.status(Status.NOT_FOUND)

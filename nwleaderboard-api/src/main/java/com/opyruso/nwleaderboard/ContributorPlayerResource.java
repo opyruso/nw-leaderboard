@@ -108,7 +108,7 @@ public class ContributorPlayerResource {
 
     private ContributorPlayerResponse toResponse(PlayerWithRuns summary) {
         if (summary == null || summary.player() == null) {
-            return new ContributorPlayerResponse(null, null, false, 0L, 0L, 0L, null, null, 0L);
+            return new ContributorPlayerResponse(null, null, false, 0L, 0L, 0L, null, null, 0L, null);
         }
         Player player = summary.player();
         long scoreRuns = summary.scoreRunCount();
@@ -118,6 +118,7 @@ public class ContributorPlayerResource {
         Long mainId = main != null && !main.equals(player) ? main.getId() : null;
         String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
         long alternateCount = summary.alternateCount();
+        String regionId = player.getRegion() != null ? player.getRegion().getId() : null;
         return new ContributorPlayerResponse(
                 player.getId(),
                 player.getPlayerName(),
@@ -127,7 +128,8 @@ public class ContributorPlayerResource {
                 totalRuns,
                 mainId,
                 mainName,
-                alternateCount);
+                alternateCount,
+                regionId);
     }
 
     private Player resolveMain(Player player) {

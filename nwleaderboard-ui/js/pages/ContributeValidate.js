@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { normaliseRegionList, translateRegion } from '../regions.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 const DEFAULT_PLAYER_SLOTS = 6;
@@ -366,6 +367,7 @@ function formatConfidenceLabel(t, confidence) {
 
 export default function ContributeValidate() {
   const { t, lang } = React.useContext(LangContext);
+  const fallbackRegions = React.useMemo(() => normaliseRegionList(), []);
   const [dungeons, setDungeons] = React.useState([]);
   const [loadingDungeons, setLoadingDungeons] = React.useState(false);
   const [dungeonError, setDungeonError] = React.useState(false);
@@ -374,6 +376,10 @@ export default function ContributeValidate() {
   const [scansError, setScansError] = React.useState(false);
   const [selectedScanId, setSelectedScanId] = React.useState(null);
   const [result, setResult] = React.useState(null);
+  const [regions, setRegions] = React.useState(fallbackRegions);
+  const [selectedRegion, setSelectedRegion] = React.useState(() =>
+    fallbackRegions.length ? fallbackRegions[0] : '',
+  );
   const [status, setStatus] = React.useState('idle');
   const [expandedGroups, setExpandedGroups] = React.useState({});
   const [messageKey, setMessageKey] = React.useState('');
@@ -394,6 +400,74 @@ export default function ContributeValidate() {
     setErrorKey('');
     setErrorText('');
   }, []);
+
+  const resultRegion = result?.region || '';
+
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const applyRegions = (list) => {
+      if (!active) {
+        return;
+      }
+      const normalised = normaliseRegionList(list, fallbackRegions);
+      setRegions(normalised);
+      setSelectedRegion((current) => {
+        if (current && normalised.includes(current)) {
+          return current;
+        }
+        return normalised.length ? normalised[0] : current || '';
+      });
+    };
+
+    if (!API_BASE_URL) {
+      applyRegions(fallbackRegions);
+      return () => {
+        active = false;
+        controller.abort();
+      };
+    }
+
+    fetch(`${API_BASE_URL}/contributor/regions`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load regions: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        applyRegions(data);
+      })
+      .catch((error) => {
+        if (!active || error.name === 'AbortError') {
+          return;
+        }
+        console.warn('Unable to load contributor regions', error);
+        applyRegions(fallbackRegions);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [API_BASE_URL, fallbackRegions]);
+
+  React.useEffect(() => {
+    if (!regions.length) {
+      return;
+    }
+    const preferred = resultRegion || selectedRegion;
+    const nextRegion = preferred && regions.includes(preferred)
+      ? preferred
+      : regions[0];
+    if (selectedRegion !== nextRegion) {
+      setSelectedRegion(nextRegion);
+    }
+    if (result && result.region !== nextRegion) {
+      setResult((current) => (current ? { ...current, region: nextRegion } : current));
+    }
+  }, [regions, result, resultRegion, selectedRegion]);
 
   const loadDungeons = React.useCallback(() => {
     if (!API_BASE_URL) {
@@ -462,6 +536,17 @@ export default function ContributeValidate() {
 
   React.useEffect(() => loadDungeons(), [loadDungeons]);
 
+  const handleRegionSelectChange = React.useCallback(
+    (event) => {
+      const value = typeof event?.target?.value === 'string' ? event.target.value : '';
+      const normalised = value.trim().toUpperCase();
+      const resolved = normalised || (regions.length ? regions[0] : '');
+      setSelectedRegion(resolved);
+      setResult((current) => (current ? { ...current, region: resolved } : current));
+    },
+    [regions],
+  );
+
   React.useEffect(() => {
     if (!API_BASE_URL) {
       setScans([]);
@@ -480,7 +565,19 @@ export default function ContributeValidate() {
       })
       .then((data) => {
         if (!cancelled) {
-          setScans(Array.isArray(data) ? data : []);
+          const normalised = Array.isArray(data)
+            ? data
+                .map((item) => {
+                  if (!item || typeof item !== 'object') {
+                    return null;
+                  }
+                  const regionId =
+                    typeof item.region === 'string' ? item.region.trim().toUpperCase() : '';
+                  return { ...item, region: regionId };
+                })
+                .filter(Boolean)
+            : [];
+          setScans(normalised);
         }
       })
       .catch(() => {
@@ -1415,6 +1512,7 @@ export default function ContributeValidate() {
     }
     const context = result.context ? { ...result.context } : createEmptyContext();
     const runs = Array.isArray(result.runs) ? result.runs : [];
+    const resolvedRegion = resultRegion || selectedRegion || (regions.length ? regions[0] : '');
     const preparedRuns = runs
       .map((run) => {
         const players = run.playerSlots.map((slot) => {
@@ -1435,6 +1533,7 @@ export default function ContributeValidate() {
           time: run.time === '' ? null : run.time,
           expectedPlayerCount,
           players,
+          region: resolvedRegion,
         };
       })
       .filter(({ week, dungeon, score, time, players }) => {
@@ -1444,33 +1543,48 @@ export default function ContributeValidate() {
     return preparedRuns;
   };
 
-  const applyScanDetail = React.useCallback((detail) => {
-    if (!detail) {
-      return;
-    }
-    const extraction = detail?.extraction || {};
-    const context = normaliseExtractionContext(extraction);
-    const runs = buildRunsFromExtraction(extraction, context, `${detail.id}-${Date.now()}`).map((run) => ({
-      ...run,
-      week: context.week ?? run.week ?? '',
-      dungeon: context.dungeon ?? run.dungeon ?? '',
-      mode: run.mode || context.mode || '',
-      expectedPlayerCount:
-        Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
-          ? run.expectedPlayerCount
-          : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
-    }));
-    setResult({
-      id: detail.id,
-      context,
-      runs,
-      width: detail.width,
-      height: detail.height,
-      picture: detail.picture || '',
-      leaderboardType: detail.leaderboard_type || detail.leaderboardType || '',
-    });
-    setSelectedScanId(detail.id);
-  }, []);
+  const applyScanDetail = React.useCallback(
+    (detail) => {
+      if (!detail) {
+        return;
+      }
+      const extraction = detail?.extraction || {};
+      const context = normaliseExtractionContext(extraction);
+      const runs = buildRunsFromExtraction(extraction, context, `${detail.id}-${Date.now()}`).map((run) => ({
+        ...run,
+        week: context.week ?? run.week ?? '',
+        dungeon: context.dungeon ?? run.dungeon ?? '',
+        mode: run.mode || context.mode || '',
+        expectedPlayerCount:
+          Number.isFinite(run.expectedPlayerCount) && run.expectedPlayerCount > 0
+            ? run.expectedPlayerCount
+            : context.expectedPlayerCount || DEFAULT_PLAYER_SLOTS,
+      }));
+      const detailRegion =
+        typeof detail.region === 'string' ? detail.region.trim().toUpperCase() : '';
+      const mergedRegions = normaliseRegionList([...regions, detailRegion], fallbackRegions);
+      const preferredRegion = detailRegion || selectedRegion;
+      const resolvedRegion = preferredRegion && mergedRegions.includes(preferredRegion)
+        ? preferredRegion
+        : mergedRegions.length
+        ? mergedRegions[0]
+        : '';
+      setRegions(mergedRegions);
+      setSelectedRegion(resolvedRegion);
+      setResult({
+        id: detail.id,
+        context,
+        runs,
+        width: detail.width,
+        height: detail.height,
+        picture: detail.picture || '',
+        leaderboardType: detail.leaderboard_type || detail.leaderboardType || '',
+        region: resolvedRegion,
+      });
+      setSelectedScanId(detail.id);
+    },
+    [fallbackRegions, regions, selectedRegion],
+  );
 
   const handleSubmit = async () => {
     resetFeedback();
@@ -1505,13 +1619,14 @@ export default function ContributeValidate() {
       return;
     }
 
-    const payload = preparedRuns.map(({ week, dungeon, score, time, players, expectedPlayerCount }) => ({
+    const payload = preparedRuns.map(({ week, dungeon, score, time, players, expectedPlayerCount, region }) => ({
       week,
       dungeon,
       score,
       time,
       expected_player_count: expectedPlayerCount,
       players,
+      region,
     }));
 
     setStatus('submitting');
@@ -1573,10 +1688,12 @@ export default function ContributeValidate() {
     const context = result.context ? result.context : createEmptyContext();
     const weekValue = context.week === '' ? null : toPositiveInteger(context.week);
     const dungeonValue = context.dungeon === '' ? null : toPositiveInteger(context.dungeon);
+    const regionValue = resultRegion || selectedRegion || (regions.length ? regions[0] : '');
     const payload = {
       week: weekValue,
       dungeon_id: dungeonValue,
       leaderboard_type: result.leaderboardType || null,
+      region: regionValue || null,
       extraction: extractionPayload,
     };
 
@@ -1617,6 +1734,7 @@ export default function ContributeValidate() {
               week: data.week ?? scan.week,
               dungeon_id: data.dungeon_id ?? data.dungeonId ?? scan.dungeon_id,
               leaderboard_type: data.leaderboard_type ?? data.leaderboardType ?? scan.leaderboard_type,
+              region: regionValue || scan.region,
             };
           }),
         );
@@ -1681,6 +1799,8 @@ export default function ContributeValidate() {
               week: data.week ?? scan.week,
               dungeon_id: data.dungeon_id ?? data.dungeonId ?? scan.dungeon_id,
               leaderboard_type: data.leaderboard_type ?? data.leaderboardType ?? scan.leaderboard_type,
+              region:
+                (typeof data.region === 'string' ? data.region.trim().toUpperCase() : '') || scan.region,
             };
           }),
         );
@@ -1775,6 +1895,10 @@ export default function ContributeValidate() {
                             : t.contributeWeekUnknown || t.contributeWeek;
                           const dungeonLabel = findDungeonLabel(scan.dungeon_id);
                           const typeLabel = scan.leaderboard_type || '';
+                          const regionLabel =
+                            scan.region && typeof scan.region === 'string'
+                              ? translateRegion(t, scan.region)
+                              : '';
                           const isActive = selectedScanId === scan.id;
                           return (
                             <li
@@ -1783,7 +1907,10 @@ export default function ContributeValidate() {
                             >
                               <div className="contribute-file-details">
                                 <span className="contribute-file-name">{labelWeek}</span>
-                                <span className="contribute-file-meta">{dungeonLabel}</span>
+                                <span className="contribute-file-meta">
+                                  {regionLabel ? `[${regionLabel}] ` : ''}
+                                  {dungeonLabel}
+                                </span>
                               </div>
                               <button
                                 type="button"
@@ -1860,6 +1987,16 @@ export default function ContributeValidate() {
                 {readyForSubmission ? (
                   <p className="contribute-ready-message">{t.contributeReadyForSubmission}</p>
                 ) : null}
+                <label className="form-field contribute-region-select">
+                  <span>{t.contributeRegionLabel || 'Region'}</span>
+                  <select value={selectedRegion} onChange={handleRegionSelectChange}>
+                    {regions.map((region) => (
+                      <option key={region} value={region}>
+                        {translateRegion(t, region)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {!compactView ? (
                   <div className="contribute-context-grid">
                     <div className={`contribute-context-item ${getStatusClass(

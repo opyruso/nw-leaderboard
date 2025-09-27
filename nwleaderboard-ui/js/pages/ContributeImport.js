@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { normaliseRegionList, translateRegion } from '../regions.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -29,7 +30,12 @@ function toLocaleHeader(lang) {
 
 export default function ContributeImport() {
   const { t, lang } = React.useContext(LangContext);
+  const fallbackRegions = React.useMemo(() => normaliseRegionList(), []);
   const fileInputRef = React.useRef(null);
+  const [regions, setRegions] = React.useState(fallbackRegions);
+  const [selectedRegion, setSelectedRegion] = React.useState(() =>
+    fallbackRegions.length ? fallbackRegions[0] : '',
+  );
   const [selectedFiles, setSelectedFiles] = React.useState(() => []);
   const [status, setStatus] = React.useState('idle');
   const [messageKey, setMessageKey] = React.useState('');
@@ -56,6 +62,56 @@ export default function ContributeImport() {
       }),
     );
   }, []);
+
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const applyRegions = (list) => {
+      if (!active) {
+        return;
+      }
+      const normalised = normaliseRegionList(list, fallbackRegions);
+      setRegions(normalised);
+      setSelectedRegion((current) => {
+        if (current && normalised.includes(current)) {
+          return current;
+        }
+        return normalised.length ? normalised[0] : '';
+      });
+    };
+
+    if (!API_BASE_URL) {
+      applyRegions(fallbackRegions);
+      return () => {
+        active = false;
+        controller.abort();
+      };
+    }
+
+    fetch(`${API_BASE_URL}/contributor/regions`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load regions: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        applyRegions(data);
+      })
+      .catch((error) => {
+        if (!active || error.name === 'AbortError') {
+          return;
+        }
+        console.warn('Unable to load contributor regions', error);
+        applyRegions(fallbackRegions);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [fallbackRegions]);
 
   React.useEffect(() => {
     const hasProcessing = selectedFiles.some((file) => file.status === 'processing');
@@ -180,6 +236,10 @@ export default function ContributeImport() {
     }
   };
 
+  const handleRegionChange = React.useCallback((event) => {
+    setSelectedRegion(event.target.value);
+  }, []);
+
   const handleExtract = async () => {
     if (!selectedFiles.length || !API_BASE_URL) {
       return;
@@ -191,6 +251,8 @@ export default function ContributeImport() {
       setStatus('idle');
       return;
     }
+
+    const region = (selectedRegion && selectedRegion.trim()) || (regions.length ? regions[0] : '');
 
     let successCount = 0;
     let failureCount = 0;
@@ -214,6 +276,7 @@ export default function ContributeImport() {
         try {
           const formData = new FormData();
           formData.append('file0', file.file);
+          formData.append('region', region);
           const response = await fetch(`${API_BASE_URL}/contributor/extract`, {
             method: 'POST',
             body: formData,
@@ -289,6 +352,20 @@ export default function ContributeImport() {
     <section className="contribute-import">
       <p className="page-description">{t.contributeImportDescription || t.contributeDescription}</p>
       <section className="form contribute-form" aria-live="polite">
+        <label className="form-field">
+          <span>{t.contributeRegionLabel || 'Region'}</span>
+          <select
+            value={selectedRegion}
+            onChange={handleRegionChange}
+            disabled={status === 'extracting'}
+          >
+            {regions.map((region) => (
+              <option key={region} value={region}>
+                {translateRegion(t, region)}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="form-field">
           <span>{t.contributeUploadLabel}</span>
           <input

@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { normaliseRegionList, translateRegion } from '../regions.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -7,6 +8,48 @@ export default function ContributeStats() {
   const [stats, setStats] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const fallbackRegions = React.useMemo(() => normaliseRegionList(), []);
+  const [regions, setRegions] = React.useState(fallbackRegions);
+
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const applyRegions = (list) => {
+      if (!active) {
+        return;
+      }
+      const normalised = normaliseRegionList(list, fallbackRegions);
+      setRegions(normalised);
+    };
+
+    if (!API_BASE_URL) {
+      applyRegions(fallbackRegions);
+    } else {
+      fetch(`${API_BASE_URL}/contributor/regions`, { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to load regions: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          applyRegions(data);
+        })
+        .catch((fetchError) => {
+          if (!active || fetchError.name === 'AbortError') {
+            return;
+          }
+          console.warn('Unable to load region list', fetchError);
+          applyRegions(fallbackRegions);
+        });
+    }
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [fallbackRegions]);
 
   React.useEffect(() => {
     let active = true;
@@ -35,29 +78,45 @@ export default function ContributeStats() {
           setStats([]);
           return;
         }
-        setStats(
-          data
-            .map((entry) => {
-              const weekValue =
-                entry && entry.week !== undefined && entry.week !== null
-                  ? Number.parseInt(entry.week, 10)
-                  : null;
-              const scoreValue =
-                entry && entry.score_runs !== undefined && entry.score_runs !== null
-                  ? Number(entry.score_runs)
-                  : 0;
-              const timeValue =
-                entry && entry.time_runs !== undefined && entry.time_runs !== null
-                  ? Number(entry.time_runs)
-                  : 0;
-              return {
-                week: Number.isFinite(weekValue) ? weekValue : null,
-                scoreRuns: Number.isFinite(scoreValue) ? scoreValue : 0,
-                timeRuns: Number.isFinite(timeValue) ? timeValue : 0,
-              };
-            })
-            .filter((entry) => entry.week !== null)
-        );
+        const normaliseCounts = (raw) => {
+          if (!raw || typeof raw !== 'object') {
+            return {};
+          }
+          const result = {};
+          Object.entries(raw).forEach(([key, value]) => {
+            if (!key) {
+              return;
+            }
+            const regionId = key.trim().toUpperCase();
+            if (!regionId) {
+              return;
+            }
+            const numeric = Number(value);
+            result[regionId] = Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+          });
+          return result;
+        };
+        const prepared = data
+          .map((entry) => {
+            const weekValue =
+              entry && entry.week !== undefined && entry.week !== null
+                ? Number.parseInt(entry.week, 10)
+                : null;
+            const week = Number.isFinite(weekValue) && weekValue > 0 ? weekValue : null;
+            if (week === null) {
+              return null;
+            }
+            const scoreRuns = normaliseCounts(entry?.score_runs ?? entry?.scoreRuns);
+            const timeRuns = normaliseCounts(entry?.time_runs ?? entry?.timeRuns);
+            return {
+              week,
+              scoreByRegion: scoreRuns,
+              timeByRegion: timeRuns,
+            };
+          })
+          .filter(Boolean)
+          .sort((left, right) => right.week - left.week);
+        setStats(prepared);
       })
       .catch((fetchError) => {
         if (!active || fetchError.name === 'AbortError') {
@@ -79,6 +138,24 @@ export default function ContributeStats() {
     };
   }, [t]);
 
+  const regionColumns = React.useMemo(
+    () => normaliseRegionList(
+      stats.reduce((acc, entry) => {
+        if (entry && entry.scoreByRegion) {
+          acc.push(...Object.keys(entry.scoreByRegion));
+        }
+        if (entry && entry.timeByRegion) {
+          acc.push(...Object.keys(entry.timeByRegion));
+        }
+        return acc;
+      }, [...regions]),
+      fallbackRegions,
+    ),
+    [regions, stats, fallbackRegions],
+  );
+
+  const formatCount = (value) => (Number.isFinite(value) ? value.toLocaleString() : '0');
+
   return (
     <section className="contribute-stats">
       <p className="page-description">{t.contributeStatsDescription}</p>
@@ -97,16 +174,35 @@ export default function ContributeStats() {
               <thead>
                 <tr>
                   <th scope="col">{t.contributeStatsWeek}</th>
-                  <th scope="col">{t.contributeStatsScoreRuns}</th>
-                  <th scope="col">{t.contributeStatsTimeRuns}</th>
+                  {regionColumns.map((region) => {
+                    const regionName = translateRegion(t, region);
+                    const scoreHeader =
+                      typeof t.contributeStatsScoreRunsRegion === 'function'
+                        ? t.contributeStatsScoreRunsRegion(regionName)
+                        : `${regionName} ${t.contributeStatsScoreRuns}`;
+                    const timeHeader =
+                      typeof t.contributeStatsTimeRunsRegion === 'function'
+                        ? t.contributeStatsTimeRunsRegion(regionName)
+                        : `${regionName} ${t.contributeStatsTimeRuns}`;
+                    return (
+                      <React.Fragment key={region}>
+                        <th scope="col">{scoreHeader}</th>
+                        <th scope="col">{timeHeader}</th>
+                      </React.Fragment>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {stats.map((entry) => (
                   <tr key={entry.week}>
                     <th scope="row">{entry.week}</th>
-                    <td>{entry.scoreRuns}</td>
-                    <td>{entry.timeRuns}</td>
+                    {regionColumns.map((region) => (
+                      <React.Fragment key={`${entry.week}-${region}`}>
+                        <td>{formatCount(entry.scoreByRegion?.[region] ?? 0)}</td>
+                        <td>{formatCount(entry.timeByRegion?.[region] ?? 0)}</td>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 ))}
               </tbody>

@@ -121,8 +121,8 @@ public class ContributorSubmissionService {
                     "Run contains " + players.size() + " players but expected " + expectedPlayerCount);
         }
 
-        List<Player> resolvedPlayers = resolvePlayers(players);
-        Region region = regionService.requireDefaultRegion();
+        Region region = regionService.resolveRegionOrDefault(dto.region());
+        List<Player> resolvedPlayers = resolvePlayers(players, region);
 
         if (score != null && score > 0) {
             if (scoreRunAlreadyExists(week, dungeon, score, resolvedPlayers, region)) {
@@ -179,10 +179,11 @@ public class ContributorSubmissionService {
         return cleaned.isEmpty() ? null : cleaned;
     }
 
-    private List<Player> resolvePlayers(List<ContributionPlayerDto> players) throws ContributorSubmissionException {
+    private List<Player> resolvePlayers(List<ContributionPlayerDto> players, Region region)
+            throws ContributorSubmissionException {
         List<Player> resolved = new ArrayList<>(players.size());
         for (ContributionPlayerDto dto : players) {
-            resolved.add(resolvePlayer(dto));
+            resolved.add(resolvePlayer(dto, region));
         }
         return resolved;
     }
@@ -313,12 +314,12 @@ public class ContributorSubmissionService {
         }
     }
 
-    private Player resolvePlayer(ContributionPlayerDto dto) throws ContributorSubmissionException {
+    private Player resolvePlayer(ContributionPlayerDto dto, Region region) throws ContributorSubmissionException {
         if (dto == null) {
             throw new ContributorSubmissionException("Missing player information");
         }
 
-        Region region = regionService.requireDefaultRegion();
+        Region effectiveRegion = region != null ? region : regionService.requireDefaultRegion();
         Long playerId = dto.playerId();
         String name = normalisePlayerName(dto.playerName());
         if (playerId != null) {
@@ -330,7 +331,7 @@ public class ContributorSubmissionService {
                 existing.setPlayerName(name);
             }
             if (existing.getRegion() == null) {
-                existing.setRegion(region);
+                existing.setRegion(effectiveRegion);
             }
             return existing;
         }
@@ -343,14 +344,14 @@ public class ContributorSubmissionService {
         if (existing.isPresent()) {
             Player resolved = existing.get();
             if (resolved.getRegion() == null) {
-                resolved.setRegion(region);
+                resolved.setRegion(effectiveRegion);
             }
             return resolved;
         }
 
         Player player = new Player();
         player.setPlayerName(name);
-        player.setRegion(region);
+        player.setRegion(effectiveRegion);
         playerRepository.persistAndFlush(player);
         return player;
     }

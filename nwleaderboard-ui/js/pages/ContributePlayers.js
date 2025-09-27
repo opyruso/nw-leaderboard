@@ -1,4 +1,5 @@
 import { LangContext } from '../i18n.js';
+import { translateRegion } from '../regions.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -36,6 +37,15 @@ function normalisePlayer(player) {
   );
   const mainPlayerId = Number.isFinite(mainIdValue) ? mainIdValue : null;
   const alternateCount = parseCount(player.alternate_count ?? player.alternateCount);
+  const regionCandidate =
+    typeof player.region === 'string'
+      ? player.region
+      : typeof player.id_region === 'string'
+      ? player.id_region
+      : typeof player.region_id === 'string'
+      ? player.region_id
+      : '';
+  const region = typeof regionCandidate === 'string' ? regionCandidate.trim().toUpperCase() : '';
   return {
     id,
     playerName:
@@ -51,6 +61,7 @@ function normalisePlayer(player) {
     mainPlayerId,
     mainPlayerName: mainName,
     alternateCount,
+    region,
   };
 }
 
@@ -385,6 +396,13 @@ export default function ContributePlayers() {
                 ? player.totalRuns
                 : scoreRuns + timeRuns;
               const runsText = formatRunCounts(totalRuns, scoreRuns, timeRuns);
+              const regionLabel =
+                player.region && typeof player.region === 'string'
+                  ? translateRegion(t, player.region)
+                  : '';
+              const displayName = regionLabel
+                ? `[${regionLabel}] ${player.playerName}`
+                : player.playerName;
               return (
                 <li
                   key={player.id}
@@ -404,7 +422,7 @@ export default function ContributePlayers() {
                         autoFocus
                       />
                     ) : (
-                      <span>{player.playerName}</span>
+                      <span>{displayName}</span>
                     )}
                   </div>
                   <div className="contribute-player-card-stats">

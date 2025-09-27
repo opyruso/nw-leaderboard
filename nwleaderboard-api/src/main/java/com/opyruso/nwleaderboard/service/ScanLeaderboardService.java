@@ -43,7 +43,7 @@ public class ScanLeaderboardService {
 
     @Transactional
     public void storeScan(BufferedImage image, byte[] picture, ContributionExtractionResponseDto extraction,
-            Integer weekCandidate, Long dungeonIdCandidate, String leaderboardTypeCandidate) {
+            Integer weekCandidate, Long dungeonIdCandidate, String leaderboardTypeCandidate, String regionId) {
         if (image == null || picture == null || extraction == null) {
             return;
         }
@@ -54,8 +54,8 @@ public class ScanLeaderboardService {
         scan.setWeek(Optional.ofNullable(weekCandidate).orElse(0));
         scan.setDungeonId(Optional.ofNullable(dungeonIdCandidate).orElse(0L));
         scan.setLeaderboardType(normalizeLeaderboardType(leaderboardTypeCandidate));
+        scan.setRegion(regionService.resolveRegionOrDefault(regionId));
         scan.setExtractData(writeExtraction(extraction));
-        scan.setRegion(regionService.requireDefaultRegion());
         repository.persist(scan);
     }
 
@@ -76,7 +76,7 @@ public class ScanLeaderboardService {
         ContributionExtractionResponseDto extraction = readExtraction(scan.getExtractData());
         String picture = encodePicture(scan.getPicture());
         return new ContributionScanDetailDto(scan.getId(), scan.getWeek(), scan.getDungeonId(), scan.getLeaderboardType(),
-                scan.getWidth(), scan.getHeight(), picture, extraction);
+                scan.getWidth(), scan.getHeight(), picture, regionId(scan), extraction);
     }
 
     @Transactional
@@ -89,7 +89,7 @@ public class ScanLeaderboardService {
 
     @Transactional
     public ContributionScanDetailDto updateScan(Long id, Integer weekCandidate, Long dungeonIdCandidate,
-            String leaderboardTypeCandidate, ContributionExtractionResponseDto extraction) {
+            String leaderboardTypeCandidate, String regionCandidate, ContributionExtractionResponseDto extraction) {
         if (id == null) {
             return null;
         }
@@ -102,6 +102,9 @@ public class ScanLeaderboardService {
         }
         if (extraction != null) {
             scan.setExtractData(writeExtraction(extraction));
+        }
+        if (regionCandidate != null && !regionCandidate.isBlank()) {
+            scan.setRegion(regionService.resolveRegionOrDefault(regionCandidate));
         }
         if (weekCandidate != null) {
             scan.setWeek(weekCandidate);
@@ -129,7 +132,14 @@ public class ScanLeaderboardService {
             createdAt = scan.getCreationDate().atOffset(ZoneOffset.UTC).format(ISO_FORMATTER);
         }
         return new ContributionScanSummaryDto(scan.getId(), scan.getWeek(), scan.getDungeonId(),
-                scan.getLeaderboardType(), createdAt);
+                scan.getLeaderboardType(), regionId(scan), createdAt);
+    }
+
+    private String regionId(ScanLeaderboard scan) {
+        if (scan == null || scan.getRegion() == null) {
+            return null;
+        }
+        return scan.getRegion().getId();
     }
 
     private String normalizeLeaderboardType(String type) {

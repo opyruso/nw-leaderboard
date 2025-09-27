@@ -264,4 +264,30 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         }
         return result;
     }
+
+    /** Returns a nested map containing the number of score runs grouped by week and region. */
+    public Map<Integer, Map<String, Long>> countRunsGroupedByWeekAndRegion() {
+        List<Object[]> rows = getEntityManager()
+                .createQuery(
+                        "SELECT run.week, run.region.id, COUNT(run) FROM RunScore run GROUP BY run.week, run.region.id",
+                        Object[].class)
+                .getResultList();
+        Map<Integer, Map<String, Long>> result = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 3) {
+                continue;
+            }
+            Object weekValue = row[0];
+            Object regionValue = row[1];
+            Object countValue = row[2];
+            if (!(weekValue instanceof Integer) || regionValue == null || !(countValue instanceof Number)) {
+                continue;
+            }
+            Integer week = (Integer) weekValue;
+            String region = regionValue.toString();
+            long count = ((Number) countValue).longValue();
+            result.computeIfAbsent(week, key -> new HashMap<>()).put(region, count);
+        }
+        return result;
+    }
 }
