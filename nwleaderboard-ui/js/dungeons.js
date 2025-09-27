@@ -65,27 +65,52 @@ export function deriveFallbackName(dungeon, names, id) {
   return String(id ?? '');
 }
 
+const applyLocaleCase = (value, locale, method) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const fn = value[method];
+  if (typeof fn !== 'function') {
+    return value;
+  }
+  try {
+    return fn.call(value, locale);
+  } catch (error) {
+    try {
+      return fn.call(value, 'en');
+    } catch (fallbackError) {
+      return fn.call(value);
+    }
+  }
+};
+
+const toLocaleTitleCase = (value, localeHint) => {
+  const text = safeString(value);
+  if (!text) {
+    return '';
+  }
+  const locale = toLocaleCode(localeHint);
+  const lower = applyLocaleCase(text, locale, 'toLocaleLowerCase');
+  return lower.replace(/([\p{L}\p{N}][\p{L}\p{N}\p{M}]*)/gu, (word) => {
+    const characters = Array.from(word);
+    if (characters.length === 0) {
+      return word;
+    }
+    const [first, ...rest] = characters;
+    const upperFirst = applyLocaleCase(first, locale, 'toLocaleUpperCase');
+    const lowerRest = rest.length
+      ? applyLocaleCase(rest.join(''), locale, 'toLocaleLowerCase')
+      : '';
+    return `${upperFirst}${lowerRest}`;
+  });
+};
+
 export function getDungeonNameForLang(dungeon, lang) {
   if (!dungeon || typeof dungeon !== 'object') {
     return '';
   }
   const { names = {}, fallbackName = '', id = '' } = dungeon;
-  const formatName = (value, localeHint) => {
-    const text = safeString(value);
-    if (!text) {
-      return '';
-    }
-    const locale = toLocaleCode(localeHint);
-    try {
-      return text.toLocaleUpperCase(locale);
-    } catch (error) {
-      try {
-        return text.toLocaleUpperCase('en');
-      } catch (fallbackError) {
-        return text.toUpperCase();
-      }
-    }
-  };
+  const formatName = (value, localeHint) => toLocaleTitleCase(value, localeHint);
   const requested = normaliseLanguageKey(lang);
   const priorities = [];
   if (requested) {
