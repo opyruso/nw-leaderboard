@@ -94,9 +94,61 @@ public class ContributorPlayerService {
         return new RenameResult(buildSummary(player), null);
     }
 
+    /**
+     * Updates the main character association for the provided player.
+     *
+     * @param playerId identifier of the player to update
+     * @param rawMainName desired main character name or {@code null} to clear the association
+     * @return updated player summary
+     */
+    @Transactional
+    public PlayerWithRuns updateMainCharacter(Long playerId, String rawMainName) {
+        Player player = requirePlayer(playerId);
+        String cleaned = normaliseName(rawMainName);
+
+        if (cleaned == null || cleaned.isBlank()) {
+            player.setMainCharacter(null);
+            return buildSummary(player);
+        }
+
+        Optional<Player> mainCandidate = playerRepository.findMainByPlayerNameIgnoreCase(cleaned);
+        if (mainCandidate.isEmpty()) {
+            throw new ContributorPlayerException("Main player not found");
+        }
+        Player main = mainCandidate.get();
+        if (Objects.equals(main.getId(), player.getId())) {
+            player.setMainCharacter(null);
+            return buildSummary(player);
+        }
+
+        Player resolved = resolveMain(main);
+        if (resolved == null || resolved.getMainCharacter() != null) {
+            throw new ContributorPlayerException("Main player not found");
+        }
+
+        player.setMainCharacter(resolved);
+        // Reassign alternates referencing this player to the resolved main to avoid chains.
+        List<Player> dependants = playerRepository.listByMainCharacterId(player.getId());
+        for (Player dependant : dependants) {
+            if (dependant == null || Objects.equals(dependant.getId(), player.getId())) {
+                continue;
+            }
+            dependant.setMainCharacter(resolved);
+        }
+        return buildSummary(player);
+    }
+
     private void mergePlayers(Player source, Player target) {
+        Player resolvedTarget = resolveMain(target);
         mergeScoreAssociations(source, target);
         mergeTimeAssociations(source, target);
+        List<Player> dependants = playerRepository.listByMainCharacterId(source.getId());
+        for (Player dependant : dependants) {
+            if (dependant == null || Objects.equals(dependant.getId(), source.getId())) {
+                continue;
+            }
+            dependant.setMainCharacter(resolvedTarget);
+        }
         playerRepository.delete(source);
         playerRepository.flush();
     }
@@ -115,7 +167,8 @@ public class ContributorPlayerService {
                 .map(player -> {
                     long scoreRuns = scoreCounts.getOrDefault(player.getId(), 0L);
                     long timeRuns = timeCounts.getOrDefault(player.getId(), 0L);
-                    return new PlayerWithRuns(player, scoreRuns, timeRuns);
+                    long alternates = playerRepository.countByMainCharacterId(player.getId());
+                    return new PlayerWithRuns(player, scoreRuns, timeRuns, alternates);
                 })
                 .collect(Collectors.toList());
     }
@@ -126,7 +179,8 @@ public class ContributorPlayerService {
         }
         long scoreRuns = runScorePlayerRepository.countByPlayerId(player.getId());
         long timeRuns = runTimePlayerRepository.countByPlayerId(player.getId());
-        return new PlayerWithRuns(player, scoreRuns, timeRuns);
+        long alternates = playerRepository.countByMainCharacterId(player.getId());
+        return new PlayerWithRuns(player, scoreRuns, timeRuns, alternates);
     }
 
     private void mergeScoreAssociations(Player source, Player target) {
@@ -195,6 +249,25 @@ public class ContributorPlayerService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        Set<Long> visited = new HashSet<>();
+        while (current.getMainCharacter() != null) {
+            if (current.getId() != null && !visited.add(current.getId())) {
+                break;
+            }
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+        }
+        return current;
+    }
+
     /**
      * Exception thrown when contributor player operations fail.
      */
@@ -213,7 +286,7 @@ public class ContributorPlayerService {
      * @param player resulting player entity
      * @param removedPlayerId identifier of the removed player when a merge occurred
      */
-    public record PlayerWithRuns(Player player, long scoreRunCount, long timeRunCount) {}
+    public record PlayerWithRuns(Player player, long scoreRunCount, long timeRunCount, long alternateCount) {}
 
     public record RenameResult(PlayerWithRuns player, Long removedPlayerId) {}
 }

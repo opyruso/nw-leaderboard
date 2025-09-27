@@ -5,6 +5,7 @@ import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
 import { extractMutationIds } from '../mutations.js';
+import { formatPlayerLinkProps } from '../playerNames.js';
 import { capitaliseWords } from '../text.js';
 
 const { Link } = ReactRouterDOM;
@@ -20,13 +21,16 @@ function normalisePlayers(entry) {
   }
 
   const collected = [];
-  const pushPlayer = (id, name) => {
-    const safeId = id !== undefined && id !== null ? String(id) : null;
-    const safeName = typeof name === 'string' ? name.trim() : '';
-    if (!safeId && !safeName) {
+  const pushPlayer = (value) => {
+    const props = formatPlayerLinkProps(value);
+    if (!props) {
       return;
     }
-    collected.push({ id: safeId, name: safeName });
+    const displayName = typeof props.displayName === 'string' ? props.displayName.trim() : '';
+    if (!props.id && !displayName) {
+      return;
+    }
+    collected.push(props);
   };
 
   if (Array.isArray(source)) {
@@ -35,30 +39,11 @@ function normalisePlayers(entry) {
         return;
       }
       if (typeof value === 'string') {
-        pushPlayer(null, value);
+        pushPlayer({ playerName: value });
         return;
       }
       if (typeof value === 'object') {
-        const id =
-          value.id ??
-          value.playerId ??
-          value.player_id ??
-          value.id_player ??
-          value.identifier ??
-          value.ref ??
-          value.key ??
-          null;
-        const name =
-          value.name ??
-          value.playerName ??
-          value.player_name ??
-          value.label ??
-          value.displayName ??
-          value.username ??
-          value.fullName ??
-          value.text ??
-          '';
-        pushPlayer(id, name);
+        pushPlayer(value);
       }
     });
   } else if (typeof source === 'string') {
@@ -66,7 +51,7 @@ function normalisePlayers(entry) {
       .split(/[,;\n]/)
       .map((value) => value.trim())
       .filter(Boolean)
-      .forEach((value) => pushPlayer(null, value));
+      .forEach((value) => pushPlayer({ playerName: value }));
   }
 
   if (collected.length === 0) {
@@ -76,7 +61,7 @@ function normalisePlayers(entry) {
   const unique = [];
   const seen = new Set();
   collected.forEach((player) => {
-    const key = player.id ? `id:${player.id}` : player.name ? `name:${player.name.toLowerCase()}` : null;
+    const key = propsKey(player);
     if (!key || seen.has(key)) {
       return;
     }
@@ -84,6 +69,19 @@ function normalisePlayers(entry) {
     unique.push(player);
   });
   return unique;
+}
+
+function propsKey(player) {
+  if (!player) {
+    return null;
+  }
+  if (player.id) {
+    return `id:${player.id}`;
+  }
+  if (player.displayName) {
+    return `name:${player.displayName.toLowerCase()}`;
+  }
+  return null;
 }
 
 function deriveWeek(entry) {
@@ -592,19 +590,23 @@ export default function LeaderboardPage({
                           </li>
                         ) : (
                           entry.players.map((player, index) => {
-                            const displayName = player.name || t.leaderboardUnknownPlayer;
-                            const playerKey = player.id ?? player.name ?? `player-${index}`;
+                            const displayName =
+                              player.displayName || player.playerName || t.leaderboardUnknownPlayer;
+                            const playerKey = player.id ?? player.displayName ?? `player-${index}`;
                             return (
                               <li key={playerKey} className="leaderboard-player">
                                 {player.id ? (
                                   <Link
                                     to={`/player/${encodeURIComponent(player.id)}`}
                                     className="leaderboard-player-link"
+                                    title={player.tooltip || undefined}
                                   >
                                     {displayName}
                                   </Link>
                                 ) : (
-                                  <span className="leaderboard-player-name">{displayName}</span>
+                                  <span className="leaderboard-player-name" title={player.tooltip || undefined}>
+                                    {displayName}
+                                  </span>
                                 )}
                               </li>
                             );

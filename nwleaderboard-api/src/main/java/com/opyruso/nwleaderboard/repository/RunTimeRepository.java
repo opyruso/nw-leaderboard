@@ -33,6 +33,18 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     /**
+     * Returns a page of time runs ordered by completion time for the provided dungeon.
+     */
+    public List<RunTime> listTopByDungeonPaged(Long dungeonId, int pageIndex, int pageSize) {
+        if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
+            return List.of();
+        }
+        return find("dungeon.id = ?1 ORDER BY timeInSecond ASC, week DESC, id ASC", dungeonId)
+                .page(Page.of(pageIndex, pageSize))
+                .list();
+    }
+
+    /**
      * Returns the fastest run recorded for the provided dungeon or {@code null} when none is available.
      */
     public RunTime findBestByDungeon(Long dungeonId) {

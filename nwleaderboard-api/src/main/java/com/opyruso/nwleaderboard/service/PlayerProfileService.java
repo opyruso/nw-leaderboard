@@ -103,8 +103,11 @@ public class PlayerProfileService {
 
         List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates);
 
+        Player main = resolveMain(player);
+        Long mainId = main != null && !main.equals(player) ? main.getId() : null;
+        String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
         PlayerProfileResponse response =
-                new PlayerProfileResponse(player.getId(), player.getPlayerName(), dungeonSummaries);
+                new PlayerProfileResponse(player.getId(), player.getPlayerName(), mainId, mainName, dungeonSummaries);
         return Optional.of(response);
     }
 
@@ -198,6 +201,25 @@ public class PlayerProfileService {
         private PlayerDungeonAggregate(Dungeon dungeon) {
             this.dungeon = dungeon;
         }
+    }
+
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        while (current.getMainCharacter() != null) {
+            if (current.getId() != null && !visited.add(current.getId())) {
+                break;
+            }
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+        }
+        return current;
     }
 }
 

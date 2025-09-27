@@ -11,6 +11,7 @@ import {
 } from '../dungeons.js';
 import { extractMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
+import { formatPlayerLinkProps } from '../playerNames.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -245,16 +246,24 @@ export default function Home() {
                       {score && score.players.length ? (
                         <ul className="highlight-player-list">
                           {score.players.map((player, index) => {
-                            const name = player.name || t.leaderboardUnknownPlayer;
-                            const key = player.id ?? `${highlight.id}-score-${index}`;
+                            const info = formatPlayerLinkProps(player);
+                            const name =
+                              info.displayName || info.playerName || t.leaderboardUnknownPlayer;
+                            const key = info.id ?? `${highlight.id}-score-${index}`;
                             return (
                               <li key={key} className="highlight-player">
-                                {player.id ? (
-                                  <Link to={`/player/${encodeURIComponent(player.id)}`} className="highlight-player-link">
+                                {info.id ? (
+                                  <Link
+                                    to={`/player/${encodeURIComponent(info.id)}`}
+                                    className="highlight-player-link"
+                                    title={info.tooltip || undefined}
+                                  >
                                     {name}
                                   </Link>
                                 ) : (
-                                  <span className="highlight-player-name">{name}</span>
+                                  <span className="highlight-player-name" title={info.tooltip || undefined}>
+                                    {name}
+                                  </span>
                                 )}
                               </li>
                             );
@@ -284,16 +293,24 @@ export default function Home() {
                       {time && time.players.length ? (
                         <ul className="highlight-player-list">
                           {time.players.map((player, index) => {
-                            const name = player.name || t.leaderboardUnknownPlayer;
-                            const key = player.id ?? `${highlight.id}-time-${index}`;
+                            const info = formatPlayerLinkProps(player);
+                            const name =
+                              info.displayName || info.playerName || t.leaderboardUnknownPlayer;
+                            const key = info.id ?? `${highlight.id}-time-${index}`;
                             return (
                               <li key={key} className="highlight-player">
-                                {player.id ? (
-                                  <Link to={`/player/${encodeURIComponent(player.id)}`} className="highlight-player-link">
+                                {info.id ? (
+                                  <Link
+                                    to={`/player/${encodeURIComponent(info.id)}`}
+                                    className="highlight-player-link"
+                                    title={info.tooltip || undefined}
+                                  >
                                     {name}
                                   </Link>
                                 ) : (
-                                  <span className="highlight-player-name">{name}</span>
+                                  <span className="highlight-player-name" title={info.tooltip || undefined}>
+                                    {name}
+                                  </span>
                                 )}
                               </li>
                             );

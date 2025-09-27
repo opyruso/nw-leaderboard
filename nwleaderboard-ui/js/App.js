@@ -125,7 +125,7 @@ export default function App() {
                 <Route path="players" element={<ContributePlayers />} />
                 <Route path="*" element={<Navigate to="." replace />} />
               </Route>
-              <Route path="/player/:playerId?" element={<Player />} />
+              <Route path="/player/:playerId?" element={<Player canContribute={authState.canContribute} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

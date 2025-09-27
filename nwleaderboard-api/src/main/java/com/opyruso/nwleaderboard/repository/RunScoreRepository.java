@@ -33,6 +33,18 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /**
+     * Returns a page of score runs ordered by score for the provided dungeon.
+     */
+    public List<RunScore> listTopByDungeonPaged(Long dungeonId, int pageIndex, int pageSize) {
+        if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
+            return List.of();
+        }
+        return find("dungeon.id = ?1 ORDER BY score DESC, week DESC, id ASC", dungeonId)
+                .page(Page.of(pageIndex, pageSize))
+                .list();
+    }
+
+    /**
      * Returns the single best score recorded for the provided dungeon or {@code null} when none is available.
      */
     public RunScore findBestByDungeon(Long dungeonId) {

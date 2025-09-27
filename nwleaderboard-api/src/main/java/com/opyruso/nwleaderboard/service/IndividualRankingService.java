@@ -235,13 +235,21 @@ public class IndividualRankingService {
                     placement++;
                     continue;
                 }
+                Set<Long> processed = new HashSet<>();
                 for (Player player : players) {
-                    if (player == null || player.getId() == null) {
+                    Player main = resolveMain(player);
+                    if (main == null || main.getId() == null) {
                         continue;
                     }
-                    Long playerId = player.getId();
-                    playerNames.merge(playerId, normaliseName(player.getPlayerName()), IndividualRankingService::preferNonEmpty);
-                    Map<Integer, Integer> weeks = placements.computeIfAbsent(playerId, unused -> new HashMap<>());
+                    Long mainId = main.getId();
+                    if (!processed.add(mainId)) {
+                        continue;
+                    }
+                    playerNames.merge(
+                            mainId,
+                            normaliseName(main.getPlayerName()),
+                            IndividualRankingService::preferNonEmpty);
+                    Map<Integer, Integer> weeks = placements.computeIfAbsent(mainId, unused -> new HashMap<>());
                     weeks.merge(week, placement, Math::min);
                 }
                 placement++;
@@ -309,13 +317,21 @@ public class IndividualRankingService {
                     placement++;
                     continue;
                 }
+                Set<Long> processed = new HashSet<>();
                 for (Player player : players) {
-                    if (player == null || player.getId() == null) {
+                    Player main = resolveMain(player);
+                    if (main == null || main.getId() == null) {
                         continue;
                     }
-                    Long playerId = player.getId();
-                    playerNames.merge(playerId, normaliseName(player.getPlayerName()), IndividualRankingService::preferNonEmpty);
-                    Map<Integer, Integer> weeks = placements.computeIfAbsent(playerId, unused -> new HashMap<>());
+                    Long mainId = main.getId();
+                    if (!processed.add(mainId)) {
+                        continue;
+                    }
+                    playerNames.merge(
+                            mainId,
+                            normaliseName(main.getPlayerName()),
+                            IndividualRankingService::preferNonEmpty);
+                    Map<Integer, Integer> weeks = placements.computeIfAbsent(mainId, unused -> new HashMap<>());
                     weeks.merge(week, placement, Math::min);
                 }
                 placement++;
@@ -407,6 +423,25 @@ public class IndividualRankingService {
             return existing;
         }
         return candidate != null ? candidate : "";
+    }
+
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        Set<Long> visited = new HashSet<>();
+        while (current.getMainCharacter() != null) {
+            if (current.getId() != null && !visited.add(current.getId())) {
+                break;
+            }
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+        }
+        return current;
     }
 
     private static final class PlayerPoints {

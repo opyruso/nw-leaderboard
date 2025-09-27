@@ -1566,10 +1566,18 @@ body[data-theme='light'] .individual-table tbody tr:hover {
   gap: 0.35rem;
 }
 
+.player-profile-header.editing-main-link {
+  gap: 0.75rem;
+}
+
 body[data-theme='light'] .player-profile-header {
   background: var(--surface-light);
   border-color: var(--border-light);
   box-shadow: 0 18px 35px rgba(15, 23, 42, 0.12);
+}
+
+.player-profile-header[title] {
+  cursor: pointer;
 }
 
 .player-profile-name {
@@ -1583,6 +1591,90 @@ body[data-theme='light'] .player-profile-header {
   margin: 0;
   font-size: 0.95rem;
   letter-spacing: 0.3px;
+  opacity: 0.7;
+}
+
+.player-main-link-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.player-main-link-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+}
+
+.player-main-link-input {
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark);
+  color: inherit;
+  font-size: 1rem;
+}
+
+body[data-theme='light'] .player-main-link-input {
+  background: var(--surface-light);
+  border-color: var(--border-light);
+}
+
+.player-main-link-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(124, 92, 255, 0.3);
+}
+
+.player-main-link-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.player-main-link-submit,
+.player-main-link-cancel {
+  padding: 0.5rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.player-main-link-submit {
+  background: var(--accent);
+  color: #fff;
+}
+
+.player-main-link-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.player-main-link-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.player-main-link-cancel {
+  background: transparent;
+  color: inherit;
+  border: 1px solid var(--border-dark);
+}
+
+body[data-theme='light'] .player-main-link-cancel {
+  border-color: var(--border-light);
+}
+
+.player-main-link-cancel:hover {
+  opacity: 0.8;
+}
+
+.player-main-link-hint {
+  margin: 0;
+  font-size: 0.85rem;
   opacity: 0.7;
 }
 

@@ -4,6 +4,7 @@ import com.opyruso.nwleaderboard.entity.Player;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -68,5 +69,54 @@ public class PlayerRepository implements PanacheRepository<Player> {
      */
     public List<Player> listAllOrderedByName() {
         return list("ORDER BY LOWER(playerName) ASC");
+    }
+
+    /**
+     * Finds a player that is marked as a main character by name ignoring case and surrounding whitespace.
+     *
+     * @param rawName the player name provided by the client
+     * @return the matching main player if present
+     */
+    public Optional<Player> findMainByPlayerNameIgnoreCase(String rawName) {
+        return findByPlayerNameIgnoreCase(rawName).filter(player -> player != null && player.getMainCharacter() == null);
+    }
+
+    /**
+     * Lists all players referencing the provided main player.
+     *
+     * @param mainPlayerId identifier of the main player
+     * @return list of alternate characters
+     */
+    public List<Player> listByMainCharacterId(Long mainPlayerId) {
+        if (mainPlayerId == null) {
+            return List.of();
+        }
+        return list("mainCharacter.id", mainPlayerId);
+    }
+
+    /**
+     * Counts the number of alternate characters referencing the provided main player.
+     *
+     * @param mainPlayerId identifier of the main player
+     * @return number of linked alternate characters
+     */
+    public long countByMainCharacterId(Long mainPlayerId) {
+        if (mainPlayerId == null) {
+            return 0L;
+        }
+        return count("mainCharacter.id", mainPlayerId);
+    }
+
+    /**
+     * Loads players matching the provided identifiers.
+     *
+     * @param ids identifiers to load
+     * @return list of matching players
+     */
+    public List<Player> listByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return list("id IN ?1", ids);
     }
 }
