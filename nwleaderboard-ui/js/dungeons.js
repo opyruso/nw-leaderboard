@@ -65,11 +65,52 @@ export function deriveFallbackName(dungeon, names, id) {
   return String(id ?? '');
 }
 
+const applyLocaleCase = (value, locale, method) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const fn = value[method];
+  if (typeof fn !== 'function') {
+    return value;
+  }
+  try {
+    return fn.call(value, locale);
+  } catch (error) {
+    try {
+      return fn.call(value, 'en');
+    } catch (fallbackError) {
+      return fn.call(value);
+    }
+  }
+};
+
+const toLocaleTitleCase = (value, localeHint) => {
+  const text = safeString(value);
+  if (!text) {
+    return '';
+  }
+  const locale = toLocaleCode(localeHint);
+  const lower = applyLocaleCase(text, locale, 'toLocaleLowerCase');
+  return lower.replace(/([\p{L}\p{N}][\p{L}\p{N}\p{M}]*)/gu, (word) => {
+    const characters = Array.from(word);
+    if (characters.length === 0) {
+      return word;
+    }
+    const [first, ...rest] = characters;
+    const upperFirst = applyLocaleCase(first, locale, 'toLocaleUpperCase');
+    const lowerRest = rest.length
+      ? applyLocaleCase(rest.join(''), locale, 'toLocaleLowerCase')
+      : '';
+    return `${upperFirst}${lowerRest}`;
+  });
+};
+
 export function getDungeonNameForLang(dungeon, lang) {
   if (!dungeon || typeof dungeon !== 'object') {
     return '';
   }
   const { names = {}, fallbackName = '', id = '' } = dungeon;
+  const formatName = (value, localeHint) => toLocaleTitleCase(value, localeHint);
   const requested = normaliseLanguageKey(lang);
   const priorities = [];
   if (requested) {
@@ -89,14 +130,14 @@ export function getDungeonNameForLang(dungeon, lang) {
   for (const code of priorities) {
     const value = safeString(names[code]);
     if (value) {
-      return value;
+      return formatName(value, code);
     }
   }
   const fallback = safeString(fallbackName);
   if (fallback) {
-    return fallback;
+    return formatName(fallback, lang);
   }
-  return String(id || '');
+  return formatName(String(id || ''), lang);
 }
 
 export function sortDungeons(list, lang) {
