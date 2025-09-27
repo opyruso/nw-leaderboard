@@ -128,6 +128,8 @@ public class ContributorPlayerService {
             throw new ContributorPlayerException("Main player not found");
         }
 
+        ensureSameRegionForLink(player, resolved);
+
         player.setMainCharacter(resolved);
         // Reassign alternates referencing this player to the resolved main to avoid chains.
         List<Player> dependants = playerRepository.listByMainCharacterId(player.getId());
@@ -145,6 +147,14 @@ public class ContributorPlayerService {
         String targetRegion = normaliseRegionId(target);
         if (!Objects.equals(sourceRegion, targetRegion)) {
             throw new ContributorPlayerException("Players must belong to the same region to be merged");
+        }
+    }
+
+    private void ensureSameRegionForLink(Player alt, Player main) {
+        String altRegion = normaliseRegionId(alt);
+        String mainRegion = normaliseRegionId(main);
+        if (altRegion == null || mainRegion == null || !Objects.equals(altRegion, mainRegion)) {
+            throw new ContributorPlayerException("Players must belong to the same region to be linked");
         }
     }
 

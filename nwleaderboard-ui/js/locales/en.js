@@ -318,7 +318,8 @@ const en = {
   playerMainLinkSubmit: 'Link',
   playerMainLinkCancel: 'Cancel',
   playerMainLinkHint: 'Enter the main character name to associate. Leave empty to remove the link.',
-  playerMainLinkError: 'Unable to update the main character link.',
+  playerMainLinkError:
+    'Unable to update the main character link. Make sure both players belong to the same region.',
   playerSearchLoading: 'Searching players…',
   playerSearchError: 'Unable to search players right now.',
   playerSearchNoResults: 'No players match this search yet.',
