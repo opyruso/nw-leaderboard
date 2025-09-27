@@ -313,6 +313,31 @@ const en = {
   cacheComplete: 'Offline cache ready',
   cacheSummary: (success, total) =>
     `${success}/${total} assets cached for offline usage`,
+  suggestionsTitle: 'Bug reports & suggestions',
+  suggestionsDescription: 'Report a bug or share an idea for the leaderboard.',
+  suggestionsAdminDescription: 'Review and update all suggestions sent by players.',
+  suggestionsFormTitle: 'Title',
+  suggestionsFormContent: 'Description',
+  suggestionsFormSubmit: 'Send suggestion',
+  suggestionsFormSuccess: 'Suggestion submitted. Thank you!',
+  suggestionsFormError: 'Unable to submit your suggestion. Please try again later.',
+  suggestionsListTitle: 'Your suggestions',
+  suggestionsAdminListTitle: 'All suggestions',
+  suggestionsListEmpty: 'You have not submitted any suggestion yet.',
+  suggestionsAdminEmpty: 'No suggestion has been submitted yet.',
+  suggestionsLoading: 'Loading suggestions…',
+  suggestionsLoadError: 'Unable to load the suggestions.',
+  suggestionsStatusUpdateSuccess: 'Suggestion status updated.',
+  suggestionsStatusUpdateError: 'Unable to update the suggestion status.',
+  suggestionsStatus: {
+    NEW: 'New',
+    IN_PROGRESS: 'In progress',
+    PUT_ON_TODO_LIST: 'To-do list',
+    REFUSED: 'Refused',
+    FIXED: 'Fixed',
+  },
+  suggestionsAdminStatusLabel: 'Status',
+  suggestionsAdminAuthor: (author) => `Author: ${author}`,
 };
 
 export default en;

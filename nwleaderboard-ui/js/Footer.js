@@ -1,3 +1,5 @@
+const { Link } = ReactRouterDOM;
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const footerRef = React.useRef(null);
@@ -33,7 +35,14 @@ export default function Footer() {
 
   return (
     <footer ref={footerRef} className="site-footer">
-      <small>oPyRuSo (TM) 2025 - {currentYear}</small>
+      <div className="site-footer__content">
+        <small>oPyRuSo (TM) 2025 - {currentYear}</small>
+        <nav className="site-footer__links" aria-label="Footer links">
+          <Link className="site-footer__link" to="/suggestions">
+            Bug / Suggestion
+          </Link>
+        </nav>
+      </div>
     </footer>
   );
 }

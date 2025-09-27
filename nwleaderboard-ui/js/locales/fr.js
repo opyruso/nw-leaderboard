@@ -320,6 +320,31 @@ const fr = {
   cacheComplete: 'Cache hors-ligne prêt',
   cacheSummary: (success, total) =>
     `${success}/${total} ressources en cache pour une utilisation hors-ligne`,
+  suggestionsTitle: 'Bugs & suggestions',
+  suggestionsDescription: 'Signalez un bug ou proposez une amélioration pour le site.',
+  suggestionsAdminDescription: 'Consultez et mettez à jour toutes les suggestions envoyées.',
+  suggestionsFormTitle: 'Titre',
+  suggestionsFormContent: 'Description',
+  suggestionsFormSubmit: 'Envoyer',
+  suggestionsFormSuccess: 'Suggestion envoyée. Merci !',
+  suggestionsFormError: 'Impossible d’envoyer votre suggestion. Réessayez plus tard.',
+  suggestionsListTitle: 'Vos suggestions',
+  suggestionsAdminListTitle: 'Toutes les suggestions',
+  suggestionsListEmpty: 'Vous n’avez pas encore envoyé de suggestion.',
+  suggestionsAdminEmpty: 'Aucune suggestion n’a été envoyée pour le moment.',
+  suggestionsLoading: 'Chargement des suggestions…',
+  suggestionsLoadError: 'Impossible de charger les suggestions.',
+  suggestionsStatusUpdateSuccess: 'Statut de la suggestion mis à jour.',
+  suggestionsStatusUpdateError: 'Impossible de mettre à jour le statut de la suggestion.',
+  suggestionsStatus: {
+    NEW: 'Nouvelle',
+    IN_PROGRESS: 'En cours',
+    PUT_ON_TODO_LIST: 'À faire',
+    REFUSED: 'Refusée',
+    FIXED: 'Résolue',
+  },
+  suggestionsAdminStatusLabel: 'Statut',
+  suggestionsAdminAuthor: (author) => `Auteur : ${author}`,
 };
 
 export default fr;

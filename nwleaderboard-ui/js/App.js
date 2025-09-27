@@ -15,6 +15,7 @@ import ContributeStats from './pages/ContributeStats.js';
 import ContributePlayers from './pages/ContributePlayers.js';
 import ContributeValidate from './pages/ContributeValidate.js';
 import Player from './pages/Player.js';
+import Suggestions from './pages/Suggestions.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
 import Footer from './Footer.js';
@@ -26,6 +27,7 @@ import {
   stopTokenRefresh,
   getStoredTokens,
   hasContributorRole,
+  hasAdminRole,
 } from './auth.js';
 
 const { BrowserRouter, Routes, Route, Navigate } = ReactRouterDOM;
@@ -36,11 +38,12 @@ export default function App() {
     return {
       token: stored && stored.access_token ? stored.access_token : null,
       canContribute: hasContributorRole(stored),
+      isAdmin: hasAdminRole(stored),
     };
   });
 
   const handleLogout = React.useCallback(() => {
-    setAuthState({ token: null, canContribute: false });
+    setAuthState({ token: null, canContribute: false, isAdmin: false });
     clearTokens();
     stopTokenRefresh();
   }, []);
@@ -63,6 +66,7 @@ export default function App() {
     setAuthState({
       token: tokens && tokens.access_token ? tokens.access_token : null,
       canContribute: hasContributorRole(tokens),
+      isAdmin: hasAdminRole(tokens),
     });
   };
 
@@ -125,6 +129,16 @@ export default function App() {
                 <Route path="players" element={<ContributePlayers />} />
                 <Route path="*" element={<Navigate to="." replace />} />
               </Route>
+              <Route
+                path="/suggestions"
+                element={
+                  authenticated ? (
+                    <Suggestions isAdmin={authState.isAdmin} />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
               <Route path="/player/:playerId?" element={<Player canContribute={authState.canContribute} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
