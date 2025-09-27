@@ -2,10 +2,11 @@ package com.opyruso.nwleaderboard.service;
 
 import com.opyruso.nwleaderboard.entity.Region;
 import com.opyruso.nwleaderboard.repository.RegionRepository;
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import io.quarkus.runtime.StartupEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -26,9 +27,9 @@ public class RegionService {
     @Inject
     RegionRepository regionRepository;
 
-    @PostConstruct
+    /** Ensures the base region data is created when the application starts. */
     @Transactional
-    void initialiseRegions() {
+    void initialiseRegions(@Observes StartupEvent event) {
         for (String regionId : SUPPORTED_REGION_IDS) {
             if (regionRepository.findById(regionId) == null) {
                 Region region = new Region();
