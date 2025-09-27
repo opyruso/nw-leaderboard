@@ -110,6 +110,11 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
+  const [mutationFilters, setMutationFilters] = React.useState({
+    type: '',
+    promotion: '',
+    curse: '',
+  });
 
   React.useEffect(() => {
     let active = true;
@@ -198,6 +203,14 @@ export default function LeaderboardPage({
           const week = deriveWeek(entry);
           const position =
             entry?.position ?? entry?.rank ?? entry?.place ?? entry?.standing ?? entry?.pos ?? null;
+          const mutations = extractMutationIds(
+            entry,
+            entry?.mutations,
+            entry?.mutation,
+            entry?.mutationInfo,
+            entry?.mutation_ids,
+            entry?.mutationIds,
+          );
           const id = entry?.id ?? entry?.entryId ?? `${week || 'entry'}-${index}`;
           return {
             id: String(id),
@@ -205,6 +218,7 @@ export default function LeaderboardPage({
             players,
             value,
             position,
+            mutations,
             raw: entry,
           };
         });
@@ -232,6 +246,109 @@ export default function LeaderboardPage({
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
+  React.useEffect(() => {
+    setMutationFilters({ type: '', promotion: '', curse: '' });
+  }, [selectedDungeon]);
+
+  const mutationOptions = React.useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return { types: [], promotions: [], curses: [] };
+    }
+
+    const typeSet = new Set();
+    const promotionSet = new Set();
+    const curseSet = new Set();
+
+    entries.forEach((entry) => {
+      const mutations = entry?.mutations;
+      if (!mutations) {
+        return;
+      }
+      const { typeId, promotionId, curseId } = mutations;
+      if (typeId) {
+        typeSet.add(typeId);
+      }
+      if (promotionId) {
+        promotionSet.add(promotionId);
+      }
+      if (curseId) {
+        curseSet.add(curseId);
+      }
+    });
+
+    const sortOptions = (values) =>
+      Array.from(values).sort((left, right) =>
+        String(left).localeCompare(String(right), undefined, { sensitivity: 'base' }),
+      );
+
+    return {
+      types: sortOptions(typeSet),
+      promotions: sortOptions(promotionSet),
+      curses: sortOptions(curseSet),
+    };
+  }, [entries]);
+
+  React.useEffect(() => {
+    setMutationFilters((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      let changed = false;
+      const next = { ...previous };
+      if (next.type && !mutationOptions.types.includes(next.type)) {
+        next.type = '';
+        changed = true;
+      }
+      if (next.promotion && !mutationOptions.promotions.includes(next.promotion)) {
+        next.promotion = '';
+        changed = true;
+      }
+      if (next.curse && !mutationOptions.curses.includes(next.curse)) {
+        next.curse = '';
+        changed = true;
+      }
+      return changed ? next : previous;
+    });
+  }, [mutationOptions]);
+
+  const handleMutationFilterChange = React.useCallback((key, value) => {
+    setMutationFilters((previous) => {
+      const safePrevious = previous || { type: '', promotion: '', curse: '' };
+      if ((safePrevious[key] || '') === value) {
+        return safePrevious;
+      }
+      return { ...safePrevious, [key]: value };
+    });
+  }, []);
+
+  const filteredEntries = React.useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return [];
+    }
+
+    const { type, promotion, curse } = mutationFilters;
+    if (!type && !promotion && !curse) {
+      return entries;
+    }
+
+    return entries.filter((entry) => {
+      const mutations = entry?.mutations ?? extractMutationIds(entry?.raw);
+      const typeId = mutations?.typeId || '';
+      const promotionId = mutations?.promotionId || '';
+      const curseId = mutations?.curseId || '';
+      if (type && type !== typeId) {
+        return false;
+      }
+      if (promotion && promotion !== promotionId) {
+        return false;
+      }
+      if (curse && curse !== curseId) {
+        return false;
+      }
+      return true;
+    });
+  }, [entries, mutationFilters]);
+
   const formatWeekLabel = React.useCallback(
     (week) => {
       if (!week) {
@@ -251,7 +368,7 @@ export default function LeaderboardPage({
       return null;
     }
 
-    const points = entries
+    const points = filteredEntries
       .map((entry) => {
         const numericValue = chartConfig.extractValue(entry);
         if (!Number.isFinite(numericValue)) {
@@ -467,13 +584,13 @@ export default function LeaderboardPage({
       },
       options,
     };
-  }, [chartConfig, entries, formatWeekLabel, t]);
+  }, [chartConfig, filteredEntries, formatWeekLabel, t]);
 
   const sortedEntries = React.useMemo(() => {
-    if (entries.length === 0) {
+    if (filteredEntries.length === 0) {
       return [];
     }
-    const copy = entries.slice();
+    const copy = filteredEntries.slice();
     copy.sort((a, b) => {
       const aValue = getSortValue(a);
       const bValue = getSortValue(b);
@@ -494,13 +611,20 @@ export default function LeaderboardPage({
       return sortDirection === 'asc' ? safeA - safeB : safeB - safeA;
     });
     return copy;
-  }, [entries, getSortValue, sortDirection]);
+  }, [filteredEntries, getSortValue, sortDirection]);
 
   const handleSelectDungeon = React.useCallback((dungeonId) => {
     setSelectedDungeon(dungeonId);
   }, []);
 
   const displayTitle = React.useMemo(() => capitaliseWords(pageTitle || ''), [pageTitle]);
+
+  const hasMutationData =
+    mutationOptions.types.length > 0 ||
+    mutationOptions.promotions.length > 0 ||
+    mutationOptions.curses.length > 0;
+  const showMutationEmptyMessage =
+    Boolean(selectedDungeon) && !entriesLoading && !entriesError && !hasMutationData;
 
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
@@ -539,6 +663,62 @@ export default function LeaderboardPage({
               })}
             </ul>
           )}
+          <div className="leaderboard-filter-panel">
+            <h3 className="leaderboard-filter-title">{t.mutationFilterTitle}</h3>
+            <form className="leaderboard-filter-form">
+              <label className="leaderboard-filter-field">
+                <span className="leaderboard-filter-label">{t.mutationFilterTypeLabel}</span>
+                <select
+                  className="leaderboard-filter-select"
+                  value={mutationFilters.type}
+                  onChange={(event) => handleMutationFilterChange('type', event.target.value)}
+                  disabled={mutationOptions.types.length === 0}
+                >
+                  <option value="">{t.mutationFilterAnyOption}</option>
+                  {mutationOptions.types.map((typeId) => (
+                    <option key={typeId} value={typeId}>
+                      {typeId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="leaderboard-filter-field">
+                <span className="leaderboard-filter-label">{t.mutationFilterPromotionLabel}</span>
+                <select
+                  className="leaderboard-filter-select"
+                  value={mutationFilters.promotion}
+                  onChange={(event) => handleMutationFilterChange('promotion', event.target.value)}
+                  disabled={mutationOptions.promotions.length === 0}
+                >
+                  <option value="">{t.mutationFilterAnyOption}</option>
+                  {mutationOptions.promotions.map((promotionId) => (
+                    <option key={promotionId} value={promotionId}>
+                      {promotionId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="leaderboard-filter-field">
+                <span className="leaderboard-filter-label">{t.mutationFilterCurseLabel}</span>
+                <select
+                  className="leaderboard-filter-select"
+                  value={mutationFilters.curse}
+                  onChange={(event) => handleMutationFilterChange('curse', event.target.value)}
+                  disabled={mutationOptions.curses.length === 0}
+                >
+                  <option value="">{t.mutationFilterAnyOption}</option>
+                  {mutationOptions.curses.map((curseId) => (
+                    <option key={curseId} value={curseId}>
+                      {curseId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </form>
+            {showMutationEmptyMessage ? (
+              <p className="leaderboard-filter-empty">{t.mutationFilterEmpty}</p>
+            ) : null}
+          </div>
         </aside>
         <section className="leaderboard-results" aria-live="polite">
           {entriesLoading ? (
@@ -569,7 +749,7 @@ export default function LeaderboardPage({
                 {sortedEntries.map((entry) => {
                   const weekDisplay = entry.week || t.leaderboardUnknownWeek;
                   const valueDisplay = formatValue(entry.value, entry.raw);
-                  const mutations = extractMutationIds(entry.raw);
+                  const mutations = entry.mutations ?? extractMutationIds(entry.raw);
                   return (
                     <li key={entry.id} className="leaderboard-run">
                       <div className="leaderboard-run-header">
