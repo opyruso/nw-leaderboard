@@ -1249,13 +1249,16 @@ body[data-theme='light'] .highlight-metric {
   height: 28px;
   object-fit: contain;
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.55);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
   padding: 0.15rem;
 }
 
 body[data-theme='light'] .highlight-mutation-icons .mutation-icon--type,
-body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--type {
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--promotion,
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--curse,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--type,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--promotion,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--curse {
   filter: invert(1);
 }
 
