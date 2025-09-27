@@ -1,11 +1,13 @@
 import { getMutationIconSources } from '../mutations.js';
 
-function MutationIcon({ src }) {
+function MutationIcon({ src, kind }) {
   const [hidden, setHidden] = React.useState(false);
 
   if (!src || hidden) {
     return null;
   }
+
+  const className = kind ? `mutation-icon mutation-icon--${kind}` : 'mutation-icon';
 
   return (
     <li className="mutation-icon-item">
@@ -13,7 +15,7 @@ function MutationIcon({ src }) {
         src={src}
         alt=""
         aria-hidden="true"
-        className="mutation-icon"
+        className={className}
         loading="lazy"
         decoding="async"
         draggable="false"
@@ -38,7 +40,7 @@ export default function MutationIconList({ typeId, promotionId, curseId, classNa
   return (
     <ul className={listClassName} role="list">
       {icons.map((icon) => (
-        <MutationIcon key={`${icon.kind}:${icon.id}`} src={icon.src} />
+        <MutationIcon key={`${icon.kind}:${icon.id}`} src={icon.src} kind={icon.kind} />
       ))}
     </ul>
   );

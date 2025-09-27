@@ -68,6 +68,7 @@ body[data-theme='light'] {
   background: var(--gradient-light);
   background-color: var(--color-background-light);
   color: var(--color-foreground-light);
+  --color-accent-contrast: var(--color-foreground-light);
 }
 
 #root {
@@ -351,6 +352,23 @@ body[data-theme='light'] .site-nav__dropdown-menu {
 
 .site-footer__content > small {
   flex: 1 1 auto;
+}
+
+.site-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+}
+
+.site-footer__brand-logo {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: block;
+}
+
+.site-footer__brand-text {
+  line-height: 1.3;
 }
 
 .site-footer__link {
@@ -1248,13 +1266,20 @@ body[data-theme='light'] .highlight-metric {
   height: 28px;
   object-fit: contain;
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.55);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
   padding: 0.15rem;
 }
 
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--type,
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--promotion,
+body[data-theme='light'] .highlight-mutation-icons .mutation-icon--curse,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--type,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--promotion,
+body[data-theme='light'] .leaderboard-mutation-icons .mutation-icon--curse {
+  filter: invert(1);
+}
+
 body[data-theme='light'] .mutation-icon {
-  background: rgba(226, 232, 240, 0.75);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
 }
 
@@ -2398,7 +2423,14 @@ body[data-theme='light'] .dungeon-button:focus-visible {
 }
 
 body[data-theme='light'] .dungeon-button.active {
-  color: var(--color-accent-contrast);
+  background: linear-gradient(135deg, #7c5cff 0%, #6950ff 100%);
+  border-color: #6f56ff;
+  color: #f8f9ff;
+  box-shadow: 0 12px 28px rgba(124, 92, 255, 0.32);
+}
+
+body[data-theme='light'] .dungeon-button.active .dungeon-button-icon {
+  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.3));
 }
 
 
