@@ -139,9 +139,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
             width="56"
             height="56"
           />
-          <span className="site-header__title">
-            New World Stats By oPy - PvE Forever!
-          </span>
+          <span className="site-header__title">NWLeaderboard - PvE By oPy</span>
         </div>
         <nav className="site-nav" aria-label={t.navMenu}>
           <div className="site-nav__sections">
@@ -305,24 +303,26 @@ export default function Header({ authenticated, canContribute = false, onLogout 
               </li>
             </ul>
             <ul className="site-nav__group site-nav__group--right">
+              <li className="site-nav__item">
+                <SiteNavLink
+                  to="/preferences"
+                  isActiveOverride={location.pathname.startsWith('/preferences')}
+                  onClick={closeMenus}
+                >
+                  {t.preferences}
+                </SiteNavLink>
+              </li>
               {isAuthenticated ? (
-                <>
-                  <li className="site-nav__item">
-                    <SiteNavLink to="/preferences" isActiveOverride={location.pathname.startsWith('/preferences')}>
-                      {t.preferences}
-                    </SiteNavLink>
-                  </li>
-                  <li className="site-nav__item">
-                    <SiteNavButton
-                      onClick={() => {
-                        closeMenus();
-                        onLogout();
-                      }}
-                    >
-                      {t.logout}
-                    </SiteNavButton>
-                  </li>
-                </>
+                <li className="site-nav__item">
+                  <SiteNavButton
+                    onClick={() => {
+                      closeMenus();
+                      onLogout();
+                    }}
+                  >
+                    {t.logout}
+                  </SiteNavButton>
+                </li>
               ) : (
                 <>
                   <li className="site-nav__item">
