@@ -11,4 +11,7 @@ public record ContributorPlayerResponse(
         @JsonProperty("valid") boolean valid,
         @JsonProperty("score_run_count") long scoreRunCount,
         @JsonProperty("time_run_count") long timeRunCount,
-        @JsonProperty("total_run_count") long totalRunCount) {}
+        @JsonProperty("total_run_count") long totalRunCount,
+        @JsonProperty("main_player_id") Long mainPlayerId,
+        @JsonProperty("main_player_name") String mainPlayerName,
+        @JsonProperty("alternate_count") long alternateCount) {}

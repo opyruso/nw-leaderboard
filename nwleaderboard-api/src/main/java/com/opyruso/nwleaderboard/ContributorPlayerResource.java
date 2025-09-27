@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.ContributorPlayerResponse;
 import com.opyruso.nwleaderboard.dto.ContributorPlayerUpdateResponse;
+import com.opyruso.nwleaderboard.dto.UpdatePlayerMainRequest;
 import com.opyruso.nwleaderboard.dto.UpdatePlayerNameRequest;
 import com.opyruso.nwleaderboard.dto.UpdatePlayerValidityRequest;
 import com.opyruso.nwleaderboard.entity.Player;
@@ -74,6 +75,22 @@ public class ContributorPlayerResource {
     }
 
     @PUT
+    @Path("/{playerId}/main")
+    public Response updateMain(@PathParam("playerId") Long playerId, UpdatePlayerMainRequest request) {
+        if (!hasContributorRole()) {
+            return forbidden();
+        }
+        String desiredMain = request != null ? request.mainName() : null;
+        try {
+            PlayerWithRuns updated = playerService.updateMainCharacter(playerId, desiredMain);
+            ContributorPlayerResponse response = toResponse(updated);
+            return Response.ok(new ContributorPlayerUpdateResponse(response, null)).build();
+        } catch (ContributorPlayerException e) {
+            return badRequest(e.getMessage());
+        }
+    }
+
+    @PUT
     @Path("/{playerId}")
     public Response updateName(@PathParam("playerId") Long playerId, UpdatePlayerNameRequest request) {
         if (!hasContributorRole()) {
@@ -91,14 +108,43 @@ public class ContributorPlayerResource {
 
     private ContributorPlayerResponse toResponse(PlayerWithRuns summary) {
         if (summary == null || summary.player() == null) {
-            return new ContributorPlayerResponse(null, null, false, 0L, 0L, 0L);
+            return new ContributorPlayerResponse(null, null, false, 0L, 0L, 0L, null, null, 0L);
         }
         Player player = summary.player();
         long scoreRuns = summary.scoreRunCount();
         long timeRuns = summary.timeRunCount();
         long totalRuns = scoreRuns + timeRuns;
+        Player main = resolveMain(player);
+        Long mainId = main != null && !main.equals(player) ? main.getId() : null;
+        String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
+        long alternateCount = summary.alternateCount();
         return new ContributorPlayerResponse(
-                player.getId(), player.getPlayerName(), player.isValid(), scoreRuns, timeRuns, totalRuns);
+                player.getId(),
+                player.getPlayerName(),
+                player.isValid(),
+                scoreRuns,
+                timeRuns,
+                totalRuns,
+                mainId,
+                mainName,
+                alternateCount);
+    }
+
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        int guard = 0;
+        while (current.getMainCharacter() != null && guard < 10) {
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+            guard++;
+        }
+        return current;
     }
 
     private Response forbidden() {

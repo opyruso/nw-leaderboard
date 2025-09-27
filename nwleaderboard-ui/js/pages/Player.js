@@ -5,6 +5,7 @@ import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
 import { capitaliseWords } from '../text.js';
+import { formatPlayerLinkProps, getPlayerNames } from '../playerNames.js';
 import { extractMutationIds } from '../mutations.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
@@ -124,7 +125,7 @@ function calculatePercentage(value, minimum, maximum) {
   return Math.max(0, Math.min(100, percent));
 }
 
-export default function Player() {
+export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
   const navigate = useNavigate();
@@ -148,6 +149,13 @@ export default function Player() {
   const [searchLoading, setSearchLoading] = React.useState(false);
   const [searchError, setSearchError] = React.useState(false);
   const searchInputId = React.useId();
+  const mainLinkInputId = React.useId();
+  const [editingMainLink, setEditingMainLink] = React.useState(false);
+  const [mainLinkName, setMainLinkName] = React.useState('');
+  const [mainLinkError, setMainLinkError] = React.useState('');
+  const [mainLinkLoading, setMainLinkLoading] = React.useState(false);
+  const mainLinkSuggestionsListId = React.useId();
+  const [mainLinkSuggestions, setMainLinkSuggestions] = React.useState([]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -157,6 +165,87 @@ export default function Player() {
       setSearchError(false);
     }
   }, [hasPlayerId]);
+
+  React.useEffect(() => {
+    setEditingMainLink(false);
+    setMainLinkName('');
+    setMainLinkError('');
+    setMainLinkLoading(false);
+    setMainLinkSuggestions([]);
+  }, [normalisedPlayerId]);
+
+  const trimmedMainLinkName = React.useMemo(() => mainLinkName.trim(), [mainLinkName]);
+
+  React.useEffect(() => {
+    if (!editingMainLink) {
+      setMainLinkSuggestions([]);
+      return undefined;
+    }
+
+    if (trimmedMainLinkName.length < 3) {
+      setMainLinkSuggestions([]);
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    fetch(`${API_BASE_URL}/player?q=${encodeURIComponent(trimmedMainLinkName)}&limit=8`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to search main players: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+
+        const list = Array.isArray(data) ? data : [];
+        const mapped = [];
+        const seen = new Set();
+
+        list.forEach((entry) => {
+          if (!entry) {
+            return;
+          }
+
+          const info = formatPlayerLinkProps(entry);
+          if (!info || info.isAlt) {
+            return;
+          }
+
+          const name = typeof info.playerName === 'string' ? info.playerName.trim() : '';
+          if (!name) {
+            return;
+          }
+
+          const key = name.toLowerCase();
+          if (seen.has(key)) {
+            return;
+          }
+          seen.add(key);
+          mapped.push({ id: info.id || name, name });
+        });
+
+        setMainLinkSuggestions(mapped);
+      })
+      .catch((errorInstance) => {
+        if (!active || errorInstance.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to search main players', errorInstance);
+        setMainLinkSuggestions([]);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [editingMainLink, trimmedMainLinkName]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -201,20 +290,9 @@ export default function Player() {
             return;
           }
 
-          const idCandidate =
-            entry.id ?? entry.playerId ?? entry.player_id ?? entry.id_player ?? null;
-          const nameCandidate =
-            entry.name ??
-            entry.playerName ??
-            entry.player_name ??
-            entry.label ??
-            entry.displayName ??
-            entry.username ??
-            entry.fullName ??
-            '';
-
-          const id = idCandidate !== undefined && idCandidate !== null ? String(idCandidate) : null;
-          const name = typeof nameCandidate === 'string' ? nameCandidate.trim() : '';
+          const info = formatPlayerLinkProps(entry);
+          const id = info?.id;
+          const name = typeof info?.displayName === 'string' ? info.displayName.trim() : '';
 
           if (!id || !name) {
             return;
@@ -225,7 +303,7 @@ export default function Player() {
             return;
           }
           seen.add(key);
-          mapped.push({ id, name });
+          mapped.push({ id, name, tooltip: info.tooltip || '' });
         });
 
         setSearchResults(mapped);
@@ -505,15 +583,17 @@ export default function Player() {
     return { data, options };
   }, [preparedDungeons, lang, t]);
 
+  const playerNameInfo = React.useMemo(() => getPlayerNames(profile), [profile]);
+
   const playerDisplayName = React.useMemo(() => {
-    if (profile && typeof profile.playerName === 'string') {
-      const trimmed = profile.playerName.trim();
-      if (trimmed.length > 0) {
-        return trimmed;
-      }
+    if (!playerNameInfo.playerName) {
+      return '';
     }
-    return '';
-  }, [profile]);
+    if (playerNameInfo.isAlt && playerNameInfo.mainPlayerName) {
+      return `${playerNameInfo.playerName} (${playerNameInfo.mainPlayerName})`;
+    }
+    return playerNameInfo.playerName;
+  }, [playerNameInfo]);
 
   const playerIdentifier = React.useMemo(() => {
     if (profile && profile.playerId !== undefined && profile.playerId !== null) {
@@ -546,6 +626,106 @@ export default function Player() {
       }
     },
     [navigate, searchResults, trimmedSearch],
+  );
+
+  const handleTitleDoubleClick = React.useCallback(() => {
+    if (!canContribute || !profile) {
+      return;
+    }
+    setEditingMainLink(true);
+    setMainLinkName(playerNameInfo.mainPlayerName || '');
+    setMainLinkError('');
+  }, [canContribute, profile, playerNameInfo.mainPlayerName]);
+
+  const handleMainLinkChange = React.useCallback((event) => {
+    setMainLinkName(event.target.value);
+  }, []);
+
+  const handleMainLinkCancel = React.useCallback(() => {
+    setEditingMainLink(false);
+    setMainLinkName('');
+    setMainLinkError('');
+    setMainLinkLoading(false);
+    setMainLinkSuggestions([]);
+  }, []);
+
+  const handleMainLinkSubmit = React.useCallback(
+    (event) => {
+      event.preventDefault();
+      if (!profile || profile.playerId === undefined || profile.playerId === null) {
+        return;
+      }
+      const trimmed = mainLinkName.trim();
+      const currentMain = playerNameInfo.mainPlayerName || '';
+      if (trimmed === currentMain) {
+        setEditingMainLink(false);
+        return;
+      }
+      setMainLinkLoading(true);
+      setMainLinkError('');
+      const body = { main_name: trimmed.length > 0 ? trimmed : null };
+      fetch(`${API_BASE_URL}/contributor/players/${encodeURIComponent(profile.playerId)}/main`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response
+              .json()
+              .catch(() => null)
+              .then((data) => {
+                const message =
+                  data && typeof data.message === 'string' ? data.message : t.playerMainLinkError;
+                throw new Error(message || `Failed to update main link: ${response.status}`);
+              });
+          }
+          return response.json();
+        })
+        .then((data) => {
+          const updated = data && data.player ? data.player : null;
+          if (updated) {
+            const mainNameValue =
+              typeof updated.main_player_name === 'string'
+                ? updated.main_player_name.trim()
+                : typeof updated.mainPlayerName === 'string'
+                ? updated.mainPlayerName.trim()
+                : '';
+            const mainIdRaw = updated.main_player_id ?? updated.mainPlayerId ?? null;
+            const numericMainId =
+              typeof mainIdRaw === 'number'
+                ? mainIdRaw
+                : typeof mainIdRaw === 'string'
+                ? Number(mainIdRaw)
+                : null;
+            const safeMainId = Number.isFinite(numericMainId) ? numericMainId : null;
+            setProfile((previous) => {
+              if (!previous) {
+                return previous;
+              }
+              return {
+                ...previous,
+                mainPlayerId: safeMainId,
+                mainPlayerName: mainNameValue || null,
+              };
+            });
+            setMainLinkName(mainNameValue || '');
+            setEditingMainLink(false);
+          }
+        })
+        .catch((linkErrorInstance) => {
+          console.error('Unable to update main link', linkErrorInstance);
+          const message =
+            linkErrorInstance && linkErrorInstance.message
+              ? linkErrorInstance.message
+              : t.playerMainLinkError;
+          setMainLinkError(message || 'Unable to link this player.');
+        })
+        .finally(() => {
+          setMainLinkLoading(false);
+        });
+    },
+    [profile, mainLinkName, playerNameInfo.mainPlayerName, t],
   );
 
   const showSearchResults =
@@ -595,7 +775,11 @@ export default function Player() {
       </h1>
       <section className="player-dungeon-section" aria-live="polite">
         {hasPlayerId && (playerDisplayName || playerIdentifier) ? (
-          <header className="player-profile-header">
+          <header
+            className={`player-profile-header${editingMainLink ? ' editing-main-link' : ''}`}
+            onDoubleClick={canContribute ? handleTitleDoubleClick : undefined}
+            title={canContribute ? t.playerMainLinkTitle || undefined : undefined}
+          >
             <h2 className="player-profile-name">
               {playerDisplayName
                 || (playerIdentifier
@@ -610,6 +794,51 @@ export default function Player() {
                   ? t.playerIdLabel(playerIdentifier)
                   : `ID #${playerIdentifier}`}
               </p>
+            ) : null}
+            {canContribute && editingMainLink ? (
+              <form className="player-main-link-form" onSubmit={handleMainLinkSubmit}>
+                <label className="player-main-link-label" htmlFor={mainLinkInputId}>
+                  {t.playerMainLinkLabel || 'Personnage principal'}
+                </label>
+                <input
+                  id={mainLinkInputId}
+                  className="player-main-link-input"
+                  type="text"
+                  value={mainLinkName}
+                  onChange={handleMainLinkChange}
+                  disabled={mainLinkLoading}
+                  placeholder={t.playerMainLinkPlaceholder || 'Nom du personnage principal'}
+                  autoComplete="off"
+                  spellCheck="false"
+                  list={mainLinkSuggestionsListId}
+                />
+                <datalist id={mainLinkSuggestionsListId}>
+                  {mainLinkSuggestions.map((option) => (
+                    <option key={option.id} value={option.name} />
+                  ))}
+                </datalist>
+                <div className="player-main-link-actions">
+                  <button type="submit" disabled={mainLinkLoading} className="player-main-link-submit">
+                    {t.playerMainLinkSubmit || 'Lier'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMainLinkCancel}
+                    disabled={mainLinkLoading}
+                    className="player-main-link-cancel"
+                  >
+                    {t.playerMainLinkCancel || 'Annuler'}
+                  </button>
+                </div>
+                {mainLinkError ? (
+                  <p className="form-message error" role="alert">
+                    {mainLinkError}
+                  </p>
+                ) : null}
+                {t.playerMainLinkHint ? (
+                  <p className="form-hint player-main-link-hint">{t.playerMainLinkHint}</p>
+                ) : null}
+              </form>
             ) : null}
           </header>
         ) : null}
@@ -662,6 +891,7 @@ export default function Player() {
                         className="player-search-result-link"
                         to={`/player/${encodeURIComponent(player.id)}`}
                         aria-label={label}
+                        title={player.tooltip || undefined}
                       >
                         <span className="player-search-result-name">{player.name}</span>
                         <span className="player-search-result-id">{identifierLabel}</span>

@@ -5,6 +5,7 @@ import com.opyruso.nwleaderboard.dto.HighlightResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
+import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
@@ -21,11 +22,13 @@ import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -61,11 +64,22 @@ public class LeaderboardService {
             return List.of();
         }
         int safeLimit = sanitiseLimit(limit);
-        List<RunScore> runs = runScoreRepository.listTopByDungeon(dungeonId, safeLimit);
+        List<RunScore> candidateRuns = collectScoreRuns(dungeonId, safeLimit);
+        if (candidateRuns.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(candidateRuns);
+        List<RunScore> runs = filterScoreRuns(candidateRuns, playersByRun, safeLimit);
         if (runs.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
+        Map<Long, List<LeaderboardPlayerResponse>> filteredPlayers = new LinkedHashMap<>();
+        for (RunScore run : runs) {
+            if (run == null || run.getId() == null) {
+                continue;
+            }
+            filteredPlayers.put(run.getId(), playersByRun.getOrDefault(run.getId(), List.of()));
+        }
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (int index = 0; index < runs.size(); index++) {
@@ -81,7 +95,7 @@ public class LeaderboardService {
                     score,
                     score,
                     null,
-                    playersByRun.getOrDefault(runId, List.of()),
+                    filteredPlayers.getOrDefault(runId, List.of()),
                     mutationIds.typeId(),
                     mutationIds.promotionId(),
                     mutationIds.curseId()));
@@ -95,11 +109,22 @@ public class LeaderboardService {
             return List.of();
         }
         int safeLimit = sanitiseLimit(limit);
-        List<RunTime> runs = runTimeRepository.listTopByDungeon(dungeonId, safeLimit);
+        List<RunTime> candidateRuns = collectTimeRuns(dungeonId, safeLimit);
+        if (candidateRuns.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(candidateRuns);
+        List<RunTime> runs = filterTimeRuns(candidateRuns, playersByRun, safeLimit);
         if (runs.isEmpty()) {
             return List.of();
         }
-        Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
+        Map<Long, List<LeaderboardPlayerResponse>> filteredPlayers = new LinkedHashMap<>();
+        for (RunTime run : runs) {
+            if (run == null || run.getId() == null) {
+                continue;
+            }
+            filteredPlayers.put(run.getId(), playersByRun.getOrDefault(run.getId(), List.of()));
+        }
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
         for (int index = 0; index < runs.size(); index++) {
@@ -115,7 +140,7 @@ public class LeaderboardService {
                     time,
                     null,
                     time,
-                    playersByRun.getOrDefault(runId, List.of()),
+                    filteredPlayers.getOrDefault(runId, List.of()),
                     mutationIds.typeId(),
                     mutationIds.promotionId(),
                     mutationIds.curseId()));
@@ -219,10 +244,10 @@ public class LeaderboardService {
             return Map.of();
         }
         List<PlayerAssignment> assignments = runScorePlayerRepository.listWithPlayersByRunIds(runIds).stream()
-                .map(association -> new PlayerAssignment(
+                .map(association -> toAssignment(
                         association.getRunScore() != null ? association.getRunScore().getId() : null,
-                        association.getPlayer() != null ? association.getPlayer().getId() : null,
-                        association.getPlayer() != null ? association.getPlayer().getPlayerName() : null))
+                        association.getPlayer()))
+                .filter(Objects::nonNull)
                 .toList();
         return organisePlayers(runIds, assignments);
     }
@@ -237,12 +262,120 @@ public class LeaderboardService {
             return Map.of();
         }
         List<PlayerAssignment> assignments = runTimePlayerRepository.listWithPlayersByRunIds(runIds).stream()
-                .map(association -> new PlayerAssignment(
+                .map(association -> toAssignment(
                         association.getRunTime() != null ? association.getRunTime().getId() : null,
-                        association.getPlayer() != null ? association.getPlayer().getId() : null,
-                        association.getPlayer() != null ? association.getPlayer().getPlayerName() : null))
+                        association.getPlayer()))
+                .filter(Objects::nonNull)
                 .toList();
         return organisePlayers(runIds, assignments);
+    }
+
+    private PlayerAssignment toAssignment(Long runId, Player player) {
+        if (runId == null || player == null) {
+            return null;
+        }
+        Long playerId = player.getId();
+        String playerName = normaliseName(player.getPlayerName());
+        Player main = resolveMain(player);
+        Long mainId = main != null && !Objects.equals(main.getId(), playerId) ? main.getId() : null;
+        String mainName = main != null && !Objects.equals(main.getId(), playerId)
+                ? normaliseName(main.getPlayerName())
+                : null;
+        return new PlayerAssignment(runId, playerId, playerName, mainId, mainName);
+    }
+
+    private List<RunScore> collectScoreRuns(Long dungeonId, int limit) {
+        if (dungeonId == null || limit <= 0) {
+            return List.of();
+        }
+        int pageSize = Math.max(limit, 25);
+        int maxPages = 10;
+        List<RunScore> collected = new ArrayList<>();
+        for (int page = 0; page < maxPages; page++) {
+            List<RunScore> pageRuns =
+                    runScoreRepository.listTopByDungeonPaged(dungeonId, page, pageSize);
+            if (pageRuns.isEmpty()) {
+                break;
+            }
+            collected.addAll(pageRuns);
+            if (collected.size() >= limit * 3L) {
+                break;
+            }
+        }
+        return collected;
+    }
+
+    private List<RunTime> collectTimeRuns(Long dungeonId, int limit) {
+        if (dungeonId == null || limit <= 0) {
+            return List.of();
+        }
+        int pageSize = Math.max(limit, 25);
+        int maxPages = 10;
+        List<RunTime> collected = new ArrayList<>();
+        for (int page = 0; page < maxPages; page++) {
+            List<RunTime> pageRuns =
+                    runTimeRepository.listTopByDungeonPaged(dungeonId, page, pageSize);
+            if (pageRuns.isEmpty()) {
+                break;
+            }
+            collected.addAll(pageRuns);
+            if (collected.size() >= limit * 3L) {
+                break;
+            }
+        }
+        return collected;
+    }
+
+    private List<RunScore> filterScoreRuns(
+            List<RunScore> runs, Map<Long, List<LeaderboardPlayerResponse>> playersByRun, int limit) {
+        if (runs == null || runs.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+        List<RunScore> filtered = new ArrayList<>();
+        Set<String> seenTeams = new HashSet<>();
+        for (RunScore run : runs) {
+            if (run == null || run.getId() == null) {
+                continue;
+            }
+            String teamKey = buildTeamKey(playersByRun.getOrDefault(run.getId(), List.of()));
+            if (teamKey.isEmpty()) {
+                teamKey = "run:" + run.getId();
+            }
+            if (!seenTeams.add(teamKey)) {
+                continue;
+            }
+            filtered.add(run);
+            if (filtered.size() >= limit) {
+                break;
+            }
+        }
+        return filtered;
+    }
+
+    private List<RunTime> filterTimeRuns(
+            List<RunTime> runs, Map<Long, List<LeaderboardPlayerResponse>> playersByRun, int limit) {
+        if (runs == null || runs.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+        List<RunTime> filtered = new ArrayList<>();
+        Set<String> seenTeams = new HashSet<>();
+        for (RunTime run : runs) {
+            if (run == null || run.getId() == null) {
+                continue;
+            }
+            String teamKey = buildTeamKey(playersByRun.getOrDefault(run.getId(), List.of()));
+            if (teamKey.isEmpty()) {
+                teamKey = "run:" + run.getId();
+            }
+            if (!seenTeams.add(teamKey)) {
+                continue;
+            }
+            filtered.add(run);
+            if (filtered.size() >= limit) {
+                break;
+            }
+        }
+        return filtered;
     }
 
     private Map<Long, List<LeaderboardPlayerResponse>> organisePlayers(List<Long> runIds, List<PlayerAssignment> assignments) {
@@ -281,14 +414,76 @@ public class LeaderboardService {
             }
             Long playerId = assignment.playerId();
             String name = assignment.playerName();
-            String trimmed = name != null ? name.strip() : null;
-            if ((playerId == null || playerId < 0) && (trimmed == null || trimmed.isEmpty())) {
+            if ((playerId == null || playerId < 0) && (name == null || name.isEmpty())) {
                 continue;
             }
-            String key = playerId != null ? "id:" + playerId : "name:" + trimmed.toLowerCase(Locale.ROOT);
-            unique.putIfAbsent(key, new LeaderboardPlayerResponse(playerId, trimmed));
+            String key = playerId != null
+                    ? "id:" + playerId
+                    : "name:" + name.toLowerCase(Locale.ROOT);
+            unique.putIfAbsent(
+                    key,
+                    new LeaderboardPlayerResponse(
+                            playerId,
+                            name,
+                            assignment.mainPlayerId(),
+                            assignment.mainPlayerName()));
         }
         return List.copyOf(unique.values());
+    }
+
+    private String buildTeamKey(List<LeaderboardPlayerResponse> players) {
+        if (players == null || players.isEmpty()) {
+            return "";
+        }
+        Set<String> identifiers = new HashSet<>();
+        for (LeaderboardPlayerResponse player : players) {
+            if (player == null) {
+                continue;
+            }
+            Long canonicalId = player.mainPlayerId() != null ? player.mainPlayerId() : player.playerId();
+            if (canonicalId != null) {
+                identifiers.add("id:" + canonicalId);
+                continue;
+            }
+            String canonicalName = player.mainPlayerName() != null ? player.mainPlayerName() : player.playerName();
+            String normalised = normaliseName(canonicalName);
+            if (normalised != null) {
+                identifiers.add("name:" + normalised.toLowerCase(Locale.ROOT));
+            }
+        }
+        if (identifiers.isEmpty()) {
+            return "";
+        }
+        List<String> sorted = new ArrayList<>(identifiers);
+        sorted.sort(String::compareTo);
+        return String.join("|", sorted);
+    }
+
+    private String normaliseName(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.strip();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        Set<Long> visited = new HashSet<>();
+        while (current.getMainCharacter() != null) {
+            if (current.getId() != null && !visited.add(current.getId())) {
+                break;
+            }
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+        }
+        return current;
     }
 
     private int sanitiseLimit(Integer limit) {
@@ -350,6 +545,7 @@ public class LeaderboardService {
         private static final MutationIds EMPTY = new MutationIds(null, null, null);
     }
 
-    private record PlayerAssignment(Long runId, Long playerId, String playerName) {
+    private record PlayerAssignment(
+            Long runId, Long playerId, String playerName, Long mainPlayerId, String mainPlayerName) {
     }
 }

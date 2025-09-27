@@ -55,7 +55,7 @@ public class PlayerResource {
         }
 
         List<LeaderboardPlayerResponse> payload = matches.stream()
-                .map(player -> new LeaderboardPlayerResponse(player.getId(), player.getPlayerName()))
+                .map(this::toLeaderboardPlayer)
                 .collect(Collectors.toList());
 
         return Response.ok(payload).build();
@@ -71,6 +71,35 @@ public class PlayerResource {
                     .build();
         }
         return Response.ok(profile.get()).build();
+    }
+
+    private LeaderboardPlayerResponse toLeaderboardPlayer(Player player) {
+        if (player == null) {
+            return new LeaderboardPlayerResponse(null, null, null, null);
+        }
+        Player main = resolveMain(player);
+        Long mainId = main != null && !main.equals(player) ? main.getId() : null;
+        String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
+        return new LeaderboardPlayerResponse(player.getId(), player.getPlayerName(), mainId, mainName);
+    }
+
+    private Player resolveMain(Player player) {
+        if (player == null) {
+            return null;
+        }
+        Player current = player;
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        while (current.getMainCharacter() != null) {
+            if (current.getId() != null && !visited.add(current.getId())) {
+                break;
+            }
+            Player next = current.getMainCharacter();
+            if (next == null || next.equals(current)) {
+                break;
+            }
+            current = next;
+        }
+        return current;
     }
 }
 

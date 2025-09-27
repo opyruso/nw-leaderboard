@@ -2,9 +2,12 @@ package com.opyruso.nwleaderboard.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
@@ -24,6 +27,10 @@ public class Player extends Auditable {
 
     @Column(name = "is_valid", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
     private boolean valid = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "main_character")
+    private Player mainCharacter;
 
     public Long getId() {
         return id;
@@ -47,5 +54,13 @@ public class Player extends Auditable {
 
     public void setValid(boolean valid) {
         this.valid = valid;
+    }
+
+    public Player getMainCharacter() {
+        return mainCharacter;
+    }
+
+    public void setMainCharacter(Player mainCharacter) {
+        this.mainCharacter = mainCharacter;
     }
 }

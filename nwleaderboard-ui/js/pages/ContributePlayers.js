@@ -25,6 +25,17 @@ function normalisePlayer(player) {
     player.total_run_count ?? player.totalRuns ?? player.total_runCount ?? player.totalRun_count,
   );
   const totalRuns = totalCandidate > 0 ? totalCandidate : scoreRuns + timeRuns;
+  const mainName =
+    typeof player.main_player_name === 'string'
+      ? player.main_player_name.trim()
+      : typeof player.mainPlayerName === 'string'
+      ? player.mainPlayerName.trim()
+      : '';
+  const mainIdValue = Number(
+    player.main_player_id ?? player.mainPlayerId ?? player.main_id ?? player.mainId,
+  );
+  const mainPlayerId = Number.isFinite(mainIdValue) ? mainIdValue : null;
+  const alternateCount = parseCount(player.alternate_count ?? player.alternateCount);
   return {
     id,
     playerName:
@@ -37,6 +48,9 @@ function normalisePlayer(player) {
     scoreRuns,
     timeRuns,
     totalRuns,
+    mainPlayerId,
+    mainPlayerName: mainName,
+    alternateCount,
   };
 }
 
