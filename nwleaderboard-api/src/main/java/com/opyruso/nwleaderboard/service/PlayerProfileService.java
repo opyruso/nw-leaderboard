@@ -106,8 +106,9 @@ public class PlayerProfileService {
         Player main = resolveMain(player);
         Long mainId = main != null && !main.equals(player) ? main.getId() : null;
         String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
-        PlayerProfileResponse response =
-                new PlayerProfileResponse(player.getId(), player.getPlayerName(), mainId, mainName, dungeonSummaries);
+        String regionId = normaliseRegionId(player.getRegion() != null ? player.getRegion().getId() : null);
+        PlayerProfileResponse response = new PlayerProfileResponse(
+                player.getId(), player.getPlayerName(), regionId, mainId, mainName, dungeonSummaries);
         return Optional.of(response);
     }
 
@@ -187,6 +188,17 @@ public class PlayerProfileService {
         }
         String trimmed = value.strip();
         return trimmed.isEmpty() ? "" : trimmed;
+    }
+
+    private String normaliseRegionId(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 
     private static final class PlayerDungeonAggregate {

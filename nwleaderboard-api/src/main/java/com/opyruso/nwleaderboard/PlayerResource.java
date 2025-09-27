@@ -10,13 +10,14 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -34,19 +35,22 @@ public class PlayerResource {
     PlayerRepository playerRepository;
 
     @GET
-    public Response searchPlayers(@QueryParam("q") String query, @QueryParam("limit") Integer limit) {
+    public Response searchPlayers(
+            @QueryParam("q") String query,
+            @QueryParam("limit") Integer limit,
+            @QueryParam("region") String region) {
         if (query == null || query.trim().isEmpty()) {
             return Response.ok(List.of()).build();
         }
 
         int maxResults = limit != null && limit > 0 ? Math.min(limit, 20) : 10;
-        List<Player> matches = new ArrayList<>(playerRepository.searchByName(query, maxResults));
+        List<Player> matches = new ArrayList<>(playerRepository.searchByName(query, maxResults, region));
 
         if (matches.isEmpty()) {
             try {
                 Long playerId = Long.valueOf(query.trim());
                 Player byId = playerRepository.findById(playerId);
-                if (byId != null) {
+                if (byId != null && matchesRegion(byId, region)) {
                     matches.add(byId);
                 }
             } catch (NumberFormatException ignored) {
@@ -71,6 +75,32 @@ public class PlayerResource {
                     .build();
         }
         return Response.ok(profile.get()).build();
+    }
+
+    private boolean matchesRegion(Player player, String regionFilter) {
+        if (player == null) {
+            return false;
+        }
+        String expected = normaliseRegionId(regionFilter);
+        if (expected == null) {
+            return true;
+        }
+        if (player.getRegion() == null || player.getRegion().getId() == null) {
+            return false;
+        }
+        String playerRegion = normaliseRegionId(player.getRegion().getId());
+        return expected.equals(playerRegion);
+    }
+
+    private String normaliseRegionId(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 
     private LeaderboardPlayerResponse toLeaderboardPlayer(Player player) {

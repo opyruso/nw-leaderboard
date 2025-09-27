@@ -12,6 +12,7 @@ public record LeaderboardEntryResponse(
         Long entryId,
         Integer position,
         Integer week,
+        String region,
         Integer value,
         Integer score,
         Integer time,

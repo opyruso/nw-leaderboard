@@ -100,10 +100,12 @@ public class LeaderboardService {
             Long runId = run.getId();
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             int position = startIndex + index + 1;
+            String regionId = normaliseRegionId(run.getRegion() != null ? run.getRegion().getId() : null);
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     position,
                     run.getWeek(),
+                    regionId,
                     run.getScore(),
                     run.getScore(),
                     null,
@@ -156,10 +158,12 @@ public class LeaderboardService {
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             int position = startIndex + index + 1;
             Integer time = run.getTimeInSecond();
+            String regionId = normaliseRegionId(run.getRegion() != null ? run.getRegion().getId() : null);
             responses.add(new LeaderboardEntryResponse(
                     runId,
                     position,
                     run.getWeek(),
+                    regionId,
                     time,
                     null,
                     time,
@@ -366,6 +370,17 @@ public class LeaderboardService {
         }
         String trimmed = value.strip();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normaliseRegionId(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 
     private Player resolveMain(Player player) {

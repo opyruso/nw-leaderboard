@@ -121,9 +121,9 @@ export default function Individual() {
               <button
                 key={value || 'all'}
                 type="button"
-                className={
-                  isActive ? 'individual-filter-button active' : 'individual-filter-button'
-                }
+                className={`leaderboard-pagination-button individual-filter-button${
+                  isActive ? ' active' : ''
+                }`}
                 onClick={() => handleRegionChange(value)}
                 aria-pressed={isActive}
               >
@@ -149,9 +149,9 @@ export default function Individual() {
               <button
                 key={value}
                 type="button"
-                className={
-                  isActive ? 'individual-filter-button active' : 'individual-filter-button'
-                }
+                className={`leaderboard-pagination-button individual-filter-button${
+                  isActive ? ' active' : ''
+                }`}
                 onClick={() => handleModeChange(value)}
                 aria-pressed={isActive}
               >

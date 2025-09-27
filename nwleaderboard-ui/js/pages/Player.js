@@ -885,21 +885,20 @@ export default function Player({ canContribute = false }) {
                 spellCheck="false"
               />
               <div className="player-search-filters">
-                <label className="player-search-region-label" htmlFor={regionFilterId}>
-                  {t.playerSearchRegionLabel || 'Region'}
+                <label className="form-field player-search-region-field" htmlFor={regionFilterId}>
+                  <span>{t.playerSearchRegionLabel || 'Region'}</span>
+                  <select
+                    id={regionFilterId}
+                    value={regionFilter}
+                    onChange={handleRegionFilterChange}
+                  >
+                    {availableRegions.map((region) => (
+                      <option key={region || 'all'} value={region}>
+                        {region ? translateRegion(t, region) : t.regionFilterAll || 'All'}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                <select
-                  id={regionFilterId}
-                  className="player-search-select"
-                  value={regionFilter}
-                  onChange={handleRegionFilterChange}
-                >
-                  {availableRegions.map((region) => (
-                    <option key={region || 'all'} value={region}>
-                      {region ? translateRegion(t, region) : t.regionFilterAll || 'All'}
-                    </option>
-                  ))}
-                </select>
               </div>
               {t.playerSearchHint ? (
                 <p className="player-search-hint">{t.playerSearchHint}</p>

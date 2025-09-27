@@ -64,9 +64,10 @@ public class IndividualRankingService {
     @Transactional(Transactional.TxType.SUPPORTS)
     public List<IndividualRankingEntryResponse> getRanking(Mode mode) {
         Map<Long, String> playerNames = new HashMap<>();
+        Map<Long, String> playerRegions = new HashMap<>();
 
-        Map<Long, Map<Integer, Integer>> scorePlacements = computeScorePlacements(playerNames);
-        Map<Long, Map<Integer, Integer>> timePlacements = computeTimePlacements(playerNames);
+        Map<Long, Map<Integer, Integer>> scorePlacements = computeScorePlacements(playerNames, playerRegions);
+        Map<Long, Map<Integer, Integer>> timePlacements = computeTimePlacements(playerNames, playerRegions);
 
         if (scorePlacements.isEmpty() && timePlacements.isEmpty()) {
             return List.of();
@@ -140,9 +141,11 @@ public class IndividualRankingService {
                 return;
             }
             String playerName = normaliseName(playerNames.get(playerId));
+            String regionId = normaliseRegionId(playerRegions.get(playerId));
             entries.add(new IndividualRankingEntryResponse(
                     playerId,
                     playerName,
+                    regionId,
                     selectedPoints,
                     points.scorePoints,
                     points.timePoints));
@@ -176,7 +179,8 @@ public class IndividualRankingService {
         return List.copyOf(entries);
     }
 
-    private Map<Long, Map<Integer, Integer>> computeScorePlacements(Map<Long, String> playerNames) {
+    private Map<Long, Map<Integer, Integer>> computeScorePlacements(
+            Map<Long, String> playerNames, Map<Long, String> playerRegions) {
         List<RunScore> runs = runScoreRepository
                 .find("ORDER BY week ASC, score DESC, id ASC")
                 .list();
@@ -249,6 +253,11 @@ public class IndividualRankingService {
                             mainId,
                             normaliseName(main.getPlayerName()),
                             IndividualRankingService::preferNonEmpty);
+                    String regionId = normaliseRegionId(
+                            main.getRegion() != null ? main.getRegion().getId() : null);
+                    if (regionId != null) {
+                        playerRegions.putIfAbsent(mainId, regionId);
+                    }
                     Map<Integer, Integer> weeks = placements.computeIfAbsent(mainId, unused -> new HashMap<>());
                     weeks.merge(week, placement, Math::min);
                 }
@@ -258,7 +267,8 @@ public class IndividualRankingService {
         return placements;
     }
 
-    private Map<Long, Map<Integer, Integer>> computeTimePlacements(Map<Long, String> playerNames) {
+    private Map<Long, Map<Integer, Integer>> computeTimePlacements(
+            Map<Long, String> playerNames, Map<Long, String> playerRegions) {
         List<RunTime> runs = runTimeRepository
                 .find("ORDER BY week ASC, timeInSecond ASC, id ASC")
                 .list();
@@ -331,6 +341,11 @@ public class IndividualRankingService {
                             mainId,
                             normaliseName(main.getPlayerName()),
                             IndividualRankingService::preferNonEmpty);
+                    String regionId = normaliseRegionId(
+                            main.getRegion() != null ? main.getRegion().getId() : null);
+                    if (regionId != null) {
+                        playerRegions.putIfAbsent(mainId, regionId);
+                    }
                     Map<Integer, Integer> weeks = placements.computeIfAbsent(mainId, unused -> new HashMap<>());
                     weeks.merge(week, placement, Math::min);
                 }
@@ -416,6 +431,17 @@ public class IndividualRankingService {
         }
         String trimmed = raw.strip();
         return trimmed.isEmpty() ? "" : trimmed;
+    }
+
+    private String normaliseRegionId(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toUpperCase(Locale.ROOT);
     }
 
     private static String preferNonEmpty(String existing, String candidate) {
