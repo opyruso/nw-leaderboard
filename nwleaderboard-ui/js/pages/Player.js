@@ -3,6 +3,7 @@ import { getDungeonIconPath, getDungeonNameForLang, sortDungeons } from '../dung
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
+import RankBadge from '../components/RankBadge.js';
 import { capitaliseWords } from '../text.js';
 import { extractMutationIds } from '../mutations.js';
 
@@ -301,10 +302,12 @@ export default function Player() {
       fallbackName: entry?.fallbackName || '',
       bestScore: entry?.bestScore ?? null,
       bestScoreWeek: entry?.bestScoreWeek ?? null,
+      bestScorePosition: entry?.bestScorePosition ?? entry?.best_score_position ?? null,
       minScore: entry?.minScore ?? null,
       maxScore: entry?.maxScore ?? null,
       bestTime: entry?.bestTime ?? null,
       bestTimeWeek: entry?.bestTimeWeek ?? null,
+      bestTimePosition: entry?.bestTimePosition ?? entry?.best_time_position ?? null,
       minTime: entry?.minTime ?? null,
       maxTime: entry?.maxTime ?? null,
       scoreMutations: extractMutationIds(
@@ -724,6 +727,11 @@ export default function Player() {
                     </h2>
                     <dl className="player-dungeon-stats">
                       <div className="player-dungeon-stat">
+                        <RankBadge
+                          position={dungeon.bestScorePosition}
+                          label={t.playerBestScore}
+                          className="player-rank-badge"
+                        />
                         <dt>{t.playerBestScore}</dt>
                         <dd>
                           {hasScore ? (
@@ -743,6 +751,11 @@ export default function Player() {
                         </dd>
                       </div>
                       <div className="player-dungeon-stat">
+                        <RankBadge
+                          position={dungeon.bestTimePosition}
+                          label={t.playerBestTime}
+                          className="player-rank-badge"
+                        />
                         <dt>{t.playerBestTime}</dt>
                         <dd>
                           {hasTime ? (

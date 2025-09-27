@@ -68,12 +68,15 @@ public class LeaderboardService {
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
-        for (RunScore run : runs) {
+        for (int index = 0; index < runs.size(); index++) {
+            RunScore run = runs.get(index);
             Long runId = run.getId();
             Integer score = run.getScore();
+            Integer position = index + 1;
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             responses.add(new LeaderboardEntryResponse(
                     runId,
+                    position,
                     run.getWeek(),
                     score,
                     score,
@@ -99,12 +102,15 @@ public class LeaderboardService {
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
-        for (RunTime run : runs) {
+        for (int index = 0; index < runs.size(); index++) {
+            RunTime run = runs.get(index);
             Long runId = run.getId();
             Integer time = run.getTimeInSecond();
+            Integer position = index + 1;
             MutationIds mutationIds = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
             responses.add(new LeaderboardEntryResponse(
                     runId,
+                    position,
                     run.getWeek(),
                     time,
                     null,
@@ -162,10 +168,12 @@ public class LeaderboardService {
                     bestScore != null ? bestScore.getWeek() : null,
                     bestScore != null ? bestScore.getDungeon() : null,
                     mutationCache);
+            Integer scorePosition = bestScore != null ? runScoreRepository.findPositionInDungeon(bestScore) : null;
             HighlightMetricResponse scoreMetric = bestScore != null
                     ? new HighlightMetricResponse(
                             bestScore.getScore(),
                             bestScore.getWeek(),
+                            scorePosition,
                             scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()),
                             scoreMutations.typeId(),
                             scoreMutations.promotionId(),
@@ -175,10 +183,12 @@ public class LeaderboardService {
                     bestTime != null ? bestTime.getWeek() : null,
                     bestTime != null ? bestTime.getDungeon() : null,
                     mutationCache);
+            Integer timePosition = bestTime != null ? runTimeRepository.findPositionInDungeon(bestTime) : null;
             HighlightMetricResponse timeMetric = bestTime != null
                     ? new HighlightMetricResponse(
                             bestTime.getTimeInSecond(),
                             bestTime.getWeek(),
+                            timePosition,
                             timePlayersByRun.getOrDefault(bestTime.getId(), List.of()),
                             timeMutations.typeId(),
                             timeMutations.promotionId(),

@@ -11,6 +11,7 @@ import java.util.List;
 public record HighlightMetricResponse(
         Integer value,
         Integer week,
+        Integer position,
         List<LeaderboardPlayerResponse> players,
         @JsonProperty("mutation_type_id") String mutationTypeId,
         @JsonProperty("mutation_promotion_id") String mutationPromotionId,

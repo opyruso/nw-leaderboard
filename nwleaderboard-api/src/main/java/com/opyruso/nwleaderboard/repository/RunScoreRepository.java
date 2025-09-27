@@ -43,6 +43,45 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /**
+     * Calculates the ranking position of the provided run within its dungeon leaderboard.
+     *
+     * @param run run whose position should be determined
+     * @return one-based position or {@code null} when it cannot be determined
+     */
+    public Integer findPositionInDungeon(RunScore run) {
+        if (run == null) {
+            return null;
+        }
+        Long dungeonId = run.getDungeon() != null ? run.getDungeon().getId() : null;
+        Integer score = run.getScore();
+        Integer week = run.getWeek();
+        Long runId = run.getId();
+        if (dungeonId == null || score == null) {
+            return null;
+        }
+
+        Long safeRunId = runId != null ? runId : Long.MAX_VALUE;
+        Long betterCount = getEntityManager()
+                .createQuery(
+                        "SELECT COUNT(other) FROM RunScore other "
+                                + "WHERE other.dungeon.id = :dungeonId "
+                                + "AND (other.score > :score "
+                                + "OR (other.score = :score AND COALESCE(other.week, -1) > COALESCE(:week, -1)) "
+                                + "OR (other.score = :score AND COALESCE(other.week, -1) = COALESCE(:week, -1) AND other.id < :runId))",
+                        Long.class)
+                .setParameter("dungeonId", dungeonId)
+                .setParameter("score", score)
+                .setParameter("week", week)
+                .setParameter("runId", safeRunId)
+                .getSingleResult();
+        if (betterCount == null) {
+            return null;
+        }
+        long position = betterCount + 1;
+        return position > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) position;
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and score.
      *
      * @param dungeonId identifier of the dungeon

@@ -1,6 +1,7 @@
 import { LangContext } from '../i18n.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
+import RankBadge from '../components/RankBadge.js';
 import {
   deriveFallbackName,
   getDungeonNameForLang,
@@ -60,9 +61,13 @@ function normaliseMetric(metric) {
   const week = metric.week ?? metric.period ?? metric.season ?? null;
   const players = normalisePlayers(metric.players);
   const mutations = extractMutationIds(metric);
+  const position = toPositiveInteger(
+    metric.position ?? metric.rank ?? metric.place ?? metric.standing ?? metric.pos,
+  );
   return {
     value: Number.isFinite(value) ? value : toPositiveInteger(value),
     week: toPositiveInteger(week),
+    position,
     players,
     mutations,
   };
@@ -223,6 +228,11 @@ export default function Home() {
                   </header>
                   <div className="highlight-metrics">
                     <div className="highlight-metric">
+                      <RankBadge
+                        position={score?.position}
+                        label={t.highlightScoreLabel ?? t.playerBestScore}
+                        className="highlight-rank-badge"
+                      />
                       <span className="highlight-metric-label">{t.highlightScoreLabel ?? t.playerBestScore}</span>
                       <span className="highlight-metric-value">{scoreValue}</span>
                       {scoreWeek ? (
@@ -257,6 +267,11 @@ export default function Home() {
                       />
                     </div>
                     <div className="highlight-metric">
+                      <RankBadge
+                        position={time?.position}
+                        label={t.highlightTimeLabel ?? t.playerBestTime}
+                        className="highlight-rank-badge"
+                      />
                       <span className="highlight-metric-label">{t.highlightTimeLabel ?? t.playerBestTime}</span>
                       <span className="highlight-metric-value">{timeValue}</span>
                       {timeWeek ? (
