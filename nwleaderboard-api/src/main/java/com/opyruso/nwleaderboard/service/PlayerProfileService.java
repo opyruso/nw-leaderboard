@@ -137,10 +137,12 @@ public class PlayerProfileService {
         RunTime bestTime = aggregate.bestTime;
         Integer scoreValue = bestScore != null ? bestScore.getScore() : null;
         Integer scoreWeek = bestScore != null ? bestScore.getWeek() : null;
+        Integer scorePosition = bestScore != null ? runScoreRepository.findPositionInDungeon(bestScore) : null;
         Integer minScore = aggregate.minScore;
         Integer maxScore = aggregate.maxScore;
         Integer timeValue = bestTime != null ? bestTime.getTimeInSecond() : null;
         Integer timeWeek = bestTime != null ? bestTime.getWeek() : null;
+        Integer timePosition = bestTime != null ? runTimeRepository.findPositionInDungeon(bestTime) : null;
         Integer minTime = aggregate.minTime;
         Integer maxTime = aggregate.maxTime;
         Long dungeonId = dungeon != null ? dungeon.getId() : null;
@@ -150,10 +152,12 @@ public class PlayerProfileService {
                 names,
                 scoreValue,
                 scoreWeek,
+                scorePosition,
                 minScore,
                 maxScore,
                 timeValue,
                 timeWeek,
+                timePosition,
                 minTime,
                 maxTime);
     }

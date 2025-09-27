@@ -11,10 +11,12 @@ public record PlayerDungeonBestResponse(
         Map<String, String> names,
         Integer bestScore,
         Integer bestScoreWeek,
+        Integer bestScorePosition,
         Integer minScore,
         Integer maxScore,
         Integer bestTime,
         Integer bestTimeWeek,
+        Integer bestTimePosition,
         Integer minTime,
         Integer maxTime) {
 

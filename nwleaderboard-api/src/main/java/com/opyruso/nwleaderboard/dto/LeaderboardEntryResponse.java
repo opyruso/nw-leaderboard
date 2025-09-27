@@ -10,6 +10,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record LeaderboardEntryResponse(
         Long entryId,
+        Integer position,
         Integer week,
         Integer value,
         Integer score,

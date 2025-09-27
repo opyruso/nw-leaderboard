@@ -2,6 +2,7 @@ import { LangContext } from '../i18n.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
+import RankBadge from '../components/RankBadge.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
 import { extractMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
@@ -197,12 +198,15 @@ export default function LeaderboardPage({
           const value = getValue(entry);
           const players = normalisePlayers(entry);
           const week = deriveWeek(entry);
+          const position =
+            entry?.position ?? entry?.rank ?? entry?.place ?? entry?.standing ?? entry?.pos ?? null;
           const id = entry?.id ?? entry?.entryId ?? `${week || 'entry'}-${index}`;
           return {
             id: String(id),
             week: week ? String(week) : '',
             players,
             value,
+            position,
             raw: entry,
           };
         });
@@ -570,6 +574,11 @@ export default function LeaderboardPage({
                   const mutations = extractMutationIds(entry.raw);
                   return (
                     <li key={entry.id} className="leaderboard-run">
+                      <RankBadge
+                        position={entry.position ?? entry.raw?.position}
+                        label={t.individualRankHeader}
+                        className="leaderboard-rank-badge"
+                      />
                       <div className="leaderboard-run-header">
                         <span className="leaderboard-week">{weekDisplay}</span>
                         <span className="leaderboard-value">{valueDisplay}</span>

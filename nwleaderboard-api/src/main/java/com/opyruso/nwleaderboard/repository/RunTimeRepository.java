@@ -43,6 +43,45 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     /**
+     * Calculates the ranking position of the provided run within its dungeon leaderboard.
+     *
+     * @param run run whose position should be determined
+     * @return one-based position or {@code null} when it cannot be determined
+     */
+    public Integer findPositionInDungeon(RunTime run) {
+        if (run == null) {
+            return null;
+        }
+        Long dungeonId = run.getDungeon() != null ? run.getDungeon().getId() : null;
+        Integer time = run.getTimeInSecond();
+        Integer week = run.getWeek();
+        Long runId = run.getId();
+        if (dungeonId == null || time == null) {
+            return null;
+        }
+
+        Long safeRunId = runId != null ? runId : Long.MAX_VALUE;
+        Long betterCount = getEntityManager()
+                .createQuery(
+                        "SELECT COUNT(other) FROM RunTime other "
+                                + "WHERE other.dungeon.id = :dungeonId "
+                                + "AND (other.timeInSecond < :time "
+                                + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) > COALESCE(:week, -1)) "
+                                + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) = COALESCE(:week, -1) AND other.id < :runId))",
+                        Long.class)
+                .setParameter("dungeonId", dungeonId)
+                .setParameter("time", time)
+                .setParameter("week", week)
+                .setParameter("runId", safeRunId)
+                .getSingleResult();
+        if (betterCount == null) {
+            return null;
+        }
+        long position = betterCount + 1;
+        return position > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) position;
+    }
+
+    /**
      * Finds runs matching the provided dungeon, week and time.
      *
      * @param dungeonId identifier of the dungeon
