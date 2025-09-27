@@ -2061,6 +2061,76 @@ body[data-theme='light'] .dungeon-button.active {
   color: var(--color-accent-contrast);
 }
 
+.leaderboard-filter-panel {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-dark);
+}
+
+body[data-theme='light'] .leaderboard-filter-panel {
+  border-top-color: var(--border-light);
+}
+
+.leaderboard-filter-title {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  letter-spacing: 0.6px;
+}
+
+.leaderboard-filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.leaderboard-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.leaderboard-filter-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}
+
+.leaderboard-filter-select {
+  appearance: none;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-dark-soft);
+  color: inherit;
+  padding: 0.65rem 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.leaderboard-filter-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+}
+
+.leaderboard-filter-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body[data-theme='light'] .leaderboard-filter-select {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-light);
+}
+
+.leaderboard-filter-empty {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+body[data-theme='light'] .leaderboard-filter-empty {
+  color: rgba(100, 116, 139, 0.9);
+}
+
 .contribute-form {
   display: flex;
   flex-direction: column;
