@@ -67,7 +67,8 @@ public class LeaderboardService {
             Integer pageSizeParam,
             List<String> mutationTypeIds,
             List<String> mutationPromotionIds,
-            List<String> mutationCurseIds) {
+            List<String> mutationCurseIds,
+            List<String> regionIds) {
         int safePageSize = sanitisePageSize(pageSizeParam);
         int requestedPage = sanitisePage(pageParam);
         if (dungeonId == null) {
@@ -75,19 +76,21 @@ public class LeaderboardService {
         }
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        Set<String> regionFilter = sanitiseRegionIds(regionIds);
         List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
 
-        long totalRuns = runScoreRepository.countByDungeonAndWeeks(dungeonId, weekFilter);
+        long totalRuns = runScoreRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter);
         int totalPages = computeTotalPages(totalRuns, safePageSize);
         int safePage = clampPage(requestedPage, totalPages);
         if (totalRuns == 0) {
             return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
 
-        List<RunScore> runs = runScoreRepository.listByDungeonAndWeeks(dungeonId, weekFilter, safePage - 1, safePageSize);
+        List<RunScore> runs =
+                runScoreRepository.listByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, safePage - 1, safePageSize);
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
@@ -124,7 +127,8 @@ public class LeaderboardService {
             Integer pageSizeParam,
             List<String> mutationTypeIds,
             List<String> mutationPromotionIds,
-            List<String> mutationCurseIds) {
+            List<String> mutationCurseIds,
+            List<String> regionIds) {
         int safePageSize = sanitisePageSize(pageSizeParam);
         int requestedPage = sanitisePage(pageParam);
         if (dungeonId == null) {
@@ -132,19 +136,21 @@ public class LeaderboardService {
         }
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        Set<String> regionFilter = sanitiseRegionIds(regionIds);
         List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
 
-        long totalRuns = runTimeRepository.countByDungeonAndWeeks(dungeonId, weekFilter);
+        long totalRuns = runTimeRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter);
         int totalPages = computeTotalPages(totalRuns, safePageSize);
         int safePage = clampPage(requestedPage, totalPages);
         if (totalRuns == 0) {
             return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
 
-        List<RunTime> runs = runTimeRepository.listByDungeonAndWeeks(dungeonId, weekFilter, safePage - 1, safePageSize);
+        List<RunTime> runs =
+                runTimeRepository.listByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, safePage - 1, safePageSize);
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
@@ -381,6 +387,20 @@ public class LeaderboardService {
             return null;
         }
         return trimmed.toUpperCase(Locale.ROOT);
+    }
+
+    private Set<String> sanitiseRegionIds(List<String> regionIds) {
+        if (regionIds == null) {
+            return Set.of();
+        }
+        LinkedHashSet<String> unique = new LinkedHashSet<>();
+        for (String value : regionIds) {
+            String normalised = normaliseRegionId(value);
+            if (normalised != null) {
+                unique.add(normalised);
+            }
+        }
+        return unique.isEmpty() ? Set.of() : Collections.unmodifiableSet(unique);
     }
 
     private Player resolveMain(Player player) {

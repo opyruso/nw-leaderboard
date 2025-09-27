@@ -46,36 +46,46 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
                 .list();
     }
 
-    public List<RunScore> listByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, int pageIndex, int pageSize) {
+    public List<RunScore> listByDungeonAndWeeks(
+            Long dungeonId, List<Integer> weeks, Collection<String> regions, int pageIndex, int pageSize) {
         if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
             return List.of();
         }
         if (weeks != null && weeks.isEmpty()) {
             return List.of();
         }
-        if (weeks == null) {
-            return find("dungeon.id = ?1 ORDER BY score DESC, week DESC, id ASC", dungeonId)
-                    .page(Page.of(pageIndex, pageSize))
-                    .list();
+        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
+        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+        if (weeks != null) {
+            query.append(" AND week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
         }
-        return find(
-                        "dungeon.id = :dungeonId AND week IN :weeks ORDER BY score DESC, week DESC, id ASC",
-                        Parameters.with("dungeonId", dungeonId).and("weeks", weeks))
-                .page(Page.of(pageIndex, pageSize))
-                .list();
+        if (regions != null && !regions.isEmpty()) {
+            query.append(" AND region.id IN :regions");
+            parameters = parameters.and("regions", regions);
+        }
+        query.append(" ORDER BY score DESC, week DESC, id ASC");
+        return find(query.toString(), parameters).page(Page.of(pageIndex, pageSize)).list();
     }
 
-    public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks) {
+    public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, Collection<String> regions) {
         if (dungeonId == null) {
             return 0L;
         }
         if (weeks != null && weeks.isEmpty()) {
             return 0L;
         }
-        if (weeks == null) {
-            return count("dungeon.id = ?1", dungeonId);
+        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
+        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+        if (weeks != null) {
+            query.append(" AND week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
         }
-        return count("dungeon.id = :dungeonId AND week IN :weeks", Parameters.with("dungeonId", dungeonId).and("weeks", weeks));
+        if (regions != null && !regions.isEmpty()) {
+            query.append(" AND region.id IN :regions");
+            parameters = parameters.and("regions", regions);
+        }
+        return count(query.toString(), parameters);
     }
 
     /**
