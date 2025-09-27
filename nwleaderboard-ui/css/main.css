@@ -118,16 +118,19 @@ body[data-theme='light'] .site-header {
   margin: 0 auto;
   padding: clamp(1rem, 3vw, 1.6rem) clamp(1rem, 4vw, 1.75rem);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: clamp(0.75rem, 2vw, 1.1rem);
 }
 
 .site-header__brand {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(0.75rem, 2vw, 1.35rem);
-  text-align: center;
+  text-align: left;
 }
 
 .site-header__logo {
@@ -154,7 +157,9 @@ body[data-theme='light'] .site-header__title {
 
 .site-nav {
   display: flex;
-  justify-content: center;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: clamp(16rem, 50%, 28rem);
 }
 
 .site-nav__sections {
@@ -163,7 +168,7 @@ body[data-theme='light'] .site-header__title {
   justify-content: space-between;
   gap: clamp(0.75rem, 2.5vw, 1.75rem);
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .site-nav__group {

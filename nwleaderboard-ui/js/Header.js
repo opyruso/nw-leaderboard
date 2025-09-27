@@ -139,9 +139,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
             width="56"
             height="56"
           />
-          <span className="site-header__title">
-            New World Stats By oPy - PvE Forever!
-          </span>
+          <span className="site-header__title">NWLeaderboard - PvE By oPy</span>
         </div>
         <nav className="site-nav" aria-label={t.navMenu}>
           <div className="site-nav__sections">
