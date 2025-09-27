@@ -491,6 +491,51 @@ export default function ContributeMutations() {
       });
   }, [creatingPending, entries, newRow, t, updateEntryList]);
 
+  const handleDeleteEntry = React.useCallback(
+    (entry) => {
+      if (!entry || pendingKeys.includes(entry.key) || creatingPending) {
+        return;
+      }
+      const rowKey = entry.key;
+      addPendingKey(rowKey);
+      setFeedback({ type: '', text: '' });
+
+      fetch(`${API_BASE_URL}/contributor/mutations/${entry.week}/${entry.dungeonId}`, {
+        method: 'DELETE',
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response
+              .json()
+              .catch(() => null)
+              .then((data) => {
+                const message = data && typeof data.message === 'string' ? data.message : '';
+                throw new Error(message || `Failed to delete mutation: ${response.status}`);
+              });
+          }
+          return null;
+        })
+        .then(() => {
+          setEntries((current) => current.filter((item) => item && item.key !== rowKey));
+          setFeedback({ type: 'success', text: t.contributeMutationsDeleteSuccess });
+        })
+        .catch((deletionError) => {
+          console.error('Unable to delete mutation', deletionError);
+          setFeedback({
+            type: 'error',
+            text:
+              deletionError && deletionError.message
+                ? deletionError.message
+                : t.contributeMutationsDeleteError,
+          });
+        })
+        .finally(() => {
+          removePendingKey(rowKey);
+        });
+    },
+    [addPendingKey, creatingPending, pendingKeys, removePendingKey, t],
+  );
+
   const renderValueCell = (entry, field, label) => {
     const config = FIELD_CONFIG[field];
     const isEditing = activeEdit && activeEdit.key === entry.key && activeEdit.field === field;
@@ -702,7 +747,14 @@ export default function ContributeMutations() {
                             </button>
                           </>
                         ) : (
-                          <span className="contribute-mutations-placeholder">—</span>
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => handleDeleteEntry(entry)}
+                            disabled={rowPending}
+                          >
+                            {t.contributeMutationsDelete}
+                          </button>
                         )}
                       </td>
                     </tr>

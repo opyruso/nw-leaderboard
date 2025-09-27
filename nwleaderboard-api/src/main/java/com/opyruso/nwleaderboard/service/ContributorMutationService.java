@@ -135,6 +135,17 @@ public class ContributorMutationService {
     }
 
     @Transactional
+    public void deleteMutation(Integer weekParam, Long dungeonParam) throws ContributorMutationException {
+        int week = normaliseWeek(weekParam);
+        long dungeonId = normaliseDungeonId(dungeonParam);
+        WeekMutationDungeon entity = weekMutationDungeonRepository.findByIds(week, dungeonId);
+        if (entity == null) {
+            throw new ContributorMutationException("Mutation not found.", Status.NOT_FOUND);
+        }
+        weekMutationDungeonRepository.delete(entity);
+    }
+
+    @Transactional
     public ContributorMutationOptionsResponse listOptions() {
         List<ContributorMutationDungeonOption> dungeons = dungeonRepository.listAll().stream()
                 .filter(Objects::nonNull)

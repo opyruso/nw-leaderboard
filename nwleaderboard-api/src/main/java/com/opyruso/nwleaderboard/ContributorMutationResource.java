@@ -11,6 +11,7 @@ import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -117,6 +118,28 @@ public class ContributorMutationResource {
             LOG.error("Unable to update weekly mutation", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to update weekly mutation", null))
+                    .build();
+        }
+    }
+
+    @DELETE
+    @Path("/{week}/{dungeonId}")
+    public Response deleteMutation(
+            @PathParam("week") Integer week, @PathParam("dungeonId") Long dungeonId) {
+        if (!hasContributorRole()) {
+            return forbidden();
+        }
+        try {
+            mutationService.deleteMutation(week, dungeonId);
+            return Response.noContent().build();
+        } catch (ContributorMutationException e) {
+            return Response.status(e.status())
+                    .entity(new ApiMessageResponse(e.getMessage(), null))
+                    .build();
+        } catch (Exception e) {
+            LOG.error("Unable to delete weekly mutation", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to delete weekly mutation", null))
                     .build();
         }
     }

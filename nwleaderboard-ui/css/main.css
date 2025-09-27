@@ -728,6 +728,15 @@ body[data-theme='light'] .contribute-stats-table tbody tr:hover {
   box-shadow: 0 12px 32px rgba(124, 92, 255, 0.32);
 }
 
+.contribute-mutations-actions button.danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.contribute-mutations-actions button.danger:hover:not(:disabled) {
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.4);
+}
+
 .contribute-mutations-table-container {
   background: var(--surface-dark);
   border-radius: 1.5rem;
