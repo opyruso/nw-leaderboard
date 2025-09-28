@@ -1,5 +1,6 @@
 package com.opyruso.nwleaderboard.repository;
 
+import com.opyruso.nwleaderboard.entity.Season;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeonId;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
@@ -21,7 +22,8 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
                                 + "JOIN FETCH w.mutationElement "
                                 + "JOIN FETCH w.mutationType "
                                 + "JOIN FETCH w.mutationPromotion "
-                                + "JOIN FETCH w.mutationCurse",
+                                + "JOIN FETCH w.mutationCurse "
+                                + "LEFT JOIN FETCH w.season",
                         WeekMutationDungeon.class)
                 .getResultList();
     }
@@ -64,5 +66,18 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
             query.setParameter("curseIds", curseIds);
         }
         return query.getResultList();
+    }
+
+    public int assignSeasonToPreviousWeeks(Integer week, Season season) {
+        if (week == null || season == null) {
+            return 0;
+        }
+        return getEntityManager()
+                .createQuery(
+                        "UPDATE WeekMutationDungeon w SET w.season = :season "
+                                + "WHERE w.id.week <= :week AND w.season IS NULL")
+                .setParameter("season", season)
+                .setParameter("week", week)
+                .executeUpdate();
     }
 }

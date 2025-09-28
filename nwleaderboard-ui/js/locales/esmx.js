@@ -71,6 +71,7 @@ const esmx = {
   contributeMutationsAddRow: 'Agregar mutación',
   contributeMutationsLoading: 'Cargando mutaciones…',
   contributeMutationsError: 'No se puede cargar la lista de mutaciones.',
+  contributeMutationsSeason: 'Temporada',
   contributeMutationsWeek: 'Semana',
   contributeMutationsDungeon: 'Mazmorra',
   contributeMutationsElement: 'Elemento',
@@ -93,6 +94,7 @@ const esmx = {
   contributeMutationsDeleteError: 'No se puede eliminar esta mutación.',
   contributeMutationsWeekRequired: 'Ingresa el número de semana.',
   contributeMutationsDungeonRequired: 'Selecciona una mazmorra.',
+  contributeMutationsSeasonRequired: 'Selecciona una temporada.',
   contributeMutationsSelectionRequired: 'Selecciona todos los valores antes de agregar.',
   contributeMutationsDuplicateError: 'Ya existe una mutación para esa semana y mazmorra.',
   contributeStatsDescription:

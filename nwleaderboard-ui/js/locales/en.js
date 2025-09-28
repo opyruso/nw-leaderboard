@@ -71,6 +71,7 @@ const en = {
   contributeMutationsAddRow: 'Add mutation',
   contributeMutationsLoading: 'Loading mutations…',
   contributeMutationsError: 'Unable to load the mutation list.',
+  contributeMutationsSeason: 'Season',
   contributeMutationsWeek: 'Week',
   contributeMutationsDungeon: 'Dungeon',
   contributeMutationsElement: 'Element',
@@ -93,6 +94,7 @@ const en = {
   contributeMutationsDeleteError: 'Unable to delete this mutation.',
   contributeMutationsWeekRequired: 'Enter the week number.',
   contributeMutationsDungeonRequired: 'Select a dungeon.',
+  contributeMutationsSeasonRequired: 'Select a season.',
   contributeMutationsSelectionRequired: 'Select all mutation values before adding.',
   contributeMutationsDuplicateError: 'A mutation already exists for this week and dungeon.',
   contributeStatsDescription:

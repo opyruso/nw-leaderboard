@@ -71,6 +71,7 @@ const it = {
   contributeMutationsAddRow: 'Aggiungi mutazione',
   contributeMutationsLoading: 'Caricamento mutazioni…',
   contributeMutationsError: 'Impossibile caricare l’elenco delle mutazioni.',
+  contributeMutationsSeason: 'Stagione',
   contributeMutationsWeek: 'Settimana',
   contributeMutationsDungeon: 'Spedizione',
   contributeMutationsElement: 'Elemento',
@@ -93,6 +94,7 @@ const it = {
   contributeMutationsDeleteError: 'Impossibile eliminare la mutazione.',
   contributeMutationsWeekRequired: 'Inserisci il numero di settimana.',
   contributeMutationsDungeonRequired: 'Seleziona una spedizione.',
+  contributeMutationsSeasonRequired: 'Seleziona una stagione.',
   contributeMutationsSelectionRequired: 'Seleziona tutti i valori prima di aggiungere.',
   contributeMutationsDuplicateError: 'Esiste già una mutazione per questa settimana e spedizione.',
   contributeStatsDescription:

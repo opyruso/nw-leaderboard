@@ -71,6 +71,7 @@ const de = {
   contributeMutationsAddRow: 'Mutation hinzufügen',
   contributeMutationsLoading: 'Mutationen werden geladen…',
   contributeMutationsError: 'Die Mutationsliste konnte nicht geladen werden.',
+  contributeMutationsSeason: 'Saison',
   contributeMutationsWeek: 'Woche',
   contributeMutationsDungeon: 'Dungeon',
   contributeMutationsElement: 'Element',
@@ -93,6 +94,7 @@ const de = {
   contributeMutationsDeleteError: 'Mutation konnte nicht gelöscht werden.',
   contributeMutationsWeekRequired: 'Bitte die Wochennummer eingeben.',
   contributeMutationsDungeonRequired: 'Bitte einen Dungeon auswählen.',
+  contributeMutationsSeasonRequired: 'Wähle eine Saison aus.',
   contributeMutationsSelectionRequired: 'Alle Werte auswählen, bevor du hinzufügst.',
   contributeMutationsDuplicateError: 'Für diese Woche und diesen Dungeon existiert bereits eine Mutation.',
   contributeStatsDescription:

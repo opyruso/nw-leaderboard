@@ -71,6 +71,7 @@ const fr = {
   contributeMutationsAddRow: 'Ajouter une mutation',
   contributeMutationsLoading: 'Chargement des mutations…',
   contributeMutationsError: 'Impossible de charger la liste des mutations.',
+  contributeMutationsSeason: 'Saison',
   contributeMutationsWeek: 'Semaine',
   contributeMutationsDungeon: 'Donjon',
   contributeMutationsElement: 'Élément',
@@ -93,6 +94,7 @@ const fr = {
   contributeMutationsDeleteError: 'Impossible de supprimer cette mutation.',
   contributeMutationsWeekRequired: 'Indiquez le numéro de semaine.',
   contributeMutationsDungeonRequired: 'Sélectionnez un donjon.',
+  contributeMutationsSeasonRequired: 'Sélectionnez une saison.',
   contributeMutationsSelectionRequired: 'Sélectionnez toutes les valeurs avant d’ajouter.',
   contributeMutationsDuplicateError: 'Une mutation existe déjà pour cette semaine et ce donjon.',
   contributeStatsDescription:

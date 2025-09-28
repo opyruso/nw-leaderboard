@@ -10,4 +10,5 @@ public record ContributorMutationOptionsResponse(
         List<String> elements,
         List<String> types,
         List<String> promotions,
-        List<String> curses) {}
+        List<String> curses,
+        List<ContributorSeasonOption> seasons) {}

@@ -71,6 +71,7 @@ const pl = {
   contributeMutationsAddRow: 'Dodaj mutację',
   contributeMutationsLoading: 'Ładowanie mutacji…',
   contributeMutationsError: 'Nie udało się załadować listy mutacji.',
+  contributeMutationsSeason: 'Sezon',
   contributeMutationsWeek: 'Tydzień',
   contributeMutationsDungeon: 'Loch',
   contributeMutationsElement: 'Żywioł',
@@ -93,6 +94,7 @@ const pl = {
   contributeMutationsDeleteError: 'Nie można usunąć mutacji.',
   contributeMutationsWeekRequired: 'Podaj numer tygodnia.',
   contributeMutationsDungeonRequired: 'Wybierz loch.',
+  contributeMutationsSeasonRequired: 'Wybierz sezon.',
   contributeMutationsSelectionRequired: 'Wybierz wszystkie wartości przed dodaniem.',
   contributeMutationsDuplicateError: 'Mutacja dla tego tygodnia i lochu już istnieje.',
   contributeStatsDescription:

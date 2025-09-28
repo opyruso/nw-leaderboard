@@ -71,6 +71,7 @@ const pt = {
   contributeMutationsAddRow: 'Adicionar mutação',
   contributeMutationsLoading: 'Carregando mutações…',
   contributeMutationsError: 'Não foi possível carregar a lista de mutações.',
+  contributeMutationsSeason: 'Temporada',
   contributeMutationsWeek: 'Semana',
   contributeMutationsDungeon: 'Masmorra',
   contributeMutationsElement: 'Elemento',
@@ -93,6 +94,7 @@ const pt = {
   contributeMutationsDeleteError: 'Não foi possível excluir a mutação.',
   contributeMutationsWeekRequired: 'Informe o número da semana.',
   contributeMutationsDungeonRequired: 'Selecione uma masmorra.',
+  contributeMutationsSeasonRequired: 'Selecione uma temporada.',
   contributeMutationsSelectionRequired: 'Selecione todos os valores antes de adicionar.',
   contributeMutationsDuplicateError: 'Já existe uma mutação para esta semana e masmorra.',
   contributeStatsDescription:
