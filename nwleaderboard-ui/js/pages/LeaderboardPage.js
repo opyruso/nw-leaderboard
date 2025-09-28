@@ -198,6 +198,8 @@ export default function LeaderboardPage({
   const [entries, setEntries] = React.useState([]);
   const [entriesLoading, setEntriesLoading] = React.useState(false);
   const [entriesError, setEntriesError] = React.useState(false);
+  const [chartData, setChartData] = React.useState(null);
+  const [chartError, setChartError] = React.useState(false);
   const [mutationFilters, setMutationFilters] = React.useState(() => {
     if (storedFilters?.mutation) {
       const initial = createEmptyMutationFilters();
@@ -263,6 +265,106 @@ export default function LeaderboardPage({
       curse: sortOptions(getAllMutationCurseIds()),
     };
   }, []);
+
+  const buildFilterParams = React.useCallback(
+    (options = {}) => {
+      const { includePagination = true, page: pageOverride, pageSize: pageSizeOverride } =
+        typeof options === 'object' && options !== null ? options : {};
+
+      const params = new URLSearchParams();
+      if (!selectedDungeon) {
+        return params;
+      }
+
+      params.set('dungeonId', String(selectedDungeon));
+
+      if (includePagination) {
+        const rawPage =
+          pageOverride !== undefined && pageOverride !== null ? pageOverride : requestedPage;
+        const numericPage = Number(rawPage);
+        const safePage = Number.isFinite(numericPage) && numericPage > 0 ? Math.floor(numericPage) : 1;
+        params.set('page', String(safePage));
+
+        const rawPageSize =
+          pageSizeOverride !== undefined && pageSizeOverride !== null ? pageSizeOverride : pageSize;
+        const numericPageSize = Number(rawPageSize);
+        const safePageSize =
+          Number.isFinite(numericPageSize) && numericPageSize > 0
+            ? Math.floor(numericPageSize)
+            : pageSize;
+        params.set('pageSize', String(safePageSize));
+      }
+
+      const filterParamMap = {
+        type: 'mutationType',
+        promotion: 'mutationPromotion',
+        curse: 'mutationCurse',
+      };
+
+      const mutationFiltersReady = mutationFiltersInitialisedRef.current;
+      const regionFiltersReady = regionFiltersInitialisedRef.current;
+
+      MUTATION_FILTER_KEYS.forEach((key) => {
+        const paramName = filterParamMap[key];
+        const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+        if (!paramName || available.length === 0) {
+          return;
+        }
+        const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
+        const uniqueSelected = Array.from(
+          new Set(
+            selected.map((value) =>
+              typeof value === 'string' ? value : String(value === undefined || value === null ? '' : value),
+            ),
+          ),
+        );
+        const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
+        if (!mutationFiltersReady) {
+          return;
+        }
+        const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
+        if (!shouldFilter) {
+          return;
+        }
+        if (sanitisedSelected.length === 0) {
+          params.append(paramName, '');
+          return;
+        }
+        sanitisedSelected.forEach((value) => params.append(paramName, value));
+      });
+
+      if (regionFiltersReady) {
+        const availableRegions = Array.isArray(regionOptions) ? regionOptions : [];
+        const selectedRegions = Array.isArray(regionFilters) ? regionFilters : [];
+        const uniqueRegions = Array.from(
+          new Set(
+            selectedRegions.map((value) =>
+              typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
+            ),
+          ),
+        );
+        const sanitisedRegions = uniqueRegions.filter((value) => availableRegions.includes(value));
+        const shouldFilter =
+          sanitisedRegions.length > 0 && sanitisedRegions.length < availableRegions.length;
+        if (shouldFilter) {
+          sanitisedRegions.forEach((value) => params.append('region', value));
+        } else if (sanitisedRegions.length === 0 && selectedRegions.length > 0) {
+          params.append('region', '');
+        }
+      }
+
+      return params;
+    },
+    [
+      selectedDungeon,
+      requestedPage,
+      pageSize,
+      mutationFilters,
+      mutationOptions,
+      regionFilters,
+      regionOptions,
+    ],
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -392,64 +494,14 @@ export default function LeaderboardPage({
     setEntriesLoading(true);
     setEntriesError(false);
 
-    const params = new URLSearchParams();
-    params.set('dungeonId', String(selectedDungeon));
-    const requested = Number.isFinite(Number(requestedPage)) ? Math.max(1, Number(requestedPage)) : 1;
-    params.set('page', String(requested));
-    params.set('pageSize', String(pageSize));
-
-    const filterParamMap = {
-      type: 'mutationType',
-      promotion: 'mutationPromotion',
-      curse: 'mutationCurse',
-    };
-    const mutationFiltersReady = mutationFiltersInitialisedRef.current;
-    const regionFiltersReady = regionFiltersInitialisedRef.current;
-
-    MUTATION_FILTER_KEYS.forEach((key) => {
-      const paramName = filterParamMap[key];
-      const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
-      if (!paramName || available.length === 0) {
-        return;
-      }
-      const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
-      const uniqueSelected = Array.from(
-        new Set(selected.map((value) => (typeof value === 'string' ? value : String(value)))),
-      );
-      const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
-      if (!mutationFiltersReady) {
-        return;
-      }
-      const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
-      if (!shouldFilter) {
-        return;
-      }
-      if (sanitisedSelected.length === 0) {
-        params.append(paramName, '');
-        return;
-      }
-      sanitisedSelected.forEach((value) => params.append(paramName, value));
-    });
-
-    if (regionFiltersReady) {
-      const availableRegions = Array.isArray(regionOptions) ? regionOptions : [];
-      const selectedRegions = Array.isArray(regionFilters) ? regionFilters : [];
-      const uniqueRegions = Array.from(
-        new Set(
-          selectedRegions.map((value) =>
-            typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
-          ),
-        ),
-      );
-      const sanitisedRegions = uniqueRegions.filter((value) => availableRegions.includes(value));
-      const shouldFilter =
-        sanitisedRegions.length > 0 && sanitisedRegions.length < availableRegions.length;
-      if (shouldFilter) {
-        sanitisedRegions.forEach((value) => params.append('region', value));
-      } else if (sanitisedRegions.length === 0 && selectedRegions.length > 0) {
-        params.append('region', '');
-      }
-    }
+    const params = buildFilterParams();
+    const fallbackRequested = Number.isFinite(Number(requestedPage))
+      ? Math.max(1, Math.floor(Number(requestedPage)))
+      : 1;
+    const paramRequested = Number(params.get('page'));
+    const safeRequested = Number.isFinite(paramRequested) && paramRequested > 0
+      ? Math.floor(paramRequested)
+      : fallbackRequested;
 
     fetch(`${API_BASE_URL}/leaderboard/${mode}?${params.toString()}`, { signal: controller.signal })
       .then((response) => {
@@ -487,7 +539,7 @@ export default function LeaderboardPage({
 
         const safePage = Number.isFinite(responsePage) && responsePage >= 1
           ? Math.floor(responsePage)
-          : Math.max(1, requested);
+          : safeRequested;
         setCurrentPage((previous) => (previous === safePage ? previous : safePage));
 
         const normalisedEntries = entriesData.map((entry, index) => {
@@ -544,11 +596,64 @@ export default function LeaderboardPage({
     getValue,
     requestedPage,
     pageSize,
-    mutationFilters,
-    mutationOptions,
-    regionFilters,
-    regionOptions,
+    buildFilterParams,
   ]);
+
+  React.useEffect(() => {
+    if (!selectedDungeon) {
+      setChartData(null);
+      setChartError(false);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    setChartError(false);
+
+    const params = buildFilterParams({ includePagination: false });
+    setChartData(null);
+
+    fetch(`${API_BASE_URL}/leaderboard/${mode}/chart?${params.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load leaderboard chart: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        if (data && typeof data === 'object') {
+          const weeks = Array.isArray(data.weeks) ? data.weeks : [];
+          const numericAverage = Number(data.globalAverage);
+          const globalAverage =
+            typeof data.globalAverage === 'number' && Number.isFinite(data.globalAverage)
+              ? data.globalAverage
+              : Number.isFinite(numericAverage)
+                ? numericAverage
+                : null;
+          setChartData({ weeks, globalAverage });
+        } else {
+          setChartData({ weeks: [], globalAverage: null });
+        }
+      })
+      .catch((error) => {
+        if (!active || error.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load leaderboard chart', error);
+        setChartError(true);
+        setChartData(null);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [mode, selectedDungeon, buildFilterParams]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
@@ -806,30 +911,61 @@ export default function LeaderboardPage({
   );
 
   const chartMemo = React.useMemo(() => {
-    if (!chartConfig || typeof chartConfig.extractValue !== 'function') {
+    if (!chartConfig) {
+      return null;
+    }
+
+    const weeks = Array.isArray(chartData?.weeks) ? chartData.weeks : [];
+    if (weeks.length === 0) {
       return null;
     }
 
     const legendColor = theme === 'light' ? 'rgba(30, 41, 59, 0.78)' : 'rgba(226, 232, 240, 0.92)';
 
-    const points = filteredEntries
-      .map((entry) => {
-        const numericValue = chartConfig.extractValue(entry);
-        if (!Number.isFinite(numericValue)) {
+    const parseNumeric = (value) => {
+      if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+      }
+      if (typeof value === 'bigint') {
+        return Number(value);
+      }
+      if (typeof value === 'string' && value.trim().length > 0) {
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : null;
+      }
+      return null;
+    };
+
+    const points = weeks
+      .map((entry, index) => {
+        if (!entry || typeof entry !== 'object') {
           return null;
         }
-        const weekKey = entry.week || '';
+        const rawWeek =
+          entry.week ?? entry.weekKey ?? entry.weekNumber ?? entry.numericWeek ?? entry.id ?? '';
+        const weekKey = rawWeek === null || rawWeek === undefined ? '' : String(rawWeek);
         const numericWeek = Number(weekKey);
         const hasNumericWeek = Number.isFinite(numericWeek);
         const label =
           typeof chartConfig.formatWeek === 'function'
             ? chartConfig.formatWeek(weekKey, hasNumericWeek ? numericWeek : null)
             : formatWeekLabel(weekKey);
+        const bestValue = parseNumeric(
+          entry.bestValue ?? entry.best ?? entry.max ?? entry.high ?? entry.upper ?? null,
+        );
+        const worstValue = parseNumeric(
+          entry.worstValue ?? entry.worst ?? entry.min ?? entry.low ?? entry.lower ?? null,
+        );
+        if (bestValue === null && worstValue === null) {
+          return null;
+        }
         return {
-          value: numericValue,
           weekKey,
           label,
           numericWeek: hasNumericWeek ? numericWeek : null,
+          bestValue,
+          worstValue,
+          order: index,
         };
       })
       .filter(Boolean);
@@ -838,27 +974,7 @@ export default function LeaderboardPage({
       return null;
     }
 
-    const groupMap = new Map();
-    const groups = [];
-
-    points.forEach((point, index) => {
-      const key = point.weekKey || '';
-      let group = groupMap.get(key);
-      if (!group) {
-        group = {
-          key,
-          label: point.label,
-          numericWeek: point.numericWeek,
-          order: index,
-          values: [],
-        };
-        groupMap.set(key, group);
-        groups.push(group);
-      }
-      group.values.push(point.value);
-    });
-
-    groups.sort((a, b) => {
+    points.sort((a, b) => {
       if (a.numericWeek !== null && b.numericWeek !== null && a.numericWeek !== b.numericWeek) {
         return a.numericWeek - b.numericWeek;
       }
@@ -871,35 +987,12 @@ export default function LeaderboardPage({
       return a.order - b.order;
     });
 
-    const aggregated = [];
-    const bestValues = [];
-    const worstValues = [];
+    const labels = points.map((point) => point.label || formatWeekLabel(point.weekKey));
+    const bestValues = points.map((point) => point.bestValue);
+    const worstValues = points.map((point) => point.worstValue);
 
-    groups.forEach((group) => {
-      const values = group.values.filter((value) => Number.isFinite(value));
-      if (values.length === 0) {
-        bestValues.push(null);
-        worstValues.push(null);
-        return;
-      }
-      values.forEach((value) => aggregated.push(value));
-      const sortedValues = values.slice().sort((left, right) => left - right);
-      if (chartConfig.isValueLowerBetter) {
-        bestValues.push(sortedValues[0]);
-        worstValues.push(sortedValues[sortedValues.length - 1]);
-      } else {
-        bestValues.push(sortedValues[sortedValues.length - 1]);
-        worstValues.push(sortedValues[0]);
-      }
-    });
-
-    if (aggregated.length === 0) {
-      return null;
-    }
-
-    const average = aggregated.reduce((total, value) => total + value, 0) / aggregated.length;
-    const labels = groups.map((group) => group.label || formatWeekLabel(group.key));
-    const averageValues = groups.map(() => average);
+    const averageValue = parseNumeric(chartData?.globalAverage);
+    const averageValues = Number.isFinite(averageValue) ? points.map(() => averageValue) : [];
 
     const datasets = [];
     if (chartConfig.bestLabel) {
@@ -926,7 +1019,7 @@ export default function LeaderboardPage({
         fill: false,
       });
     }
-    if (chartConfig.averageLabel) {
+    if (chartConfig.averageLabel && Number.isFinite(averageValue)) {
       datasets.push({
         label: chartConfig.averageLabel,
         data: averageValues,
@@ -941,9 +1034,21 @@ export default function LeaderboardPage({
       return null;
     }
 
-    const numericValues = [...bestValues, ...worstValues, average].filter((value) =>
-      Number.isFinite(value),
-    );
+    const numericValues = [];
+    bestValues.forEach((value) => {
+      if (Number.isFinite(value)) {
+        numericValues.push(value);
+      }
+    });
+    worstValues.forEach((value) => {
+      if (Number.isFinite(value)) {
+        numericValues.push(value);
+      }
+    });
+    if (Number.isFinite(averageValue)) {
+      numericValues.push(averageValue);
+    }
+
     const hasNumericRange = numericValues.length > 0;
     const minValue = hasNumericRange ? Math.min(...numericValues) : null;
     const maxValue = hasNumericRange ? Math.max(...numericValues) : null;
@@ -988,20 +1093,20 @@ export default function LeaderboardPage({
                 return '';
               }
               const index = items[0].dataIndex;
-              const group = groups[index];
-              if (!group) {
+              const point = points[index];
+              if (!point) {
                 return '';
               }
               if (typeof chartConfig.formatTooltipTitle === 'function') {
-                return chartConfig.formatTooltipTitle(group.key, group.numericWeek);
+                return chartConfig.formatTooltipTitle(point.weekKey, point.numericWeek);
               }
-              if (!group.key) {
+              if (!point.weekKey) {
                 return t.leaderboardUnknownWeek;
               }
-              if (group.numericWeek !== null && typeof t.playerWeekLabel === 'function') {
-                return t.playerWeekLabel(group.numericWeek);
+              if (point.numericWeek !== null && typeof t.playerWeekLabel === 'function') {
+                return t.playerWeekLabel(point.numericWeek);
               }
-              return group.key;
+              return point.weekKey;
             },
             label: (context) => {
               const parsedValue = context.parsed.y;
@@ -1028,7 +1133,8 @@ export default function LeaderboardPage({
       },
       options,
     };
-  }, [chartConfig, filteredEntries, formatWeekLabel, t, theme]);
+  }, [chartConfig, chartData, formatWeekLabel, t, theme]);
+
 
   const sortedEntries = React.useMemo(() => {
     if (filteredEntries.length === 0) {
