@@ -4,18 +4,21 @@ import com.opyruso.nwleaderboard.dto.ContributorMutationCreateRequest;
 import com.opyruso.nwleaderboard.dto.ContributorMutationDungeonOption;
 import com.opyruso.nwleaderboard.dto.ContributorMutationEntryResponse;
 import com.opyruso.nwleaderboard.dto.ContributorMutationOptionsResponse;
+import com.opyruso.nwleaderboard.dto.ContributorSeasonOption;
 import com.opyruso.nwleaderboard.dto.ContributorMutationUpdateRequest;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.MutationCurse;
 import com.opyruso.nwleaderboard.entity.MutationElement;
 import com.opyruso.nwleaderboard.entity.MutationPromotion;
 import com.opyruso.nwleaderboard.entity.MutationType;
+import com.opyruso.nwleaderboard.entity.Season;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.MutationCurseRepository;
 import com.opyruso.nwleaderboard.repository.MutationElementRepository;
 import com.opyruso.nwleaderboard.repository.MutationPromotionRepository;
 import com.opyruso.nwleaderboard.repository.MutationTypeRepository;
+import com.opyruso.nwleaderboard.repository.SeasonRepository;
 import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -51,6 +54,9 @@ public class ContributorMutationService {
     @Inject
     MutationCurseRepository mutationCurseRepository;
 
+    @Inject
+    SeasonRepository seasonRepository;
+
     @Transactional
     public List<ContributorMutationEntryResponse> listMutations() {
         return weekMutationDungeonRepository.listAllWithRelations().stream()
@@ -65,6 +71,7 @@ public class ContributorMutationService {
             throws ContributorMutationException {
         int week = normaliseWeek(request != null ? request.week() : null);
         long dungeonId = normaliseDungeonId(request != null ? request.dungeonId() : null);
+        Integer seasonId = normaliseSeasonId(request != null ? request.seasonId() : null);
         String elementId = requireMutationCode(request != null ? request.mutationElementId() : null, "mutation_element_id");
         String typeId = requireMutationCode(request != null ? request.mutationTypeId() : null, "mutation_type_id");
         String promotionId = requireMutationCode(request != null ? request.mutationPromotionId() : null, "mutation_promotion_id");
@@ -83,6 +90,7 @@ public class ContributorMutationService {
         MutationType type = requireEnabledType(typeId);
         MutationPromotion promotion = requireEnabledPromotion(promotionId);
         MutationCurse curse = requireEnabledCurse(curseId);
+        Season season = resolveSeason(seasonId);
 
         WeekMutationDungeon entity = new WeekMutationDungeon();
         entity.setWeek(week);
@@ -91,6 +99,7 @@ public class ContributorMutationService {
         entity.setMutationType(type);
         entity.setMutationPromotion(promotion);
         entity.setMutationCurse(curse);
+        entity.setSeason(season);
 
         weekMutationDungeonRepository.persist(entity);
         return toResponse(entity);
@@ -107,6 +116,16 @@ public class ContributorMutationService {
         }
         boolean hasUpdates = false;
         if (request != null) {
+            Integer seasonId = normaliseSeasonId(request.seasonId());
+            if (seasonId != null) {
+                Season season = resolveSeason(seasonId);
+                Integer currentSeasonId = entity.getSeason() != null ? entity.getSeason().getId() : null;
+                if (!Objects.equals(currentSeasonId, season.getId())) {
+                    entity.setSeason(season);
+                    weekMutationDungeonRepository.assignSeasonToPreviousWeeks(entity.getWeek(), season);
+                    hasUpdates = true;
+                }
+            }
             String elementId = normaliseMutationCode(request.mutationElementId());
             if (elementId != null) {
                 entity.setMutationElement(requireEnabledElement(elementId));
@@ -168,16 +187,20 @@ public class ContributorMutationService {
                 .map(MutationCurse::getId)
                 .sorted(String.CASE_INSENSITIVE_ORDER)
                 .collect(Collectors.toList());
-        return new ContributorMutationOptionsResponse(dungeons, elements, types, promotions, curses);
+        List<ContributorSeasonOption> seasons = seasonRepository.listAllOrderByDateBeginDesc().stream()
+                .map(this::toSeasonOption)
+                .collect(Collectors.toList());
+        return new ContributorMutationOptionsResponse(dungeons, elements, types, promotions, curses, seasons);
     }
 
     private ContributorMutationEntryResponse toResponse(WeekMutationDungeon entity) {
         if (entity == null) {
-            return new ContributorMutationEntryResponse(null, null, Map.of(), null, null, null, null);
+            return new ContributorMutationEntryResponse(null, null, null, Map.of(), null, null, null, null);
         }
         Dungeon dungeon = entity.getDungeon();
         Map<String, String> dungeonNames = dungeon != null ? buildNameMap(dungeon) : Map.of();
         return new ContributorMutationEntryResponse(
+                entity.getSeason() != null ? entity.getSeason().getId() : null,
                 entity.getWeek(),
                 dungeon != null ? dungeon.getId() : null,
                 dungeonNames,
@@ -311,6 +334,34 @@ public class ContributorMutationService {
             throw new ContributorMutationException("Invalid mutation curse.", Status.BAD_REQUEST);
         }
         return curse;
+    }
+
+    private Integer normaliseSeasonId(Integer seasonId) throws ContributorMutationException {
+        if (seasonId == null) {
+            return null;
+        }
+        if (seasonId <= 0) {
+            throw new ContributorMutationException("Invalid season.", Status.BAD_REQUEST);
+        }
+        return seasonId;
+    }
+
+    private Season resolveSeason(Integer seasonId) throws ContributorMutationException {
+        if (seasonId != null) {
+            Season season = seasonRepository.findById(seasonId);
+            if (season == null) {
+                throw new ContributorMutationException("Invalid season.", Status.BAD_REQUEST);
+            }
+            return season;
+        }
+        return seasonRepository.findLatestByDateBegin();
+    }
+
+    private ContributorSeasonOption toSeasonOption(Season season) {
+        if (season == null) {
+            return new ContributorSeasonOption(null, null, null);
+        }
+        return new ContributorSeasonOption(season.getId(), season.getDateBegin(), season.getDateEnd());
     }
 
     public static class ContributorMutationException extends Exception {

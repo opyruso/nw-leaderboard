@@ -4,6 +4,11 @@ import { getDungeonNameForLang, toLocaleCode } from '../dungeons.js';
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
 const FIELD_CONFIG = {
+  seasonId: {
+    optionKey: 'seasons',
+    requestKey: 'season_id',
+    valueType: 'number',
+  },
   mutationElementId: {
     optionKey: 'elements',
     requestKey: 'mutation_element_id',
@@ -29,6 +34,7 @@ function createEmptyOptions() {
     types: [],
     promotions: [],
     curses: [],
+    seasons: [],
   };
 }
 
@@ -59,6 +65,8 @@ function normaliseEntry(entry, index = 0) {
   const dungeonIdValue = Number(entry.dungeon_id ?? entry.dungeonId);
   const dungeonId = Number.isFinite(dungeonIdValue) ? dungeonIdValue : null;
   const dungeonNames = normaliseNames(entry.dungeon_names ?? entry.dungeonNames);
+  const seasonValue = Number(entry.season_id ?? entry.seasonId);
+  const seasonId = Number.isFinite(seasonValue) ? seasonValue : null;
   const element = typeof entry.mutation_element_id === 'string' ? entry.mutation_element_id.trim() : '';
   const type = typeof entry.mutation_type_id === 'string' ? entry.mutation_type_id.trim() : '';
   const promotion =
@@ -70,6 +78,7 @@ function normaliseEntry(entry, index = 0) {
     week,
     dungeonId,
     dungeonNames,
+    seasonId,
     mutationElementId: element,
     mutationTypeId: type,
     mutationPromotionId: promotion,
@@ -108,6 +117,76 @@ function normaliseOptionList(list) {
   });
   result.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   return result;
+}
+
+function formatSeasonLabel(dateBegin, dateEnd) {
+  const begin = typeof dateBegin === 'string' ? dateBegin.trim() : '';
+  const end = typeof dateEnd === 'string' ? dateEnd.trim() : '';
+  if (begin && end) {
+    return `${begin} → ${end}`;
+  }
+  if (begin) {
+    return begin;
+  }
+  if (end) {
+    return end;
+  }
+  return '';
+}
+
+function normaliseSeasonOption(option) {
+  if (!option || typeof option !== 'object') {
+    return null;
+  }
+  const idValue = Number(option.id ?? option.season_id ?? option.seasonId);
+  const id = Number.isFinite(idValue) ? idValue : null;
+  if (id === null) {
+    return null;
+  }
+  const dateBegin =
+    typeof option.date_begin === 'string'
+      ? option.date_begin.trim()
+      : typeof option.dateBegin === 'string'
+        ? option.dateBegin.trim()
+        : '';
+  const dateEnd =
+    typeof option.date_end === 'string'
+      ? option.date_end.trim()
+      : typeof option.dateEnd === 'string'
+        ? option.dateEnd.trim()
+        : '';
+  const label = formatSeasonLabel(dateBegin, dateEnd) || String(id);
+  return {
+    id,
+    dateBegin,
+    dateEnd,
+    label,
+  };
+}
+
+function getSeasonLabelById(list, seasonId) {
+  const numericId = Number(seasonId);
+  if (!Number.isFinite(numericId)) {
+    return '';
+  }
+  const match = Array.isArray(list)
+    ? list.find((item) => Number.isFinite(item?.id) && Number(item.id) === numericId)
+    : null;
+  return match ? match.label || String(match.id) : '';
+}
+
+function sortSeasonOptions(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return [...list].sort((left, right) => {
+    const leftDate = left?.dateBegin || '';
+    const rightDate = right?.dateBegin || '';
+    if (leftDate !== rightDate) {
+      return rightDate.localeCompare(leftDate);
+    }
+    return (right?.id ?? 0) - (left?.id ?? 0);
+  });
 }
 
 function createCollator(lang) {
@@ -172,12 +251,25 @@ function normaliseOptions(payload) {
   const dungeons = Array.isArray(payload.dungeons)
     ? payload.dungeons.map((option) => normaliseDungeonOption(option)).filter(Boolean)
     : [];
+  const seasons = Array.isArray(payload.seasons)
+    ? payload.seasons.map((option) => normaliseSeasonOption(option)).filter(Boolean)
+    : [];
+  const uniqueSeasons = [];
+  const seenSeasonIds = new Set();
+  seasons.forEach((season) => {
+    if (!season || season.id === null || seenSeasonIds.has(season.id)) {
+      return;
+    }
+    seenSeasonIds.add(season.id);
+    uniqueSeasons.push(season);
+  });
   return {
     dungeons,
     elements: normaliseOptionList(payload.elements),
     types: normaliseOptionList(payload.types),
     promotions: normaliseOptionList(payload.promotions),
     curses: normaliseOptionList(payload.curses),
+    seasons: uniqueSeasons,
   };
 }
 
@@ -268,6 +360,10 @@ export default function ContributeMutations() {
     () => sortDungeonOptions(options.dungeons, lang),
     [options.dungeons, lang],
   );
+  const sortedSeasonOptions = React.useMemo(
+    () => sortSeasonOptions(options.seasons),
+    [options.seasons],
+  );
 
   const handleStartEdit = React.useCallback(
     (entry, field) => {
@@ -282,8 +378,9 @@ export default function ContributeMutations() {
         field,
         week: entry.week,
         dungeonId: entry.dungeonId,
-        originalValue: entry[field] || '',
-        value: entry[field] || '',
+        originalValue:
+          entry[field] === undefined || entry[field] === null ? '' : String(entry[field]),
+        value: entry[field] === undefined || entry[field] === null ? '' : String(entry[field]),
       });
       setFeedback({ type: '', text: '' });
     },
@@ -303,13 +400,40 @@ export default function ContributeMutations() {
     setPendingKeys((current) => current.filter((item) => item !== key));
   }, []);
 
-  const updateEntryList = React.useCallback((updatedEntry) => {
+  const updateEntryList = React.useCallback((updatedEntry, propagateSeason = false) => {
     if (!updatedEntry) {
       return;
     }
     setEntries((current) => {
-      const filtered = current.filter((item) => item && item.key !== updatedEntry.key);
-      return [...filtered, updatedEntry];
+      let found = false;
+      const updatedWeek = Number.isFinite(updatedEntry.week) ? updatedEntry.week : null;
+      const updatedSeasonId = Number.isFinite(updatedEntry.seasonId)
+        ? updatedEntry.seasonId
+        : null;
+      const mapped = current.map((item) => {
+        if (!item) {
+          return item;
+        }
+        if (item.key === updatedEntry.key) {
+          found = true;
+          return updatedEntry;
+        }
+        if (
+          propagateSeason &&
+          updatedSeasonId !== null &&
+          updatedWeek !== null &&
+          Number.isFinite(item.week) &&
+          item.week <= updatedWeek &&
+          (item.seasonId === null || item.seasonId === undefined)
+        ) {
+          return { ...item, seasonId: updatedSeasonId };
+        }
+        return item;
+      });
+      if (!found) {
+        mapped.push(updatedEntry);
+      }
+      return mapped;
     });
   }, []);
 
@@ -321,13 +445,30 @@ export default function ContributeMutations() {
     if (!config) {
       return;
     }
-    const trimmedValue = typeof activeEdit.value === 'string' ? activeEdit.value.trim() : '';
-    if (!trimmedValue || trimmedValue === activeEdit.originalValue) {
-      setActiveEdit(null);
-      return;
+    const rawValue = typeof activeEdit.value === 'string' ? activeEdit.value.trim() : '';
+    const originalValue = activeEdit.originalValue ?? '';
+    let payloadValue;
+    if (config.valueType === 'number') {
+      const numericValue = Number(rawValue);
+      if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        setFeedback({ type: 'error', text: t.contributeMutationsSeasonRequired });
+        return;
+      }
+      if (String(numericValue) === originalValue) {
+        setActiveEdit(null);
+        return;
+      }
+      payloadValue = numericValue;
+    } else {
+      if (!rawValue || rawValue === originalValue) {
+        setActiveEdit(null);
+        return;
+      }
+      payloadValue = rawValue;
     }
-    const payload = { [config.requestKey]: trimmedValue };
+    const payload = { [config.requestKey]: payloadValue };
     const rowKey = activeEdit.key;
+    const shouldPropagateSeason = config.optionKey === 'seasons';
     addPendingKey(rowKey);
     setFeedback({ type: '', text: '' });
 
@@ -351,7 +492,7 @@ export default function ContributeMutations() {
       .then((data) => {
         const updated = normaliseEntry(data || {}, entries.length);
         if (updated) {
-          updateEntryList(updated);
+          updateEntryList(updated, shouldPropagateSeason);
           setFeedback({ type: 'success', text: t.contributeMutationsUpdateSuccess });
         }
         setActiveEdit(null);
@@ -394,15 +535,18 @@ export default function ContributeMutations() {
     }
     setActiveEdit(null);
     setFeedback({ type: '', text: '' });
+    const defaultSeasonId =
+      sortedSeasonOptions.length > 0 ? String(sortedSeasonOptions[0].id) : '';
     setNewRow({
       week: '',
       dungeonId: '',
+      seasonId: defaultSeasonId,
       mutationElementId: '',
       mutationTypeId: '',
       mutationPromotionId: '',
       mutationCurseId: '',
     });
-  }, [creatingPending]);
+  }, [creatingPending, sortedSeasonOptions]);
 
   const handleNewRowChange = React.useCallback((field, value) => {
     setNewRow((current) => (current ? { ...current, [field]: value } : current));
@@ -418,6 +562,7 @@ export default function ContributeMutations() {
     }
     const weekValue = Number.parseInt(newRow.week, 10);
     const dungeonIdValue = Number(newRow.dungeonId);
+    const seasonIdValue = Number(newRow.seasonId);
     const element = (newRow.mutationElementId || '').trim();
     const type = (newRow.mutationTypeId || '').trim();
     const promotion = (newRow.mutationPromotionId || '').trim();
@@ -428,6 +573,10 @@ export default function ContributeMutations() {
     }
     if (!Number.isFinite(dungeonIdValue) || dungeonIdValue <= 0) {
       setFeedback({ type: 'error', text: t.contributeMutationsDungeonRequired });
+      return;
+    }
+    if (!Number.isFinite(seasonIdValue) || seasonIdValue <= 0) {
+      setFeedback({ type: 'error', text: t.contributeMutationsSeasonRequired });
       return;
     }
     if (!element || !type || !promotion || !curse) {
@@ -450,6 +599,7 @@ export default function ContributeMutations() {
       body: JSON.stringify({
         week: weekValue,
         dungeon_id: dungeonIdValue,
+        season_id: seasonIdValue,
         mutation_element_id: element,
         mutation_type_id: type,
         mutation_promotion_id: promotion,
@@ -540,8 +690,15 @@ export default function ContributeMutations() {
     const config = FIELD_CONFIG[field];
     const isEditing = activeEdit && activeEdit.key === entry.key && activeEdit.field === field;
     const pending = pendingKeys.includes(entry.key);
-    const optionsList = config ? options[config.optionKey] || [] : [];
-    const value = entry[field] || '';
+    const isSeasonField = config?.optionKey === 'seasons';
+    const optionsList = config
+      ? config.optionKey === 'seasons'
+        ? sortedSeasonOptions
+        : options[config.optionKey] || []
+      : [];
+    const rawValue = entry[field];
+    const value = rawValue === undefined || rawValue === null ? '' : rawValue;
+    const displayValue = isSeasonField ? getSeasonLabelById(optionsList, value) : value || label;
 
     return (
       <td
@@ -559,14 +716,25 @@ export default function ContributeMutations() {
             onKeyDown={handleEditKeyDown}
             disabled={pending}
           >
-            {optionsList.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
+            {isSeasonField ? (
+              <>
+                <option value="">{t.contributeMutationsSelectOption}</option>
+                {optionsList.map((option) => (
+                  <option key={option.id} value={String(option.id)}>
+                    {option.label}
+                  </option>
+                ))}
+              </>
+            ) : (
+              optionsList.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))
+            )}
           </select>
         ) : (
-          <span>{value || label}</span>
+          <span>{displayValue || label}</span>
         )}
       </td>
     );
@@ -585,6 +753,7 @@ export default function ContributeMutations() {
               loading ||
               !!newRow ||
               sortedDungeonOptions.length === 0 ||
+              sortedSeasonOptions.length === 0 ||
               options.elements.length === 0 ||
               options.types.length === 0 ||
               options.promotions.length === 0 ||
@@ -606,6 +775,7 @@ export default function ContributeMutations() {
           <table className="contribute-mutations-table">
             <thead>
               <tr>
+                <th scope="col">{t.contributeMutationsSeason}</th>
                 <th scope="col">{t.contributeMutationsWeek}</th>
                 <th scope="col">{t.contributeMutationsDungeon}</th>
                 <th scope="col">{t.contributeMutationsElement}</th>
@@ -618,6 +788,19 @@ export default function ContributeMutations() {
             <tbody>
               {newRow ? (
                 <tr className="contribute-mutations-row is-new">
+                  <td>
+                    <select
+                      value={newRow.seasonId}
+                      onChange={(event) => handleNewRowChange('seasonId', event.target.value)}
+                    >
+                      <option value="">{t.contributeMutationsSelectOption}</option>
+                      {sortedSeasonOptions.map((option) => (
+                        <option key={option.id} value={String(option.id)}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <th scope="row">
                     <input
                       ref={newWeekRef}
@@ -708,7 +891,7 @@ export default function ContributeMutations() {
               ) : null}
               {sortedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="contribute-mutations-empty">
+                  <td colSpan="8" className="contribute-mutations-empty">
                     {t.contributeMutationsEmpty}
                   </td>
                 </tr>
@@ -717,8 +900,18 @@ export default function ContributeMutations() {
                   const rowPending = pendingKeys.includes(entry.key);
                   const dungeonName = getEntryDungeonName(entry, lang);
                   const isEditing = activeEdit && activeEdit.key === entry.key;
-                  const confirmDisabled =
-                    !isEditing || rowPending || !activeEdit?.value || activeEdit.value === activeEdit.originalValue;
+                  const activeConfig = isEditing ? FIELD_CONFIG[activeEdit.field] : null;
+                  const trimmedActiveValue =
+                    typeof activeEdit?.value === 'string' ? activeEdit.value.trim() : '';
+                  const confirmDisabled = !isEditing
+                    || rowPending
+                    || (activeConfig?.valueType === 'number'
+                      ? !trimmedActiveValue
+                        || !Number.isFinite(Number(trimmedActiveValue))
+                        || Number(trimmedActiveValue) <= 0
+                        || String(Number(trimmedActiveValue)) === (activeEdit?.originalValue ?? '')
+                      : !trimmedActiveValue
+                        || trimmedActiveValue === (activeEdit?.originalValue ?? ''));
                   return (
                     <tr
                       key={entry.key}
@@ -726,6 +919,7 @@ export default function ContributeMutations() {
                         rowPending ? ' is-pending' : ''
                       }`}
                     >
+                      {renderValueCell(entry, 'seasonId', t.contributeMutationsUnknownValue)}
                       <th scope="row">{entry.week}</th>
                       <td>{dungeonName}</td>
                       {renderValueCell(entry, 'mutationElementId', t.contributeMutationsUnknownValue)}

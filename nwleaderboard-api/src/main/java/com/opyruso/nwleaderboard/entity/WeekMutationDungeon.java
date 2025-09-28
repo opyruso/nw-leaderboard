@@ -39,6 +39,10 @@ public class WeekMutationDungeon extends Auditable {
     @JoinColumn(name = "id_mutation_curse", nullable = false)
     private MutationCurse mutationCurse;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_saison")
+    private Season season;
+
     public WeekMutationDungeonId getId() {
         return id;
     }
@@ -100,5 +104,13 @@ public class WeekMutationDungeon extends Auditable {
 
     public void setMutationCurse(MutationCurse mutationCurse) {
         this.mutationCurse = mutationCurse;
+    }
+
+    public Season getSeason() {
+        return season;
+    }
+
+    public void setSeason(Season season) {
+        this.season = season;
     }
 }
