@@ -196,6 +196,15 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     </li>
                     <li>
                       <SiteNavLink
+                        to="/contribute/seasons"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
+                        {t.contributeMenuSeasons}
+                      </SiteNavLink>
+                    </li>
+                    <li>
+                      <SiteNavLink
                         to="/contribute/import"
                         className="site-nav__sublink"
                         onClick={closeMenus}

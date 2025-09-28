@@ -12,7 +12,7 @@ import java.util.List;
 public class SeasonRepository implements PanacheRepositoryBase<Season, Integer> {
 
     public List<Season> listAllOrderByDateBeginDesc() {
-        return find("ORDER BY dateBegin DESC").list();
+        return find("ORDER BY dateBegin DESC, id DESC").list();
     }
 
     public Season findLatestByDateBegin() {

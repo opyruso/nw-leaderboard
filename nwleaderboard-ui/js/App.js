@@ -11,6 +11,7 @@ import Contribute from './pages/Contribute.js';
 import ContributeDungeons from './pages/ContributeDungeons.js';
 import ContributeImport from './pages/ContributeImport.js';
 import ContributeMutations from './pages/ContributeMutations.js';
+import ContributeSeasons from './pages/ContributeSeasons.js';
 import ContributeStats from './pages/ContributeStats.js';
 import ContributePlayers from './pages/ContributePlayers.js';
 import ContributeValidate from './pages/ContributeValidate.js';
@@ -121,6 +122,7 @@ export default function App() {
               >
                 <Route index element={<ContributeDungeons />} />
                 <Route path="mutations" element={<ContributeMutations />} />
+                <Route path="seasons" element={<ContributeSeasons />} />
                 <Route path="import" element={<ContributeImport />} />
                 <Route path="validate" element={<ContributeValidate />} />
                 <Route path="stats" element={<ContributeStats />} />
