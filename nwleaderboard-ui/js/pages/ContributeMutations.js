@@ -65,7 +65,7 @@ function normaliseEntry(entry, index = 0) {
   const dungeonIdValue = Number(entry.dungeon_id ?? entry.dungeonId);
   const dungeonId = Number.isFinite(dungeonIdValue) ? dungeonIdValue : null;
   const dungeonNames = normaliseNames(entry.dungeon_names ?? entry.dungeonNames);
-  const seasonValue = Number(entry.season_id ?? entry.seasonId);
+  const seasonValue = Number(entry.season_id ?? entry.seasonId ?? entry.id_season ?? entry.idSeason);
   const seasonId = Number.isFinite(seasonValue) ? seasonValue : null;
   const element = typeof entry.mutation_element_id === 'string' ? entry.mutation_element_id.trim() : '';
   const type = typeof entry.mutation_type_id === 'string' ? entry.mutation_type_id.trim() : '';
@@ -138,7 +138,9 @@ function normaliseSeasonOption(option) {
   if (!option || typeof option !== 'object') {
     return null;
   }
-  const idValue = Number(option.id ?? option.season_id ?? option.seasonId);
+  const idValue = Number(
+    option.id ?? option.season_id ?? option.seasonId ?? option.id_season ?? option.idSeason,
+  );
   const id = Number.isFinite(idValue) ? idValue : null;
   if (id === null) {
     return null;
