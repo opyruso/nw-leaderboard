@@ -118,7 +118,7 @@ const de = {
   contributeSeasonsDeleteSuccess: 'Saison wurde erfolgreich gelöscht.',
   contributeSeasonsDeleteError: 'Saison konnte nicht gelöscht werden.',
   contributeSeasonsUnknownValue: 'Nicht gesetzt',
-  contributeSeasonsIdInvalid: 'Geben Sie eine positive numerische Kennung ein.',
+  contributeSeasonsIdInvalid: 'Geben Sie eine numerische Kennung ein.',
   contributeSeasonsDateRequired: 'Bitte Start- und Enddatum eingeben.',
   contributeSeasonsDateInvalid: 'Bitte gültige Daten im Format JJJJ-MM-TT eingeben.',
   contributeStatsDescription:

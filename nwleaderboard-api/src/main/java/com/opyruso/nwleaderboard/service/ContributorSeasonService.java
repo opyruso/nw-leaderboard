@@ -168,8 +168,8 @@ public class ContributorSeasonService {
     }
 
     private int normaliseSeasonId(Integer seasonId) throws ContributorSeasonException {
-        if (seasonId == null || seasonId <= 0) {
-            throw new ContributorSeasonException("Invalid season identifier.", Status.BAD_REQUEST);
+        if (seasonId == null) {
+            throw new ContributorSeasonException("Season identifier is required.", Status.BAD_REQUEST);
         }
         return seasonId;
     }

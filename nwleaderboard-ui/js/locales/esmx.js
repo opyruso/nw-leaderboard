@@ -118,7 +118,7 @@ const esmx = {
   contributeSeasonsDeleteSuccess: 'Temporada eliminada correctamente.',
   contributeSeasonsDeleteError: 'No se pudo eliminar esta temporada.',
   contributeSeasonsUnknownValue: 'Sin definir',
-  contributeSeasonsIdInvalid: 'Introduce un identificador numérico positivo.',
+  contributeSeasonsIdInvalid: 'Introduce un identificador numérico.',
   contributeSeasonsDateRequired: 'Indica las fechas de inicio y fin.',
   contributeSeasonsDateInvalid: 'Introduce fechas válidas con el formato aaaa-MM-dd.',
   contributeStatsDescription:

@@ -118,7 +118,7 @@ const it = {
   contributeSeasonsDeleteSuccess: 'Stagione eliminata con successo.',
   contributeSeasonsDeleteError: 'Impossibile eliminare questa stagione.',
   contributeSeasonsUnknownValue: 'Non impostato',
-  contributeSeasonsIdInvalid: 'Inserisci un identificatore numerico positivo.',
+  contributeSeasonsIdInvalid: 'Inserisci un identificatore numerico.',
   contributeSeasonsDateRequired: 'Inserisci le date di inizio e fine.',
   contributeSeasonsDateInvalid: 'Inserisci date valide nel formato aaaa-MM-gg.',
   contributeStatsDescription:
