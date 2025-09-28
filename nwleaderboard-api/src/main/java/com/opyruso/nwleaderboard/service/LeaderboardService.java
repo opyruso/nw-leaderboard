@@ -2,6 +2,8 @@ package com.opyruso.nwleaderboard.service;
 
 import com.opyruso.nwleaderboard.dto.HighlightMetricResponse;
 import com.opyruso.nwleaderboard.dto.HighlightResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardChartResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardChartWeekResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPageResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
@@ -179,6 +181,52 @@ public class LeaderboardService {
                     mutationIds.curseId()));
         }
         return new LeaderboardPageResponse(responses, totalRuns, safePage, safePageSize, totalPages);
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public LeaderboardChartResponse getScoreChartData(
+            Long dungeonId,
+            List<String> mutationTypeIds,
+            List<String> mutationPromotionIds,
+            List<String> mutationCurseIds,
+            List<String> regionIds) {
+        if (dungeonId == null) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        Set<String> regionFilter = sanitiseRegionIds(regionIds);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
+        if (weekFilter != null && weekFilter.isEmpty()) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        List<ChartAggregate> aggregates = mapChartAggregates(
+                runScoreRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter));
+        return buildChartResponse(aggregates, false);
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public LeaderboardChartResponse getTimeChartData(
+            Long dungeonId,
+            List<String> mutationTypeIds,
+            List<String> mutationPromotionIds,
+            List<String> mutationCurseIds,
+            List<String> regionIds) {
+        if (dungeonId == null) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
+        Set<String> regionFilter = sanitiseRegionIds(regionIds);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter);
+        if (weekFilter != null && weekFilter.isEmpty()) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        List<ChartAggregate> aggregates = mapChartAggregates(
+                runTimeRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter));
+        return buildChartResponse(aggregates, true);
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
@@ -508,6 +556,110 @@ public class LeaderboardService {
         return Math.min(requestedPage, totalPages);
     }
 
+    private LeaderboardChartResponse buildChartResponse(List<ChartAggregate> aggregates, boolean lowerIsBetter) {
+        if (aggregates == null || aggregates.isEmpty()) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        List<LeaderboardChartWeekResponse> weeks = new ArrayList<>();
+        double totalValue = 0d;
+        long totalCount = 0L;
+
+        for (ChartAggregate aggregate : aggregates) {
+            if (aggregate == null || aggregate.runCount() == null || aggregate.runCount() <= 0) {
+                continue;
+            }
+            Double minValue = aggregate.minValue();
+            Double maxValue = aggregate.maxValue();
+            if (minValue == null && maxValue == null) {
+                continue;
+            }
+            Double bestValue = lowerIsBetter ? pick(minValue, maxValue) : pick(maxValue, minValue);
+            Double worstValue = lowerIsBetter ? pick(maxValue, minValue) : pick(minValue, maxValue);
+            weeks.add(new LeaderboardChartWeekResponse(aggregate.week(), bestValue, worstValue, aggregate.runCount()));
+            if (aggregate.totalValue() != null) {
+                totalValue += aggregate.totalValue();
+            }
+            totalCount += aggregate.runCount();
+        }
+
+        if (weeks.isEmpty()) {
+            return new LeaderboardChartResponse(List.of(), null);
+        }
+
+        weeks.sort((left, right) -> {
+            Integer leftWeek = left.week();
+            Integer rightWeek = right.week();
+            if (leftWeek != null && rightWeek != null && !leftWeek.equals(rightWeek)) {
+                return Integer.compare(leftWeek, rightWeek);
+            }
+            if (leftWeek != null && rightWeek == null) {
+                return -1;
+            }
+            if (leftWeek == null && rightWeek != null) {
+                return 1;
+            }
+            return 0;
+        });
+
+        Double average = totalCount > 0 ? totalValue / totalCount : null;
+        return new LeaderboardChartResponse(weeks, average);
+    }
+
+    private List<ChartAggregate> mapChartAggregates(List<Object[]> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<ChartAggregate> aggregates = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            if (row == null || row.length < 5) {
+                continue;
+            }
+            Integer week = toInteger(row[0]);
+            Double maxValue = toDouble(row[1]);
+            Double minValue = toDouble(row[2]);
+            Double totalValue = toDouble(row[3]);
+            Long runCount = toLong(row[4]);
+            if (runCount == null || runCount <= 0) {
+                continue;
+            }
+            aggregates.add(new ChartAggregate(week, minValue, maxValue, totalValue, runCount));
+        }
+        return aggregates.isEmpty() ? List.of() : List.copyOf(aggregates);
+    }
+
+    private Double pick(Double primary, Double fallback) {
+        if (primary != null && Double.isFinite(primary)) {
+            return primary;
+        }
+        if (fallback != null && Double.isFinite(fallback)) {
+            return fallback;
+        }
+        return null;
+    }
+
+    private Integer toInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
+    }
+
+    private Double toDouble(Object value) {
+        if (value instanceof Number number) {
+            double numeric = number.doubleValue();
+            return Double.isFinite(numeric) ? numeric : null;
+        }
+        return null;
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
+    }
+
     private Map<String, String> buildNameMap(Dungeon dungeon) {
         if (dungeon == null) {
             return Map.of();
@@ -552,6 +704,9 @@ public class LeaderboardService {
             return new MutationIds(typeId, promotionId, curseId);
         });
     }
+
+    private record ChartAggregate(
+            Integer week, Double minValue, Double maxValue, Double totalValue, Long runCount) {}
 
     private record MutationKey(Integer week, Long dungeonId) {
     }

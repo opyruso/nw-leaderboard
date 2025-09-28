@@ -2,6 +2,7 @@ package com.opyruso.nwleaderboard;
 
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.HighlightResponse;
+import com.opyruso.nwleaderboard.dto.LeaderboardChartResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardEntryResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPageResponse;
 import com.opyruso.nwleaderboard.dto.IndividualRankingEntryResponse;
@@ -63,6 +64,24 @@ public class LeaderboardResource {
     }
 
     @GET
+    @Path("/score/chart")
+    public Response getScoreChart(
+            @QueryParam("dungeonId") Long dungeonId,
+            @QueryParam("mutationType") List<String> mutationTypeIds,
+            @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
+            @QueryParam("mutationCurse") List<String> mutationCurseIds,
+            @QueryParam("region") List<String> regionIds) {
+        if (dungeonId == null) {
+            return Response.status(Status.BAD_REQUEST)
+                    .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
+                    .build();
+        }
+        LeaderboardChartResponse response = leaderboardService.getScoreChartData(
+                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds);
+        return Response.ok(response).build();
+    }
+
+    @GET
     @Path("/time")
     public Response getTime(
             @QueryParam("dungeonId") Long dungeonId,
@@ -85,6 +104,24 @@ public class LeaderboardResource {
                 mutationPromotionIds,
                 mutationCurseIds,
                 regionIds);
+        return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/time/chart")
+    public Response getTimeChart(
+            @QueryParam("dungeonId") Long dungeonId,
+            @QueryParam("mutationType") List<String> mutationTypeIds,
+            @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
+            @QueryParam("mutationCurse") List<String> mutationCurseIds,
+            @QueryParam("region") List<String> regionIds) {
+        if (dungeonId == null) {
+            return Response.status(Status.BAD_REQUEST)
+                    .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
+                    .build();
+        }
+        LeaderboardChartResponse response = leaderboardService.getTimeChartData(
+                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds);
         return Response.ok(response).build();
     }
 

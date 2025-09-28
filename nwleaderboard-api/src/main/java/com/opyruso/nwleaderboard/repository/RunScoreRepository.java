@@ -68,6 +68,36 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         return find(query.toString(), parameters).page(Page.of(pageIndex, pageSize)).list();
     }
 
+    public List<Object[]> aggregateByDungeonAndWeeks(
+            Long dungeonId, List<Integer> weeks, Collection<String> regions) {
+        if (dungeonId == null) {
+            return List.of();
+        }
+        if (weeks != null && weeks.isEmpty()) {
+            return List.of();
+        }
+        StringBuilder query = new StringBuilder(
+                "SELECT run.week, MAX(run.score), MIN(run.score), SUM(run.score), COUNT(run.id) "
+                        + "FROM RunScore run WHERE run.dungeon.id = :dungeonId");
+        if (weeks != null) {
+            query.append(" AND run.week IN :weeks");
+        }
+        if (regions != null && !regions.isEmpty()) {
+            query.append(" AND run.region.id IN :regions");
+        }
+        query.append(" GROUP BY run.week");
+
+        var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
+        typedQuery.setParameter("dungeonId", dungeonId);
+        if (weeks != null) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        if (regions != null && !regions.isEmpty()) {
+            typedQuery.setParameter("regions", regions);
+        }
+        return typedQuery.getResultList();
+    }
+
     public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, Collection<String> regions) {
         if (dungeonId == null) {
             return 0L;
