@@ -2496,7 +2496,6 @@ body[data-theme='light'] .leaderboard-sidebar {
 
 .dungeon-button {
   width: 100%;
-  padding: 0.9rem 1.15rem;
   border-radius: 12px;
   border: 1px solid rgba(124, 92, 255, 0.2);
   background: rgba(124, 92, 255, 0.08);
@@ -2599,7 +2598,6 @@ body[data-theme='light'] .dungeon-button.active .dungeon-button-icon {
 .region-filter-button {
   width: 100%;
   text-align: left;
-  padding: 0.6rem 0.85rem;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(148, 163, 184, 0.12);
