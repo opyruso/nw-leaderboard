@@ -266,104 +266,102 @@ export default function LeaderboardPage({
     };
   }, []);
 
+  const buildFilterParamsWithoutPagination = React.useCallback(() => {
+    const params = new URLSearchParams();
+    if (!selectedDungeon) {
+      return params;
+    }
+
+    params.set('dungeonId', String(selectedDungeon));
+
+    const filterParamMap = {
+      type: 'mutationType',
+      promotion: 'mutationPromotion',
+      curse: 'mutationCurse',
+    };
+
+    const mutationFiltersReady = mutationFiltersInitialisedRef.current;
+    const regionFiltersReady = regionFiltersInitialisedRef.current;
+
+    MUTATION_FILTER_KEYS.forEach((key) => {
+      const paramName = filterParamMap[key];
+      const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
+      if (!paramName || available.length === 0) {
+        return;
+      }
+      const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
+      const uniqueSelected = Array.from(
+        new Set(
+          selected.map((value) =>
+            typeof value === 'string' ? value : String(value === undefined || value === null ? '' : value),
+          ),
+        ),
+      );
+      const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
+      if (!mutationFiltersReady) {
+        return;
+      }
+      const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
+      if (!shouldFilter) {
+        return;
+      }
+      if (sanitisedSelected.length === 0) {
+        params.append(paramName, '');
+        return;
+      }
+      sanitisedSelected.forEach((value) => params.append(paramName, value));
+    });
+
+    if (regionFiltersReady) {
+      const availableRegions = Array.isArray(regionOptions) ? regionOptions : [];
+      const selectedRegions = Array.isArray(regionFilters) ? regionFilters : [];
+      const uniqueRegions = Array.from(
+        new Set(
+          selectedRegions.map((value) =>
+            typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
+          ),
+        ),
+      );
+      const sanitisedRegions = uniqueRegions.filter((value) => availableRegions.includes(value));
+      const shouldFilter = sanitisedRegions.length > 0 && sanitisedRegions.length < availableRegions.length;
+      if (shouldFilter) {
+        sanitisedRegions.forEach((value) => params.append('region', value));
+      } else if (sanitisedRegions.length === 0 && selectedRegions.length > 0) {
+        params.append('region', '');
+      }
+    }
+
+    return params;
+  }, [selectedDungeon, mutationFilters, mutationOptions, regionFilters, regionOptions]);
+
   const buildFilterParams = React.useCallback(
     (options = {}) => {
       const { includePagination = true, page: pageOverride, pageSize: pageSizeOverride } =
         typeof options === 'object' && options !== null ? options : {};
 
-      const params = new URLSearchParams();
-      if (!selectedDungeon) {
+      const params = buildFilterParamsWithoutPagination();
+      if (!includePagination) {
         return params;
       }
 
-      params.set('dungeonId', String(selectedDungeon));
+      const rawPage =
+        pageOverride !== undefined && pageOverride !== null ? pageOverride : requestedPage;
+      const numericPage = Number(rawPage);
+      const safePage = Number.isFinite(numericPage) && numericPage > 0 ? Math.floor(numericPage) : 1;
+      params.set('page', String(safePage));
 
-      if (includePagination) {
-        const rawPage =
-          pageOverride !== undefined && pageOverride !== null ? pageOverride : requestedPage;
-        const numericPage = Number(rawPage);
-        const safePage = Number.isFinite(numericPage) && numericPage > 0 ? Math.floor(numericPage) : 1;
-        params.set('page', String(safePage));
-
-        const rawPageSize =
-          pageSizeOverride !== undefined && pageSizeOverride !== null ? pageSizeOverride : pageSize;
-        const numericPageSize = Number(rawPageSize);
-        const safePageSize =
-          Number.isFinite(numericPageSize) && numericPageSize > 0
-            ? Math.floor(numericPageSize)
-            : pageSize;
-        params.set('pageSize', String(safePageSize));
-      }
-
-      const filterParamMap = {
-        type: 'mutationType',
-        promotion: 'mutationPromotion',
-        curse: 'mutationCurse',
-      };
-
-      const mutationFiltersReady = mutationFiltersInitialisedRef.current;
-      const regionFiltersReady = regionFiltersInitialisedRef.current;
-
-      MUTATION_FILTER_KEYS.forEach((key) => {
-        const paramName = filterParamMap[key];
-        const available = Array.isArray(mutationOptions[key]) ? mutationOptions[key] : [];
-        if (!paramName || available.length === 0) {
-          return;
-        }
-        const selected = Array.isArray(mutationFilters[key]) ? mutationFilters[key] : [];
-        const uniqueSelected = Array.from(
-          new Set(
-            selected.map((value) =>
-              typeof value === 'string' ? value : String(value === undefined || value === null ? '' : value),
-            ),
-          ),
-        );
-        const sanitisedSelected = uniqueSelected.filter((value) => available.includes(value));
-        if (!mutationFiltersReady) {
-          return;
-        }
-        const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
-        if (!shouldFilter) {
-          return;
-        }
-        if (sanitisedSelected.length === 0) {
-          params.append(paramName, '');
-          return;
-        }
-        sanitisedSelected.forEach((value) => params.append(paramName, value));
-      });
-
-      if (regionFiltersReady) {
-        const availableRegions = Array.isArray(regionOptions) ? regionOptions : [];
-        const selectedRegions = Array.isArray(regionFilters) ? regionFilters : [];
-        const uniqueRegions = Array.from(
-          new Set(
-            selectedRegions.map((value) =>
-              typeof value === 'string' ? value.trim().toUpperCase() : String(value || '').trim().toUpperCase(),
-            ),
-          ),
-        );
-        const sanitisedRegions = uniqueRegions.filter((value) => availableRegions.includes(value));
-        const shouldFilter =
-          sanitisedRegions.length > 0 && sanitisedRegions.length < availableRegions.length;
-        if (shouldFilter) {
-          sanitisedRegions.forEach((value) => params.append('region', value));
-        } else if (sanitisedRegions.length === 0 && selectedRegions.length > 0) {
-          params.append('region', '');
-        }
-      }
+      const rawPageSize =
+        pageSizeOverride !== undefined && pageSizeOverride !== null ? pageSizeOverride : pageSize;
+      const numericPageSize = Number(rawPageSize);
+      const safePageSize =
+        Number.isFinite(numericPageSize) && numericPageSize > 0
+          ? Math.floor(numericPageSize)
+          : pageSize;
+      params.set('pageSize', String(safePageSize));
 
       return params;
     },
-    [
-      selectedDungeon,
-      requestedPage,
-      pageSize,
-      mutationFilters,
-      mutationOptions,
-      regionFilters,
-      regionOptions,
-    ],
+    [buildFilterParamsWithoutPagination, requestedPage, pageSize],
   );
 
   React.useEffect(() => {
@@ -610,7 +608,7 @@ export default function LeaderboardPage({
     const controller = new AbortController();
     setChartError(false);
 
-    const params = buildFilterParams({ includePagination: false });
+    const params = buildFilterParamsWithoutPagination();
     setChartData(null);
 
     fetch(`${API_BASE_URL}/leaderboard/${mode}/chart?${params.toString()}`, {
@@ -653,7 +651,7 @@ export default function LeaderboardPage({
       active = false;
       controller.abort();
     };
-  }, [mode, selectedDungeon, buildFilterParams]);
+  }, [mode, selectedDungeon, buildFilterParamsWithoutPagination]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
