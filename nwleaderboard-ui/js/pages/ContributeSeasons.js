@@ -62,6 +62,7 @@ export default function ContributeSeasons() {
   const [pendingIds, setPendingIds] = React.useState([]);
   const [newRow, setNewRow] = React.useState(null);
   const editInputRef = React.useRef(null);
+  const newIdRef = React.useRef(null);
   const newBeginRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -118,8 +119,12 @@ export default function ContributeSeasons() {
   }, [activeEdit]);
 
   React.useEffect(() => {
-    if (newRow && newBeginRef.current) {
-      newBeginRef.current.focus();
+    if (newRow) {
+      if (newIdRef.current) {
+        newIdRef.current.focus();
+      } else if (newBeginRef.current) {
+        newBeginRef.current.focus();
+      }
     }
   }, [newRow]);
 
@@ -135,13 +140,14 @@ export default function ContributeSeasons() {
 
   const handleStartEdit = React.useCallback(
     (entry, field) => {
-      if (!entry || !['dateBegin', 'dateEnd'].includes(field)) {
+      if (!entry || !['id', 'dateBegin', 'dateEnd'].includes(field)) {
         return;
       }
       if (pendingIds.includes(entry.id) || newRow) {
         return;
       }
-      const originalValue = entry[field] || '';
+      const originalValue =
+        field === 'id' ? String(entry.id ?? '') : typeof entry[field] === 'string' ? entry[field] : entry[field] || '';
       setActiveEdit({ id: entry.id, field, originalValue, value: originalValue });
       setFeedback({ type: '', text: '' });
     },
@@ -162,25 +168,46 @@ export default function ContributeSeasons() {
       return;
     }
     const rawValue = typeof activeEdit.value === 'string' ? activeEdit.value.trim() : '';
-    if (!rawValue) {
-      setFeedback({ type: 'error', text: t.contributeSeasonsDateRequired });
-      return;
+    const previousId = activeEdit.id;
+    const field = activeEdit.field;
+    let payload = {};
+
+    if (field === 'id') {
+      if (!rawValue || !/^\d+$/.test(rawValue)) {
+        setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
+        return;
+      }
+      const numericValue = Number.parseInt(rawValue, 10);
+      if (!Number.isSafeInteger(numericValue) || numericValue <= 0) {
+        setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
+        return;
+      }
+      if (numericValue === previousId) {
+        setActiveEdit(null);
+        return;
+      }
+      payload = { id: numericValue };
+    } else {
+      if (!rawValue) {
+        setFeedback({ type: 'error', text: t.contributeSeasonsDateRequired });
+        return;
+      }
+      if (!isValidDate(rawValue)) {
+        setFeedback({ type: 'error', text: t.contributeSeasonsDateInvalid });
+        return;
+      }
+      if (rawValue === activeEdit.originalValue) {
+        setActiveEdit(null);
+        return;
+      }
+      const payloadKey = field === 'dateBegin' ? 'date_begin' : 'date_end';
+      payload = { [payloadKey]: rawValue };
     }
-    if (!isValidDate(rawValue)) {
-      setFeedback({ type: 'error', text: t.contributeSeasonsDateInvalid });
-      return;
-    }
-    if (rawValue === activeEdit.originalValue) {
-      setActiveEdit(null);
-      return;
-    }
-    const payloadKey = activeEdit.field === 'dateBegin' ? 'date_begin' : 'date_end';
-    const payload = { [payloadKey]: rawValue };
-    const seasonId = activeEdit.id;
-    addPendingId(seasonId);
+
+    addPendingId(previousId);
     setFeedback({ type: '', text: '' });
 
-    fetch(`${API_BASE_URL}/contributor/seasons/${seasonId}`, {
+    fetch(`${API_BASE_URL}/contributor/seasons/${previousId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -201,8 +228,8 @@ export default function ContributeSeasons() {
         const updated = normaliseSeasonEntry(data || {});
         if (updated) {
           setSeasons((current) => {
-            const mapped = current.map((item) => (item && item.id === updated.id ? updated : item));
-            return sortSeasons(mapped);
+            const filtered = current.filter((item) => item && item.id !== previousId);
+            return sortSeasons([...(filtered || []), updated]);
           });
           setFeedback({ type: 'success', text: t.contributeSeasonsUpdateSuccess });
         }
@@ -219,7 +246,7 @@ export default function ContributeSeasons() {
         });
       })
       .finally(() => {
-        removePendingId(seasonId);
+        removePendingId(previousId);
       });
   }, [activeEdit, addPendingId, removePendingId, t]);
 
@@ -242,7 +269,7 @@ export default function ContributeSeasons() {
     }
     setActiveEdit(null);
     setFeedback({ type: '', text: '' });
-    setNewRow({ dateBegin: '', dateEnd: '' });
+    setNewRow({ id: '', dateBegin: '', dateEnd: '' });
   }, [newRow]);
 
   const handleNewRowChange = React.useCallback((field, value) => {
@@ -259,6 +286,7 @@ export default function ContributeSeasons() {
     }
     const beginValue = typeof newRow.dateBegin === 'string' ? newRow.dateBegin.trim() : '';
     const endValue = typeof newRow.dateEnd === 'string' ? newRow.dateEnd.trim() : '';
+    const idValue = typeof newRow.id === 'string' ? newRow.id.trim() : '';
     if (!beginValue || !endValue) {
       setFeedback({ type: 'error', text: t.contributeSeasonsDateRequired });
       return;
@@ -267,12 +295,25 @@ export default function ContributeSeasons() {
       setFeedback({ type: 'error', text: t.contributeSeasonsDateInvalid });
       return;
     }
+    if (idValue && !/^\d+$/.test(idValue)) {
+      setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
+      return;
+    }
+    const payload = { date_begin: beginValue, date_end: endValue };
+    if (idValue) {
+      const numericId = Number.parseInt(idValue, 10);
+      if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+        setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
+        return;
+      }
+      payload.id = numericId;
+    }
     setFeedback({ type: '', text: '' });
 
     fetch(`${API_BASE_URL}/contributor/seasons`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date_begin: beginValue, date_end: endValue }),
+      body: JSON.stringify(payload),
     })
       .then((response) => {
         if (!response.ok) {
@@ -349,6 +390,35 @@ export default function ContributeSeasons() {
     [addPendingId, newRow, pendingIds, removePendingId, t],
   );
 
+  const renderIdCell = (entry) => {
+    const isEditing = activeEdit && activeEdit.id === entry.id && activeEdit.field === 'id';
+    const pending = pendingIds.includes(entry.id);
+    return (
+      <th
+        scope="row"
+        className={`contribute-mutations-cell contribute-mutations-cell--editable${
+          isEditing ? ' is-editing' : ''
+        }${pending ? ' is-pending' : ''}`}
+        onDoubleClick={() => handleStartEdit(entry, 'id')}
+      >
+        {isEditing ? (
+          <input
+            ref={editInputRef}
+            type="number"
+            min="1"
+            step="1"
+            value={activeEdit?.value ?? ''}
+            onChange={handleEditValueChange}
+            onKeyDown={handleEditKeyDown}
+            disabled={pending}
+          />
+        ) : (
+          <span>{entry.id}</span>
+        )}
+      </th>
+    );
+  };
+
   const renderDateCell = (entry, field) => {
     const isEditing = activeEdit && activeEdit.id === entry.id && activeEdit.field === field;
     const pending = pendingIds.includes(entry.id);
@@ -408,7 +478,16 @@ export default function ContributeSeasons() {
             <tbody>
               {newRow ? (
                 <tr className="contribute-mutations-row is-new">
-                  <th scope="row">—</th>
+                  <th scope="row" className="contribute-mutations-cell">
+                    <input
+                      ref={newIdRef}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={newRow.id}
+                      onChange={(event) => handleNewRowChange('id', event.target.value)}
+                    />
+                  </th>
                   <td className="contribute-mutations-cell">
                     <input
                       ref={newBeginRef}
@@ -448,7 +527,7 @@ export default function ContributeSeasons() {
                     key={entry.id}
                     className={`contribute-mutations-row${pending ? ' is-pending' : ''}`}
                   >
-                    <th scope="row">{entry.id}</th>
+                    {renderIdCell(entry)}
                     {renderDateCell(entry, 'dateBegin')}
                     {renderDateCell(entry, 'dateEnd')}
                     <td className="contribute-mutations-actions">

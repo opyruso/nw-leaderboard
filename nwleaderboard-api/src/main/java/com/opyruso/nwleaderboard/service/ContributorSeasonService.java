@@ -5,6 +5,7 @@ import com.opyruso.nwleaderboard.dto.ContributorSeasonEntryResponse;
 import com.opyruso.nwleaderboard.dto.ContributorSeasonUpdateRequest;
 import com.opyruso.nwleaderboard.entity.Season;
 import com.opyruso.nwleaderboard.repository.SeasonRepository;
+import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.persistence.PersistenceException;
@@ -25,6 +26,9 @@ public class ContributorSeasonService {
     @Inject
     SeasonRepository seasonRepository;
 
+    @Inject
+    WeekMutationDungeonRepository weekMutationDungeonRepository;
+
     @Transactional
     public List<ContributorSeasonEntryResponse> listSeasons() {
         return seasonRepository.listAllOrderByDateBeginDesc().stream()
@@ -42,9 +46,20 @@ public class ContributorSeasonService {
             throw new ContributorSeasonException("date_begin must be before or equal to date_end.", Status.BAD_REQUEST);
         }
         Season season = new Season();
+        Integer requestedId = normaliseOptionalSeasonId(request != null ? request.id() : null);
+        if (requestedId != null) {
+            if (seasonRepository.existsById(requestedId)) {
+                throw new ContributorSeasonException("Season identifier already exists.", Status.CONFLICT);
+            }
+            season.setId(requestedId);
+        }
         season.setDateBegin(dateBegin);
         season.setDateEnd(dateEnd);
-        seasonRepository.persistAndFlush(season);
+        try {
+            seasonRepository.persistAndFlush(season);
+        } catch (PersistenceException e) {
+            throw new ContributorSeasonException("Unable to create season.", Status.CONFLICT, e);
+        }
         return toResponse(season);
     }
 
@@ -56,19 +71,50 @@ public class ContributorSeasonService {
         if (season == null) {
             throw new ContributorSeasonException("Season not found.", Status.NOT_FOUND);
         }
-        if (request == null || (isBlank(request.dateBegin()) && isBlank(request.dateEnd()))) {
+        if (request == null
+                || (isBlank(request.dateBegin()) && isBlank(request.dateEnd()) && request.id() == null)) {
             throw new ContributorSeasonException("No updates were provided.", Status.BAD_REQUEST);
         }
         LocalDate currentBegin = season.getDateBegin();
         LocalDate currentEnd = season.getDateEnd();
-        LocalDate nextBegin = isBlank(request.dateBegin()) ? currentBegin : parseRequiredDate(request.dateBegin(), "date_begin");
+        LocalDate nextBegin =
+                isBlank(request.dateBegin()) ? currentBegin : parseRequiredDate(request.dateBegin(), "date_begin");
         LocalDate nextEnd = isBlank(request.dateEnd()) ? currentEnd : parseRequiredDate(request.dateEnd(), "date_end");
         if (nextBegin.isAfter(nextEnd)) {
             throw new ContributorSeasonException("date_begin must be before or equal to date_end.", Status.BAD_REQUEST);
         }
-        season.setDateBegin(nextBegin);
-        season.setDateEnd(nextEnd);
-        return toResponse(season);
+        Integer requestedId = normaliseOptionalSeasonId(request.id());
+        boolean updateIdentifier = requestedId != null && requestedId != id;
+        if (updateIdentifier && seasonRepository.existsById(requestedId)) {
+            throw new ContributorSeasonException(
+                    "Another season already uses this identifier.", Status.CONFLICT);
+        }
+        if (!updateIdentifier) {
+            season.setDateBegin(nextBegin);
+            season.setDateEnd(nextEnd);
+            return toResponse(season);
+        }
+
+        Season replacement = new Season();
+        replacement.setId(requestedId);
+        replacement.setDateBegin(nextBegin);
+        replacement.setDateEnd(nextEnd);
+        replacement.setCreationDate(season.getCreationDate());
+        replacement.setCreationUser(season.getCreationUser());
+        replacement.setUpdateDate(season.getUpdateDate());
+        replacement.setUpdateUser(season.getUpdateUser());
+
+        try {
+            seasonRepository.persistAndFlush(replacement);
+        } catch (PersistenceException e) {
+            throw new ContributorSeasonException(
+                    "Unable to update season identifier.", Status.CONFLICT, e);
+        }
+
+        weekMutationDungeonRepository.reassignSeason(season, replacement);
+        seasonRepository.delete(season);
+        seasonRepository.flush();
+        return toResponse(replacement);
     }
 
     @Transactional
@@ -101,6 +147,13 @@ public class ContributorSeasonService {
             throw new ContributorSeasonException("Invalid season identifier.", Status.BAD_REQUEST);
         }
         return seasonId;
+    }
+
+    private Integer normaliseOptionalSeasonId(Integer seasonId) throws ContributorSeasonException {
+        if (seasonId == null) {
+            return null;
+        }
+        return normaliseSeasonId(seasonId);
     }
 
     private LocalDate parseRequiredDate(String value, String field) throws ContributorSeasonException {

@@ -118,6 +118,7 @@ const pt = {
   contributeSeasonsDeleteSuccess: 'Temporada excluída com sucesso.',
   contributeSeasonsDeleteError: 'Não foi possível excluir esta temporada.',
   contributeSeasonsUnknownValue: 'Não definido',
+  contributeSeasonsIdInvalid: 'Informe um identificador numérico positivo.',
   contributeSeasonsDateRequired: 'Informe as datas de início e término.',
   contributeSeasonsDateInvalid: 'Informe datas válidas no formato aaaa-MM-dd.',
   contributeStatsDescription:

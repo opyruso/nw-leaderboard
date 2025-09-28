@@ -80,4 +80,15 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
                 .setParameter("week", week)
                 .executeUpdate();
     }
+
+    public int reassignSeason(Season from, Season to) {
+        if (from == null || to == null) {
+            return 0;
+        }
+        return getEntityManager()
+                .createQuery("UPDATE WeekMutationDungeon w SET w.season = :target WHERE w.season = :source")
+                .setParameter("target", to)
+                .setParameter("source", from)
+                .executeUpdate();
+    }
 }

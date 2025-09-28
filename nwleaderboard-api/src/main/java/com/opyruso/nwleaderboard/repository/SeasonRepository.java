@@ -18,4 +18,11 @@ public class SeasonRepository implements PanacheRepositoryBase<Season, Integer> 
     public Season findLatestByDateBegin() {
         return find("ORDER BY dateBegin DESC").firstResult();
     }
+
+    public boolean existsById(Integer id) {
+        if (id == null) {
+            return false;
+        }
+        return findById(id) != null;
+    }
 }
