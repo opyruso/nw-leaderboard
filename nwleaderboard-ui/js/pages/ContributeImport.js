@@ -4,6 +4,35 @@ import { normaliseRegionList, translateRegion } from '../regions.js';
 const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
+const REGION_STORAGE_KEY = 'contributeImport.selectedRegion';
+
+function readStoredRegion() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return '';
+    }
+    const stored = window.localStorage.getItem(REGION_STORAGE_KEY);
+    return typeof stored === 'string' ? stored : '';
+  } catch (error) {
+    console.warn('Unable to read stored region', error);
+    return '';
+  }
+}
+
+function writeStoredRegion(value) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    if (value) {
+      window.localStorage.setItem(REGION_STORAGE_KEY, value);
+    } else {
+      window.localStorage.removeItem(REGION_STORAGE_KEY);
+    }
+  } catch (error) {
+    console.warn('Unable to store selected region', error);
+  }
+}
 const EXPECTED_WIDTH = 2560;
 const EXPECTED_HEIGHT = 1440;
 const IMAGE_PROCESSING_TIMEOUT_MS = 60 * 1000;
@@ -33,9 +62,13 @@ export default function ContributeImport() {
   const fallbackRegions = React.useMemo(() => normaliseRegionList(), []);
   const fileInputRef = React.useRef(null);
   const [regions, setRegions] = React.useState(fallbackRegions);
-  const [selectedRegion, setSelectedRegion] = React.useState(() =>
-    fallbackRegions.length ? fallbackRegions[0] : '',
-  );
+  const [selectedRegion, setSelectedRegion] = React.useState(() => {
+    const storedRegion = readStoredRegion();
+    if (storedRegion && fallbackRegions.includes(storedRegion)) {
+      return storedRegion;
+    }
+    return fallbackRegions.length ? fallbackRegions[0] : '';
+  });
   const [selectedFiles, setSelectedFiles] = React.useState(() => []);
   const [status, setStatus] = React.useState('idle');
   const [messageKey, setMessageKey] = React.useState('');
@@ -72,10 +105,14 @@ export default function ContributeImport() {
         return;
       }
       const normalised = normaliseRegionList(list, fallbackRegions);
+      const storedRegion = readStoredRegion();
       setRegions(normalised);
       setSelectedRegion((current) => {
         if (current && normalised.includes(current)) {
           return current;
+        }
+        if (storedRegion && normalised.includes(storedRegion)) {
+          return storedRegion;
         }
         return normalised.length ? normalised[0] : '';
       });
@@ -239,6 +276,10 @@ export default function ContributeImport() {
   const handleRegionChange = React.useCallback((event) => {
     setSelectedRegion(event.target.value);
   }, []);
+
+  React.useEffect(() => {
+    writeStoredRegion(selectedRegion);
+  }, [selectedRegion]);
 
   const handleExtract = async () => {
     if (!selectedFiles.length || !API_BASE_URL) {
