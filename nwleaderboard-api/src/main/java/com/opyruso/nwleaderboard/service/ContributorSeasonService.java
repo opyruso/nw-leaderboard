@@ -48,12 +48,12 @@ public class ContributorSeasonService {
         }
         Season season = new Season();
         Integer requestedId = normaliseOptionalSeasonId(request != null ? request.id() : null);
-        if (requestedId != null) {
-            if (seasonRepository.existsById(requestedId)) {
-                throw new ContributorSeasonException("Season identifier already exists.", Status.CONFLICT);
-            }
-            season.setId(requestedId);
+        if (requestedId == null) {
+            requestedId = seasonRepository.findNextAvailableId();
+        } else if (seasonRepository.existsById(requestedId)) {
+            throw new ContributorSeasonException("Season identifier already exists.", Status.CONFLICT);
         }
+        season.setId(requestedId);
         season.setDateBegin(dateBegin);
         season.setDateEnd(dateEnd);
         try {
@@ -73,8 +73,16 @@ public class ContributorSeasonService {
             throw new ContributorSeasonException("Season not found.", Status.NOT_FOUND);
         }
         if (request == null
-                || (isBlank(request.dateBegin()) && isBlank(request.dateEnd()) && request.id() == null)) {
+                || (isBlank(request.dateBegin())
+                        && isBlank(request.dateEnd())
+                        && request.id() == null
+                        && request.previousId() == null)) {
             throw new ContributorSeasonException("No updates were provided.", Status.BAD_REQUEST);
+        }
+        Integer providedPreviousId = normaliseOptionalSeasonId(request != null ? request.previousId() : null);
+        if (providedPreviousId != null && providedPreviousId != id) {
+            throw new ContributorSeasonException(
+                    "previous_id does not match the targeted season.", Status.BAD_REQUEST);
         }
         LocalDate currentBegin = season.getDateBegin();
         LocalDate currentEnd = season.getDateEnd();
@@ -160,8 +168,8 @@ public class ContributorSeasonService {
     }
 
     private int normaliseSeasonId(Integer seasonId) throws ContributorSeasonException {
-        if (seasonId == null || seasonId <= 0) {
-            throw new ContributorSeasonException("Invalid season identifier.", Status.BAD_REQUEST);
+        if (seasonId == null) {
+            throw new ContributorSeasonException("Season identifier is required.", Status.BAD_REQUEST);
         }
         return seasonId;
     }

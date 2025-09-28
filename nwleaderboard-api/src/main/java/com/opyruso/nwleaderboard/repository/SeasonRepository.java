@@ -47,4 +47,14 @@ public class SeasonRepository implements PanacheRepositoryBase<Season, Integer> 
         }
         return find("dateBegin = ?1 AND dateEnd = ?2", dateBegin, dateEnd).firstResultOptional().isPresent();
     }
+
+    public int findNextAvailableId() {
+        Integer maxId =
+                getEntityManager().createQuery("SELECT MAX(s.id) FROM Season s", Integer.class).getSingleResult();
+        int candidate = (maxId != null ? maxId : 0) + 1;
+        while (existsById(candidate)) {
+            candidate++;
+        }
+        return candidate;
+    }
 }

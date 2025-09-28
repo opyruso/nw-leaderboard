@@ -173,12 +173,12 @@ export default function ContributeSeasons() {
     let payload = {};
 
     if (field === 'id') {
-      if (!rawValue || !/^\d+$/.test(rawValue)) {
+      if (!rawValue || !/^-?\d+$/.test(rawValue)) {
         setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
         return;
       }
       const numericValue = Number.parseInt(rawValue, 10);
-      if (!Number.isSafeInteger(numericValue) || numericValue <= 0) {
+      if (!Number.isSafeInteger(numericValue)) {
         setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
         return;
       }
@@ -186,7 +186,7 @@ export default function ContributeSeasons() {
         setActiveEdit(null);
         return;
       }
-      payload = { id: numericValue };
+      payload = { id: numericValue, previous_id: previousId };
     } else {
       if (!rawValue) {
         setFeedback({ type: 'error', text: t.contributeSeasonsDateRequired });
@@ -295,14 +295,14 @@ export default function ContributeSeasons() {
       setFeedback({ type: 'error', text: t.contributeSeasonsDateInvalid });
       return;
     }
-    if (idValue && !/^\d+$/.test(idValue)) {
+    if (idValue && !/^-?\d+$/.test(idValue)) {
       setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
       return;
     }
     const payload = { date_begin: beginValue, date_end: endValue };
     if (idValue) {
       const numericId = Number.parseInt(idValue, 10);
-      if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+      if (!Number.isSafeInteger(numericId)) {
         setFeedback({ type: 'error', text: t.contributeSeasonsIdInvalid });
         return;
       }
