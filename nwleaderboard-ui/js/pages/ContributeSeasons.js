@@ -186,7 +186,7 @@ export default function ContributeSeasons() {
         setActiveEdit(null);
         return;
       }
-      payload = { id: numericValue };
+      payload = { id: numericValue, previous_id: previousId };
     } else {
       if (!rawValue) {
         setFeedback({ type: 'error', text: t.contributeSeasonsDateRequired });

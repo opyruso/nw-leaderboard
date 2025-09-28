@@ -7,5 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public record ContributorSeasonUpdateRequest(
         Integer id,
+        @JsonProperty("previous_id") Integer previousId,
         @JsonProperty("date_begin") String dateBegin,
         @JsonProperty("date_end") String dateEnd) {}
