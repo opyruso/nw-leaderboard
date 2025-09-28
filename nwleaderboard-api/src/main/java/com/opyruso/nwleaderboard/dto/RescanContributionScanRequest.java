@@ -2,6 +2,7 @@ package com.opyruso.nwleaderboard.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
  * Payload used to request a reprocessing of a stored scan with a forced offset.
@@ -9,5 +10,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record RescanContributionScanRequest(
         @JsonProperty("offset") Integer offset,
+        @JsonProperty("offsets") List<Integer> offsets,
         @JsonProperty("region") String region) {
 }
