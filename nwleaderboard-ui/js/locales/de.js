@@ -52,6 +52,8 @@ const de = {
   contributeToggleCompactLabel: 'Kompakte Ansicht',
   contributeReadyForSubmission: 'Bereit zum Senden.',
   contributeMenuLabel: 'Bereiche für Mitwirkende',
+  contributeMenuOrganisation: 'Organisation',
+  contributeMenuData: 'Daten',
   contributeMenuDungeons: 'Dungeons',
   contributeMenuMutations: 'Wöchentliche Mutationen',
   contributeMenuSeasons: 'Saisonverwaltung',

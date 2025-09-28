@@ -52,6 +52,8 @@ const it = {
   contributeToggleCompactLabel: 'Layout compatto',
   contributeReadyForSubmission: 'Pronto per l’invio.',
   contributeMenuLabel: 'Sezioni contributore',
+  contributeMenuOrganisation: 'Organizzazione',
+  contributeMenuData: 'Dati',
   contributeMenuDungeons: 'Spedizioni',
   contributeMenuMutations: 'Mutazioni settimanali',
   contributeMenuSeasons: 'Gestione stagioni',

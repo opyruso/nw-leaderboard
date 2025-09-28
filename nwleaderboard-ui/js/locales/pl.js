@@ -52,6 +52,8 @@ const pl = {
   contributeToggleCompactLabel: 'Kompaktowy układ',
   contributeReadyForSubmission: 'Gotowe do wysłania.',
   contributeMenuLabel: 'Sekcje kontrybutora',
+  contributeMenuOrganisation: 'Organizacja',
+  contributeMenuData: 'Dane',
   contributeMenuDungeons: 'Lochy',
   contributeMenuMutations: 'Mutacje tygodniowe',
   contributeMenuSeasons: 'Zarządzanie sezonami',

@@ -52,6 +52,8 @@ const pt = {
   contributeToggleCompactLabel: 'Layout compacto',
   contributeReadyForSubmission: 'Pronto para envio.',
   contributeMenuLabel: 'Seções do contribuidor',
+  contributeMenuOrganisation: 'Organização',
+  contributeMenuData: 'Dados',
   contributeMenuDungeons: 'Masmorras',
   contributeMenuMutations: 'Mutações semanais',
   contributeMenuSeasons: 'Gestão de temporadas',
