@@ -53,6 +53,8 @@ const es = {
   contributeToggleCompactLabel: 'Diseño compacto',
   contributeReadyForSubmission: 'Listo para enviar.',
   contributeMenuLabel: 'Secciones de colaboradores',
+  contributeMenuOrganisation: 'Organización',
+  contributeMenuData: 'Datos',
   contributeMenuDungeons: 'Mazmorras',
   contributeMenuMutations: 'Mutaciones semanales',
   contributeMenuSeasons: 'Gestión de temporadas',

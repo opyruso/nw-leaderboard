@@ -175,69 +175,82 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                     )}
                     aria-hidden={contributeMenuOpen ? undefined : 'true'}
                   >
-                    <li>
-                      <SiteNavLink
-                        to="/contribute"
-                        className="site-nav__sublink"
-                        end
-                        onClick={closeMenus}
+                    <li className="site-nav__dropdown-section">
+                      <p className="site-nav__dropdown-title">{t.contributeMenuOrganisation}</p>
+                      <ul
+                        className="site-nav__dropdown-submenu"
+                        aria-label={t.contributeMenuOrganisation}
                       >
-                        {t.contributeMenuDungeons}
-                      </SiteNavLink>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute"
+                            className="site-nav__sublink"
+                            end
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuDungeons}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/mutations"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuMutations}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/seasons"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuSeasons}
+                          </SiteNavLink>
+                        </li>
+                      </ul>
                     </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/mutations"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuMutations}
-                      </SiteNavLink>
-                    </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/seasons"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuSeasons}
-                      </SiteNavLink>
-                    </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/import"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuImport}
-                      </SiteNavLink>
-                    </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/validate"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuValidate}
-                      </SiteNavLink>
-                    </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/stats"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuStats}
-                      </SiteNavLink>
-                    </li>
-                    <li>
-                      <SiteNavLink
-                        to="/contribute/players"
-                        className="site-nav__sublink"
-                        onClick={closeMenus}
-                      >
-                        {t.contributeMenuPlayers}
-                      </SiteNavLink>
+                    <li className="site-nav__dropdown-section">
+                      <p className="site-nav__dropdown-title">{t.contributeMenuData}</p>
+                      <ul className="site-nav__dropdown-submenu" aria-label={t.contributeMenuData}>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/import"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuImport}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/validate"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuValidate}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/stats"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuStats}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
+                            to="/contribute/players"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuPlayers}
+                          </SiteNavLink>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                 </li>

@@ -53,6 +53,8 @@ const fr = {
   contributeToggleCompactLabel: 'Présentation compacte',
   contributeReadyForSubmission: 'Prêt pour envoi.',
   contributeMenuLabel: 'Sections contributeur',
+  contributeMenuOrganisation: 'Organisation',
+  contributeMenuData: 'Données',
   contributeMenuDungeons: 'Donjons',
   contributeMenuMutations: 'Mutations hebdomadaires',
   contributeMenuSeasons: 'Gestion des saisons',

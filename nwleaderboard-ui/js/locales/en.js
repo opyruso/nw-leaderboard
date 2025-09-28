@@ -52,6 +52,8 @@ const en = {
   contributeToggleCompactLabel: 'Compact layout',
   contributeReadyForSubmission: 'Ready to submit.',
   contributeMenuLabel: 'Contributor sections',
+  contributeMenuOrganisation: 'Organisation',
+  contributeMenuData: 'Data',
   contributeMenuDungeons: 'Dungeons',
   contributeMenuMutations: 'Weekly mutations',
   contributeMenuSeasons: 'Season management',

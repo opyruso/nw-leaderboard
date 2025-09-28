@@ -52,6 +52,8 @@ const esmx = {
   contributeToggleCompactLabel: 'Diseño compacto',
   contributeReadyForSubmission: 'Listo para enviar.',
   contributeMenuLabel: 'Secciones para colaboradores',
+  contributeMenuOrganisation: 'Organización',
+  contributeMenuData: 'Datos',
   contributeMenuDungeons: 'Mazmorras',
   contributeMenuMutations: 'Mutaciones semanales',
   contributeMenuSeasons: 'Gestión de temporadas',
