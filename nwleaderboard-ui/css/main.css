@@ -1370,6 +1370,13 @@ body[data-theme='light'] .highlight-item {
   position: relative;
 }
 
+.highlight-metric-region {
+  font-size: 0.8rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
 body[data-theme='light'] .highlight-metric {
   background: var(--surface-light-soft);
   border-color: var(--border-light);

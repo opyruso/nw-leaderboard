@@ -63,6 +63,7 @@ function normaliseMetric(metric) {
   const week = metric.week ?? metric.period ?? metric.season ?? null;
   const players = normalisePlayers(metric.players);
   const mutations = extractMutationIds(metric);
+  const region = extractRegionId(metric);
   const position = toPositiveInteger(
     metric.position ?? metric.rank ?? metric.place ?? metric.standing ?? metric.pos,
   );
@@ -72,6 +73,7 @@ function normaliseMetric(metric) {
     position,
     players,
     mutations,
+    region,
   };
 }
 
@@ -216,6 +218,8 @@ export default function Home() {
               const scoreWeek = score && score.week ? score.week : null;
               const timeWeek = time && time.week ? time.week : null;
               const regionLabel = highlight.region ? translateRegion(t, highlight.region) : '';
+              const scoreRegionLabel = score?.region ? translateRegion(t, score.region) : '';
+              const timeRegionLabel = time?.region ? translateRegion(t, time.region) : '';
               return (
                 <li key={highlight.id} className="highlight-item">
                   <header className="highlight-header">
@@ -223,13 +227,6 @@ export default function Home() {
                       <DungeonIcon dungeonId={highlight.id} />
                       <span>{dungeonName}</span>
                     </h2>
-                    {highlight.playerCount ? (
-                      <span className="highlight-meta">
-                        {typeof t.contributeDungeonExpectedPlayers === 'function'
-                          ? t.contributeDungeonExpectedPlayers(highlight.playerCount)
-                          : `${t.contributeDungeonExpectedPlayers ?? ''} ${highlight.playerCount}`.trim()}
-                      </span>
-                    ) : null}
                   </header>
                   <div className="highlight-metrics">
                     <div className="highlight-metric">
@@ -273,6 +270,9 @@ export default function Home() {
                             );
                           })}
                         </ul>
+                      ) : null}
+                      {scoreRegionLabel ? (
+                        <span className="highlight-metric-region">{scoreRegionLabel}</span>
                       ) : null}
                       <MutationIconList
                         {...(score?.mutations ?? {})}
@@ -320,6 +320,9 @@ export default function Home() {
                             );
                           })}
                         </ul>
+                      ) : null}
+                      {timeRegionLabel ? (
+                        <span className="highlight-metric-region">{timeRegionLabel}</span>
                       ) : null}
                       <MutationIconList
                         {...(time?.mutations ?? {})}
