@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import jakarta.persistence.PersistenceException;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.core.Response.Status;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -95,18 +96,34 @@ public class ContributorSeasonService {
             return toResponse(season);
         }
 
+        LocalDate originalBegin = season.getDateBegin();
+        LocalDate originalEnd = season.getDateEnd();
+        LocalDate placeholderDate = findTemporaryDate();
+        season.setDateBegin(placeholderDate);
+        season.setDateEnd(placeholderDate);
+        try {
+            seasonRepository.flush();
+        } catch (PersistenceException e) {
+            season.setDateBegin(originalBegin);
+            season.setDateEnd(originalEnd);
+            throw new ContributorSeasonException(
+                    "Unable to update season identifier.", Status.CONFLICT, e);
+        }
+
         Season replacement = new Season();
         replacement.setId(requestedId);
         replacement.setDateBegin(nextBegin);
         replacement.setDateEnd(nextEnd);
-        replacement.setCreationDate(season.getCreationDate());
-        replacement.setCreationUser(season.getCreationUser());
-        replacement.setUpdateDate(season.getUpdateDate());
-        replacement.setUpdateUser(season.getUpdateUser());
-
         try {
             seasonRepository.persistAndFlush(replacement);
         } catch (PersistenceException e) {
+            season.setDateBegin(originalBegin);
+            season.setDateEnd(originalEnd);
+            try {
+                seasonRepository.flush();
+            } catch (PersistenceException ignored) {
+                // ignore secondary failure while attempting to restore original dates
+            }
             throw new ContributorSeasonException(
                     "Unable to update season identifier.", Status.CONFLICT, e);
         }
@@ -172,6 +189,43 @@ public class ContributorSeasonService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private LocalDate findTemporaryDate() throws ContributorSeasonException {
+        LocalDate candidate = searchAvailableDate(LocalDate.of(9999, 12, 31), -1);
+        if (candidate != null) {
+            return candidate;
+        }
+        candidate = searchAvailableDate(LocalDate.of(1900, 1, 1), 1);
+        if (candidate != null) {
+            return candidate;
+        }
+        candidate = searchAvailableDate(LocalDate.now(), 1);
+        if (candidate != null) {
+            return candidate;
+        }
+        throw new ContributorSeasonException("Unable to update season identifier.", Status.CONFLICT);
+    }
+
+    private LocalDate searchAvailableDate(LocalDate start, int step) {
+        LocalDate candidate = start;
+        for (int attempts = 0; attempts < 1000; attempts++) {
+            if (!dateInUse(candidate, candidate)) {
+                return candidate;
+            }
+            try {
+                candidate = candidate.plusDays(step);
+            } catch (DateTimeException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean dateInUse(LocalDate begin, LocalDate end) {
+        return seasonRepository.existsByDateBegin(begin)
+                || seasonRepository.existsByDateEnd(end)
+                || seasonRepository.existsByDateRange(begin, end);
     }
 
     public static class ContributorSeasonException extends Exception {

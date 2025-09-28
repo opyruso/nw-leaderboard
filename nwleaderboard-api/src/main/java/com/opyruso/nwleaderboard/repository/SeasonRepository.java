@@ -3,6 +3,7 @@ package com.opyruso.nwleaderboard.repository;
 import com.opyruso.nwleaderboard.entity.Season;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -24,5 +25,26 @@ public class SeasonRepository implements PanacheRepositoryBase<Season, Integer> 
             return false;
         }
         return findById(id) != null;
+    }
+
+    public boolean existsByDateBegin(LocalDate dateBegin) {
+        if (dateBegin == null) {
+            return false;
+        }
+        return find("dateBegin = ?1", dateBegin).firstResultOptional().isPresent();
+    }
+
+    public boolean existsByDateEnd(LocalDate dateEnd) {
+        if (dateEnd == null) {
+            return false;
+        }
+        return find("dateEnd = ?1", dateEnd).firstResultOptional().isPresent();
+    }
+
+    public boolean existsByDateRange(LocalDate dateBegin, LocalDate dateEnd) {
+        if (dateBegin == null || dateEnd == null) {
+            return false;
+        }
+        return find("dateBegin = ?1 AND dateEnd = ?2", dateBegin, dateEnd).firstResultOptional().isPresent();
     }
 }
