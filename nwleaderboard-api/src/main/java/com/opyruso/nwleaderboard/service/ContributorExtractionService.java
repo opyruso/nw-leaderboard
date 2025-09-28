@@ -254,7 +254,7 @@ public class ContributorExtractionService {
 
     private ContributionExtractionResponseDto processImage(ImagePayload payload, String regionId)
             throws ContributorRequestException {
-        ProcessedImage processed = processImagePayload(payload, null, regionId);
+        ProcessedImage processed = processImagePayload(payload, null, null, regionId);
         storeExtraction(payload, processed, regionId);
         return processed != null ? processed.response() : null;
     }
@@ -291,8 +291,8 @@ public class ContributorExtractionService {
         return null;
     }
 
-    private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset, String regionId)
-            throws ContributorRequestException {
+    private ProcessedImage processImagePayload(ImagePayload payload, Integer forcedOffset,
+            List<Integer> forcedRowOffsets, String regionId) throws ContributorRequestException {
         BufferedImage originalImage = payload.image();
         BufferedImage preparedImage = prepareContributorImage(originalImage);
 
@@ -313,7 +313,7 @@ public class ContributorExtractionService {
         ContributionFieldExtractionDto dungeonField = buildDungeonField(dungeonOcr, dungeonMatch, expectedPlayerCount);
 
         List<ContributionRunExtractionDto> rows = extractRows(originalImage, preparedImage, declaredMode,
-                expectedPlayerCount, regionId, forcedOffset);
+                expectedPlayerCount, regionId, forcedOffset, forcedRowOffsets);
         ensureRowCount(rows, expectedPlayerCount);
 
         ContributionExtractionResponseDto response = new ContributionExtractionResponseDto(weekField, dungeonField,
@@ -358,8 +358,8 @@ public class ContributorExtractionService {
     }
 
     @Transactional
-    public ContributionScanDetailDto rescanStoredScan(Long scanId, Integer forcedOffset, String requestedRegionId)
-            throws ContributorRequestException {
+    public ContributionScanDetailDto rescanStoredScan(Long scanId, Integer forcedOffset,
+            List<Integer> forcedRowOffsets, String requestedRegionId) throws ContributorRequestException {
         if (scanId == null) {
             return null;
         }
@@ -390,7 +390,7 @@ public class ContributorExtractionService {
         }
         String existingRegionId = existing.getRegion() != null ? existing.getRegion().getId() : null;
         String regionId = regionCandidate != null ? regionCandidate : existingRegionId;
-        ProcessedImage processed = processImagePayload(payload, forcedOffset, regionId);
+        ProcessedImage processed = processImagePayload(payload, forcedOffset, forcedRowOffsets, regionId);
         if (processed == null || processed.response() == null) {
             return null;
         }
@@ -939,7 +939,8 @@ public class ContributorExtractionService {
     }
 
     private List<ContributionRunExtractionDto> extractRows(BufferedImage originalImage, BufferedImage preparedImage,
-            ContributionMode declaredMode, int expectedPlayerCount, String regionId, Integer forcedOffset) {
+            ContributionMode declaredMode, int expectedPlayerCount, String regionId, Integer forcedOffset,
+            List<Integer> forcedRowOffsets) {
         List<Player> allPlayers = playerRepository.listAll();
         List<Player> knownPlayers = filterPlayersByRegion(allPlayers, regionId);
         Map<String, Player> knownPlayersByName = indexPlayersByName(knownPlayers);
@@ -949,6 +950,7 @@ public class ContributorExtractionService {
         int allowedMin = bounds.minOffset();
         int allowedMax = bounds.maxOffset();
 
+        int baseOffset;
         if (forcedOffset != null) {
             int clampedOffset = Math.max(allowedMin, Math.min(allowedMax, forcedOffset));
             if (!forcedOffset.equals(clampedOffset)) {
@@ -956,22 +958,56 @@ public class ContributorExtractionService {
             } else {
                 LOG.infof("Forced row scan offset %d applied", clampedOffset);
             }
-            RowsExtractionAttempt forcedAttempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                    knownPlayers, knownPlayersByName, clampedOffset, 0, RUNS_PER_IMAGE);
-            return forcedAttempt.rows();
+            baseOffset = clampedOffset;
+        } else {
+            int desiredOffset = 0;
+            if (desiredOffset < allowedMin) {
+                desiredOffset = allowedMin;
+            }
+            if (desiredOffset > allowedMax) {
+                desiredOffset = allowedMax;
+            }
+            baseOffset = desiredOffset;
         }
 
-        int desiredOffset = 0;
-        if (desiredOffset < allowedMin) {
-            desiredOffset = allowedMin;
-        }
-        if (desiredOffset > allowedMax) {
-            desiredOffset = allowedMax;
-        }
+        List<Integer> rowAdjustments = normaliseRowAdjustments(forcedRowOffsets, baseOffset, allowedMin, allowedMax);
 
         RowsExtractionAttempt attempt = extractRowsForOffset(originalImage, preparedImage, declaredMode, slotCount,
-                knownPlayers, knownPlayersByName, desiredOffset, 0, RUNS_PER_IMAGE);
+                knownPlayers, knownPlayersByName, baseOffset, 0, RUNS_PER_IMAGE, rowAdjustments);
         return attempt.rows();
+    }
+
+    private List<Integer> normaliseRowAdjustments(List<Integer> rawAdjustments, int baseOffset, int allowedMin,
+            int allowedMax) {
+        if (rawAdjustments == null || rawAdjustments.isEmpty()) {
+            return null;
+        }
+        List<Integer> adjustments = new ArrayList<>(RUNS_PER_IMAGE);
+        boolean hasNonZero = false;
+        for (int rowIndex = 0; rowIndex < RUNS_PER_IMAGE; rowIndex++) {
+            Integer raw = rowIndex < rawAdjustments.size() ? rawAdjustments.get(rowIndex) : null;
+            if (raw == null) {
+                adjustments.add(0);
+                continue;
+            }
+            int candidate = raw.intValue();
+            int rowBase = baseOffset + rowIndex * PLAYER_ROW_STEP;
+            int rowMin = allowedMin + rowIndex * PLAYER_ROW_STEP;
+            int rowMax = allowedMax + rowIndex * PLAYER_ROW_STEP;
+            int desired = rowBase + candidate;
+            int clamped = Math.max(rowMin, Math.min(rowMax, desired));
+            int applied = clamped - rowBase;
+            if (desired != clamped) {
+                LOG.infof("Forced row %d adjustment %d clamped to %d", rowIndex + 1, candidate, applied);
+            } else if (candidate != 0) {
+                LOG.infof("Forced row %d adjustment %d applied", rowIndex + 1, candidate);
+            }
+            adjustments.add(applied);
+            if (applied != 0) {
+                hasNonZero = true;
+            }
+        }
+        return hasNonZero ? adjustments : null;
     }
 
     private List<Player> filterPlayersByRegion(List<Player> players, String regionId) {
@@ -1032,7 +1068,8 @@ public class ContributorExtractionService {
 
     private RowsExtractionAttempt extractRowsForOffset(BufferedImage originalImage, BufferedImage preparedImage,
             ContributionMode declaredMode, int slotCount, List<Player> knownPlayers,
-            Map<String, Player> knownPlayersByName, int baseVerticalOffset, int startRowIndex, int rowsToExtract) {
+            Map<String, Player> knownPlayersByName, int baseVerticalOffset, int startRowIndex, int rowsToExtract,
+            List<Integer> rowAdjustments) {
         int limitedSlotCount = Math.min(slotCount, MAX_PLAYER_SLOTS);
         int effectiveRows = Math.min(Math.max(rowsToExtract, 0), RUNS_PER_IMAGE - Math.max(startRowIndex, 0));
         if (effectiveRows <= 0) {
@@ -1045,7 +1082,14 @@ public class ContributorExtractionService {
 
         for (int rowOffset = 0; rowOffset < effectiveRows; rowOffset++) {
             int rowIndex = startRowIndex + rowOffset;
-            int yOffset = baseVerticalOffset + rowIndex * PLAYER_ROW_STEP;
+            int extraOffset = 0;
+            if (rowAdjustments != null && rowIndex >= 0 && rowIndex < rowAdjustments.size()) {
+                Integer candidate = rowAdjustments.get(rowIndex);
+                if (candidate != null) {
+                    extraOffset = candidate.intValue();
+                }
+            }
+            int yOffset = baseVerticalOffset + rowIndex * PLAYER_ROW_STEP + extraOffset;
             List<ContributionFieldExtractionDto> playerFields = new ArrayList<>(limitedSlotCount);
 
             for (int slotIndex = 0; slotIndex < limitedSlotCount; slotIndex++) {

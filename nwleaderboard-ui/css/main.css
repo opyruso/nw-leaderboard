@@ -2981,6 +2981,32 @@ body[data-theme='light'] .contribute-file-item--error {
   margin-left: auto;
 }
 
+.contribute-rescan-offsets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.contribute-rescan-offsets-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.contribute-rescan-offsets-inputs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.contribute-rescan-offset-input {
+  width: 4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--color-border, #e1e1e1);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
 .contribute-rescan-button {
   padding: 0.55rem 1.15rem;
   border-radius: 10px;

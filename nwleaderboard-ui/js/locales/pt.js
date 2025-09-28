@@ -38,6 +38,8 @@ const pt = {
   contributeRescan: 'Forçar nova varredura',
   contributeRescanning: 'Nova varredura…',
   contributeRescanPrompt: 'Informe o deslocamento vertical (em pixels):',
+  contributeRescanOffsetsLabel: 'Deslocamentos por linha (px)',
+  contributeRescanGroupOffsetLabel: (grupo) => `Deslocamento do grupo ${grupo} (px)`,
   contributeRescanError: 'Não foi possível reprocessar esta captura.',
   contributeRescanInvalid: 'Informe um deslocamento válido para repetir a varredura.',
   contributeRescanSuccess: 'Varredura reprocessada com sucesso.',

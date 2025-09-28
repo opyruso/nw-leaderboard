@@ -39,6 +39,8 @@ const es = {
   contributeRescan: 'Forzar reescaneo',
   contributeRescanning: 'Reescaneando…',
   contributeRescanPrompt: 'Introduce el desplazamiento vertical (píxeles) que se usará:',
+  contributeRescanOffsetsLabel: 'Desplazamientos por fila (px)',
+  contributeRescanGroupOffsetLabel: (grupo) => `Desplazamiento del grupo ${grupo} (px)`,
   contributeRescanError: 'No se puede reprocesar esta captura.',
   contributeRescanInvalid: 'Introduce un valor de desplazamiento válido para reescanear.',
   contributeRescanSuccess: 'Escaneo reprocesado correctamente.',

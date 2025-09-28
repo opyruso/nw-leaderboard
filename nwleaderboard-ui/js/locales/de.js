@@ -38,6 +38,8 @@ const de = {
   contributeRescan: 'Erneut scannen erzwingen',
   contributeRescanning: 'Erneuter Scan…',
   contributeRescanPrompt: 'Gib den vertikalen Versatz (Pixel) an:',
+  contributeRescanOffsetsLabel: 'Zeilen-Offsets (px)',
+  contributeRescanGroupOffsetLabel: (gruppe) => `Gruppen-Offset ${gruppe} (px)`,
   contributeRescanError: 'Dieser Scan konnte nicht erneut verarbeitet werden.',
   contributeRescanInvalid: 'Bitte einen gültigen Versatz eingeben, um erneut zu scannen.',
   contributeRescanSuccess: 'Scan erfolgreich erneut verarbeitet.',

@@ -38,6 +38,8 @@ const esmx = {
   contributeRescan: 'Forzar reescaneo',
   contributeRescanning: 'Reescaneando…',
   contributeRescanPrompt: 'Ingresa el desplazamiento vertical (en píxeles) a utilizar:',
+  contributeRescanOffsetsLabel: 'Desplazamientos por fila (px)',
+  contributeRescanGroupOffsetLabel: (grupo) => `Desplazamiento del grupo ${grupo} (px)`,
   contributeRescanError: 'No se puede reprocesar esta captura.',
   contributeRescanInvalid: 'Ingresa un valor de desplazamiento válido para reescanear.',
   contributeRescanSuccess: 'Escaneo reprocesado con éxito.',

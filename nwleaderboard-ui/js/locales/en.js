@@ -38,6 +38,8 @@ const en = {
   contributeRescan: 'Force re-scan',
   contributeRescanning: 'Re-scanning…',
   contributeRescanPrompt: 'Enter the vertical offset (pixels) to use:',
+  contributeRescanOffsetsLabel: 'Row offsets (px)',
+  contributeRescanGroupOffsetLabel: (group) => `Group ${group} offset (px)`,
   contributeRescanError: 'Unable to re-process this scan.',
   contributeRescanInvalid: 'Enter a valid offset value to re-scan this image.',
   contributeRescanSuccess: 'Scan reprocessed successfully.',

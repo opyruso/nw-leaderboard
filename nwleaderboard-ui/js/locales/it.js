@@ -38,6 +38,8 @@ const it = {
   contributeRescan: 'Forza nuova scansione',
   contributeRescanning: 'Nuova scansione…',
   contributeRescanPrompt: 'Inserisci l’offset verticale (in pixel) da utilizzare:',
+  contributeRescanOffsetsLabel: 'Offset per riga (px)',
+  contributeRescanGroupOffsetLabel: (gruppo) => `Offset gruppo ${gruppo} (px)`,
   contributeRescanError: 'Impossibile riprocessare questa scansione.',
   contributeRescanInvalid: 'Inserisci un valore di offset valido per rieseguire la scansione.',
   contributeRescanSuccess: 'Scansione riprocessata con successo.',

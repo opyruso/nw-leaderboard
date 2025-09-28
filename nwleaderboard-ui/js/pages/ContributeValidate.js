@@ -391,6 +391,7 @@ export default function ContributeValidate() {
   const [compactView, setCompactView] = React.useState(false);
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [rescanning, setRescanning] = React.useState(false);
+  const [groupOffsets, setGroupOffsets] = React.useState(() => Array(5).fill('0'));
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
 
@@ -401,7 +402,31 @@ export default function ContributeValidate() {
     setErrorText('');
   }, []);
 
+  const handleGroupOffsetChange = React.useCallback((index, value) => {
+    setGroupOffsets((current) => {
+      const next = Array.isArray(current) ? [...current] : [];
+      while (next.length < 5) {
+        next.push('0');
+      }
+      next[index] = value;
+      return next;
+    });
+  }, []);
+
   const resultRegion = result?.region || '';
+  const offsetsLabel =
+    typeof t.contributeRescanOffsetsLabel === 'string'
+      ? t.contributeRescanOffsetsLabel
+      : 'Offsets (px)';
+  const getGroupOffsetLabel = React.useCallback(
+    (groupIndex) => {
+      if (typeof t.contributeRescanGroupOffsetLabel === 'function') {
+        return t.contributeRescanGroupOffsetLabel(groupIndex);
+      }
+      return `Group ${groupIndex} offset (px)`;
+    },
+    [t],
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -661,6 +686,10 @@ export default function ContributeValidate() {
       return changed ? next : current;
     });
   }, [groupedScans]);
+
+  React.useEffect(() => {
+    setGroupOffsets(Array(5).fill('0'));
+  }, [selectedScanId]);
 
   const updateResult = React.useCallback((updater) => {
     setResult((current) => {
@@ -1753,16 +1782,18 @@ export default function ContributeValidate() {
       return;
     }
     resetFeedback();
-    const promptLabel = t.contributeRescanPrompt || 'Enter the vertical offset (pixels) to use:';
-    const input = window.prompt(promptLabel);
-    if (input === null) {
-      return;
-    }
-    const parsed = Number.parseInt(input, 10);
-    if (!Number.isFinite(parsed)) {
-      setErrorKey('contributeRescanInvalid');
-      return;
-    }
+    const sanitizedOffsets = Array.from({ length: 5 }, (_, index) => {
+      const raw = index < groupOffsets.length ? groupOffsets[index] : '0';
+      if (typeof raw !== 'string') {
+        return 0;
+      }
+      const trimmed = raw.trim();
+      if (trimmed === '') {
+        return 0;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isFinite(parsed) ? parsed : 0;
+    });
     const regionValue = resultRegion || selectedRegion || (regions.length ? regions[0] : '');
     setRescanning(true);
     try {
@@ -1771,7 +1802,7 @@ export default function ContributeValidate() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ offset: parsed, region: regionValue || null }),
+        body: JSON.stringify({ offsets: sanitizedOffsets, region: regionValue || null }),
       });
       let data = null;
       try {
@@ -1949,14 +1980,36 @@ export default function ContributeValidate() {
                 <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
                 <div className="contribute-results-actions">
                   {selectedScanId ? (
-                    <button
-                      type="button"
-                      className="contribute-rescan-button"
-                      onClick={handleRescan}
-                      disabled={rescanning || loadingDetail}
-                    >
-                      {rescanning ? t.contributeRescanning : t.contributeRescan}
-                    </button>
+                    <>
+                      <div className="contribute-rescan-offsets">
+                        <span className="contribute-rescan-offsets-label">{offsetsLabel}</span>
+                        <div className="contribute-rescan-offsets-inputs">
+                          {Array.from({ length: 5 }).map((_, index) => {
+                            const value = index < groupOffsets.length ? groupOffsets[index] : '0';
+                            const inputLabel = getGroupOffsetLabel(index + 1);
+                            return (
+                              <input
+                                key={`group-offset-${index}`}
+                                type="number"
+                                className="contribute-rescan-offset-input"
+                                value={value}
+                                onChange={(event) => handleGroupOffsetChange(index, event.target.value)}
+                                aria-label={inputLabel}
+                                disabled={rescanning || loadingDetail}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="contribute-rescan-button"
+                        onClick={handleRescan}
+                        disabled={rescanning || loadingDetail}
+                      >
+                        {rescanning ? t.contributeRescanning : t.contributeRescan}
+                      </button>
+                    </>
                   ) : null}
                   <label className="contribute-toggle-success">
                     <input

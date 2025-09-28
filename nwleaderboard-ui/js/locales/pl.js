@@ -38,6 +38,8 @@ const pl = {
   contributeRescan: 'Wymuś ponowne skanowanie',
   contributeRescanning: 'Ponowne skanowanie…',
   contributeRescanPrompt: 'Podaj przesunięcie pionowe (w pikselach):',
+  contributeRescanOffsetsLabel: 'Przesunięcia wierszy (px)',
+  contributeRescanGroupOffsetLabel: (grupa) => `Przesunięcie grupy ${grupa} (px)`,
   contributeRescanError: 'Nie można ponownie przetworzyć tego skanu.',
   contributeRescanInvalid: 'Podaj prawidłową wartość przesunięcia, aby skanować ponownie.',
   contributeRescanSuccess: 'Skan przetworzono ponownie.',

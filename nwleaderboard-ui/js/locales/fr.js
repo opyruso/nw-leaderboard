@@ -39,6 +39,8 @@ const fr = {
   contributeRescan: 'Re-scanner (offset forcé)',
   contributeRescanning: 'Re-scannage…',
   contributeRescanPrompt: 'Indiquez l\u2019offset vertical (en pixels) à utiliser :',
+  contributeRescanOffsetsLabel: 'Offsets par ligne (px)',
+  contributeRescanGroupOffsetLabel: (groupe) => `Offset groupe ${groupe} (px)`,
   contributeRescanError: 'Impossible de re-scanner cette capture.',
   contributeRescanInvalid: 'Saisissez un offset valide pour relancer le scan.',
   contributeRescanSuccess: 'Le scan a été retraité avec succès.',
