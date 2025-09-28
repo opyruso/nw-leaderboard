@@ -1,6 +1,8 @@
 import { LangContext } from '../i18n.js';
 import { loginWithPassword } from '../auth.js';
 
+const LANGUAGE_ORDER = ['en', 'fr', 'de', 'es', 'esmx', 'it', 'pl', 'pt'];
+
 export default function Login({ onLogin }) {
   const { t, lang, changeLang } = React.useContext(LangContext);
   const [form, setForm] = React.useState({
@@ -103,8 +105,11 @@ export default function Login({ onLogin }) {
             value={lang}
             onChange={(event) => changeLang(event.target.value)}
           >
-            <option value="en">English</option>
-            <option value="fr">Français</option>
+            {LANGUAGE_ORDER.map((code) => (
+              <option key={code} value={code}>
+                {t.languageOptions?.[code] || code}
+              </option>
+            ))}
           </select>
         </label>
       </div>

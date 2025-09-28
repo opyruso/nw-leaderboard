@@ -1,6 +1,8 @@
+import { LangContext } from './i18n.js';
 const { Link } = ReactRouterDOM;
 
 export default function Footer() {
+  const { t } = React.useContext(LangContext);
   const currentYear = new Date().getFullYear();
   const footerRef = React.useRef(null);
 
@@ -33,6 +35,13 @@ export default function Footer() {
     };
   }, []);
 
+  const brandText =
+    typeof t.footerBrand === 'function'
+      ? t.footerBrand(currentYear)
+      : t.footerBrand || `oPyRuSo (TM) 2025 - ${currentYear}`;
+  const footerLinksLabel = t.footerLinks || 'Footer links';
+  const suggestionLabel = t.footerSuggestionLink || 'Bug / Suggestion';
+
   return (
     <footer ref={footerRef} className="site-footer">
       <div className="site-footer__content">
@@ -43,13 +52,11 @@ export default function Footer() {
             alt=""
             aria-hidden="true"
           />
-          <span className="site-footer__brand-text">
-            oPyRuSo (TM) 2025 - {currentYear}
-          </span>
+          <span className="site-footer__brand-text">{brandText}</span>
         </small>
-        <nav className="site-footer__links" aria-label="Footer links">
+        <nav className="site-footer__links" aria-label={footerLinksLabel}>
           <Link className="site-footer__link" to="/suggestions">
-            Bug / Suggestion
+            {suggestionLabel}
           </Link>
         </nav>
       </div>

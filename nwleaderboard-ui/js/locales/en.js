@@ -1,5 +1,6 @@
 const en = {
   gameName: 'New World Leaderboard',
+  siteTitle: 'NWLeaderboard - PvE By oPy',
   home: 'Home',
   score: 'Score',
   time: 'Time',
@@ -182,6 +183,16 @@ const en = {
   regionSAE: 'SA East',
   regionAPS: 'AP Southeast',
   language: 'Language',
+  languageOptions: {
+    en: 'English',
+    fr: 'French',
+    de: 'German',
+    es: 'Spanish',
+    esmx: 'Spanish (Mexico)',
+    it: 'Italian',
+    pl: 'Polish',
+    pt: 'Portuguese',
+  },
   email: 'Email address',
   theme: 'Theme',
   themeDark: 'Dark',
@@ -376,6 +387,9 @@ const en = {
   },
   suggestionsAdminStatusLabel: 'Status',
   suggestionsAdminAuthor: (author) => `Author: ${author}`,
+  footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
+  footerLinks: 'Footer links',
+  footerSuggestionLink: 'Bug / Suggestion',
 };
 
 export default en;
