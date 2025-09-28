@@ -759,6 +759,20 @@ body[data-theme='light'] .theme-slider input[type='range']::-moz-range-thumb {
   box-shadow: 0 14px 28px rgba(124, 92, 255, 0.4);
 }
 
+.form-actions button.danger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.form-actions button.danger:hover:not(:disabled) {
+  box-shadow: 0 14px 28px rgba(220, 38, 38, 0.4);
+}
+
+.contribute-delete-actions {
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
 .contribute-dungeons {
   display: flex;
   flex-direction: column;
@@ -2993,18 +3007,17 @@ body[data-theme='light'] .contribute-file-item--error {
   font-size: 0.9rem;
 }
 
-.contribute-rescan-offsets-inputs {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.contribute-rescan-offsets-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  flex: 1 1 auto;
 }
 
-.contribute-rescan-offset-input {
-  width: 4rem;
-  padding: 0.35rem 0.45rem;
-  border: 1px solid var(--color-border, #e1e1e1);
-  border-radius: 6px;
-  font-size: 0.9rem;
+.contribute-rescan-offset-field {
+  flex: 1 1 120px;
+  min-width: 8rem;
+  margin-bottom: 0;
 }
 
 .contribute-rescan-button {

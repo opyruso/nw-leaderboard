@@ -391,6 +391,7 @@ export default function ContributeValidate() {
   const [compactView, setCompactView] = React.useState(false);
   const [savingDraft, setSavingDraft] = React.useState(false);
   const [rescanning, setRescanning] = React.useState(false);
+  const [deletingScan, setDeletingScan] = React.useState(false);
   const [groupOffsets, setGroupOffsets] = React.useState(() => Array(5).fill('0'));
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
@@ -1846,6 +1847,53 @@ export default function ContributeValidate() {
     }
   };
 
+  const handleDeleteScan = async () => {
+    if (!API_BASE_URL || !selectedScanId || deletingScan) {
+      return;
+    }
+    const confirmationMessage =
+      typeof t.contributeDeleteConfirm === 'string'
+        ? t.contributeDeleteConfirm
+        : 'Are you sure you want to delete this scan? This action cannot be undone.';
+    const confirmed = window.confirm(confirmationMessage);
+    if (!confirmed) {
+      return;
+    }
+
+    resetFeedback();
+    setDeletingScan(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/contributor/scans/${selectedScanId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (error) {
+          data = null;
+        }
+        const apiMessage = data && data.message ? data.message : null;
+        if (apiMessage) {
+          setErrorText(apiMessage);
+        } else {
+          setErrorKey('contributeDeleteError');
+        }
+        return;
+      }
+
+      setScans((current) => current.filter((scan) => scan && scan.id !== selectedScanId));
+      setSelectedScanId(null);
+      setResult(null);
+      setMessageKey('contributeDeleteSuccess');
+    } catch (error) {
+      console.warn('Unable to delete stored leaderboard scan', error);
+      setErrorKey('contributeDeleteError');
+    } finally {
+      setDeletingScan(false);
+    }
+  };
+
   const loadScanDetail = async (scanId) => {
     if (!API_BASE_URL || !scanId) {
       return;
@@ -1983,20 +2031,20 @@ export default function ContributeValidate() {
                     <>
                       <div className="contribute-rescan-offsets">
                         <span className="contribute-rescan-offsets-label">{offsetsLabel}</span>
-                        <div className="contribute-rescan-offsets-inputs">
+                        <div className="contribute-rescan-offsets-fields">
                           {Array.from({ length: 5 }).map((_, index) => {
                             const value = index < groupOffsets.length ? groupOffsets[index] : '0';
                             const inputLabel = getGroupOffsetLabel(index + 1);
                             return (
-                              <input
-                                key={`group-offset-${index}`}
-                                type="number"
-                                className="contribute-rescan-offset-input"
-                                value={value}
-                                onChange={(event) => handleGroupOffsetChange(index, event.target.value)}
-                                aria-label={inputLabel}
-                                disabled={rescanning || loadingDetail}
-                              />
+                              <label key={`group-offset-${index}`} className="form-field contribute-rescan-offset-field">
+                                <span>{inputLabel}</span>
+                                <input
+                                  type="number"
+                                  value={value}
+                                  onChange={(event) => handleGroupOffsetChange(index, event.target.value)}
+                                  disabled={rescanning || loadingDetail}
+                                />
+                              </label>
                             );
                           })}
                         </div>
@@ -2194,6 +2242,24 @@ export default function ContributeValidate() {
                   </button>
                 </div>
               </article>
+              {selectedScanId ? (
+                <div className="form-actions contribute-delete-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={handleDeleteScan}
+                    disabled={
+                      deletingScan ||
+                      loadingDetail ||
+                      rescanning ||
+                      savingDraft ||
+                      status === 'submitting'
+                    }
+                  >
+                    {deletingScan ? t.contributeDeleting : t.contributeDelete}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="form-hint">{t.contributeValidateSelect}</p>
