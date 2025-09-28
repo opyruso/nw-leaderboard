@@ -1607,6 +1607,14 @@ body[data-theme='light'] .leaderboard-chart {
   justify-content: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
+  position: sticky;
+  bottom: 0;
+  padding: 0.85rem clamp(1rem, 3vw, 1.5rem);
+  background: var(--surface-dark);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-dark);
+  box-shadow: 0 -12px 28px rgba(5, 8, 20, 0.45);
+  z-index: 10;
 }
 
 .leaderboard-page-size {
@@ -1646,6 +1654,14 @@ body[data-theme='light'] .leaderboard-chart {
   color: inherit;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.leaderboard-pagination-button span[aria-hidden='true'] {
+  display: inline-block;
+  min-width: 1.5ch;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: center;
 }
 
 .leaderboard-pagination-button:disabled {
@@ -1707,6 +1723,12 @@ body[data-theme='light'] .leaderboard-chart {
 body[data-theme='light'] .leaderboard-pagination-button {
   background: rgba(148, 163, 184, 0.1);
   border-color: rgba(148, 163, 184, 0.45);
+}
+
+body[data-theme='light'] .leaderboard-pagination {
+  background: var(--surface-light);
+  border-top-color: var(--border-light);
+  box-shadow: 0 -10px 26px rgba(148, 163, 184, 0.25);
 }
 
 body[data-theme='light'] .leaderboard-pagination-button:not(:disabled):hover,

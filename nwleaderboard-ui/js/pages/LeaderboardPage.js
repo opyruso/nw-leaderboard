@@ -1601,16 +1601,20 @@ export default function LeaderboardPage({
                   className="leaderboard-pagination-button"
                   onClick={handleFirstPage}
                   disabled={isFirstPage}
+                  aria-label={t.leaderboardPaginationFirst}
+                  title={t.leaderboardPaginationFirst}
                 >
-                  {t.leaderboardPaginationFirst}
+                  <span aria-hidden="true">{'<<'}</span>
                 </button>
                 <button
                   type="button"
                   className="leaderboard-pagination-button"
                   onClick={handlePreviousPage}
                   disabled={isFirstPage}
+                  aria-label={t.leaderboardPaginationPrevious}
+                  title={t.leaderboardPaginationPrevious}
                 >
-                  {t.leaderboardPaginationPrevious}
+                  <span aria-hidden="true">{'<'}</span>
                 </button>
                 <div className="leaderboard-pagination-status">
                 <span className="leaderboard-pagination-page-label">
@@ -1637,16 +1641,20 @@ export default function LeaderboardPage({
                   className="leaderboard-pagination-button"
                   onClick={handleNextPage}
                   disabled={isLastPage}
+                  aria-label={t.leaderboardPaginationNext}
+                  title={t.leaderboardPaginationNext}
                 >
-                  {t.leaderboardPaginationNext}
+                  <span aria-hidden="true">{'>'}</span>
                 </button>
                 <button
                   type="button"
                   className="leaderboard-pagination-button"
                   onClick={handleLastPage}
                   disabled={isLastPage}
+                  aria-label={t.leaderboardPaginationLast}
+                  title={t.leaderboardPaginationLast}
                 >
-                  {t.leaderboardPaginationLast}
+                  <span aria-hidden="true">{'>>'}</span>
                 </button>
               </nav>
             </>
