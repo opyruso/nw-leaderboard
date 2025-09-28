@@ -12,6 +12,7 @@ import {
 import { extractMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
+import { extractRegionId, translateRegion } from '../regions.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -92,6 +93,7 @@ function normaliseHighlight(entry, index) {
   const playerCount = toPositiveInteger(entry.player_count ?? entry.playerCount);
   const score = normaliseMetric(entry.best_score ?? entry.score ?? entry.bestScore);
   const time = normaliseMetric(entry.best_time ?? entry.time ?? entry.bestTime);
+  const region = extractRegionId(entry);
   return {
     id,
     names,
@@ -100,6 +102,7 @@ function normaliseHighlight(entry, index) {
     playerCount,
     score,
     time,
+    region,
   };
 }
 
@@ -212,6 +215,7 @@ export default function Home() {
               const timeValue = time ? formatTime(time.value) : t.highlightNoTime;
               const scoreWeek = score && score.week ? score.week : null;
               const timeWeek = time && time.week ? time.week : null;
+              const regionLabel = highlight.region ? translateRegion(t, highlight.region) : '';
               return (
                 <li key={highlight.id} className="highlight-item">
                   <header className="highlight-header">
@@ -323,6 +327,11 @@ export default function Home() {
                       />
                     </div>
                   </div>
+                  {regionLabel ? (
+                    <div className="highlight-footer">
+                      <span className="highlight-region">{regionLabel}</span>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
