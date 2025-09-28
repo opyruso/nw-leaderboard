@@ -164,17 +164,6 @@ function normaliseSeasonOption(option) {
   };
 }
 
-function getSeasonLabelById(list, seasonId) {
-  const numericId = Number(seasonId);
-  if (!Number.isFinite(numericId)) {
-    return '';
-  }
-  const match = Array.isArray(list)
-    ? list.find((item) => Number.isFinite(item?.id) && Number(item.id) === numericId)
-    : null;
-  return match ? match.label || String(match.id) : '';
-}
-
 function sortSeasonOptions(list) {
   if (!Array.isArray(list)) {
     return [];
@@ -698,7 +687,11 @@ export default function ContributeMutations() {
       : [];
     const rawValue = entry[field];
     const value = rawValue === undefined || rawValue === null ? '' : rawValue;
-    const displayValue = isSeasonField ? getSeasonLabelById(optionsList, value) : value || label;
+    const displayValue = isSeasonField
+      ? value === undefined || value === null || value === ''
+        ? ''
+        : String(value)
+      : value || label;
 
     return (
       <td
