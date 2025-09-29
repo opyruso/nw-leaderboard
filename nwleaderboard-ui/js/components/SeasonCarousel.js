@@ -11,6 +11,7 @@ export default function SeasonCarousel({
   emptyLabel,
   formatSeasonLabel,
   formatSeasonTitle,
+  displayRange = true,
 }) {
   const handleSelect = React.useCallback(
     (value) => {
@@ -55,11 +56,24 @@ export default function SeasonCarousel({
           const seasonId = String(season.id);
           const labelText =
             typeof formatSeasonLabel === 'function' ? formatSeasonLabel(season) : `Season ${seasonId}`;
-          const titleText =
+          const rawTitle =
             typeof formatSeasonTitle === 'function'
               ? formatSeasonTitle(season)
               : labelText;
+          const titleText = typeof rawTitle === 'string' ? rawTitle.trim() : '';
+          const rangeText = season.dateBegin || season.dateEnd ? formatSeasonRange(season.dateBegin, season.dateEnd) : '';
           const isActive = seasonId === activeId;
+          const tooltipParts = [];
+          if (titleText) {
+            tooltipParts.push(titleText);
+          }
+          if (!displayRange && rangeText) {
+            const alreadyIncluded = titleText && titleText.includes(rangeText);
+            if (!alreadyIncluded) {
+              tooltipParts.push(rangeText);
+            }
+          }
+          const tooltip = tooltipParts.join(' — ');
           return (
             <button
               key={seasonId}
@@ -67,14 +81,12 @@ export default function SeasonCarousel({
               className={isActive ? 'season-carousel-item selected' : 'season-carousel-item'}
               onClick={() => handleSelect(seasonId)}
               aria-pressed={isActive}
-              title={titleText || undefined}
+              title={tooltip || undefined}
               role="listitem"
             >
               <span className="season-carousel-item-label">{labelText}</span>
-              {season.dateBegin || season.dateEnd ? (
-                <span className="season-carousel-item-range">
-                  {formatSeasonRange(season.dateBegin, season.dateEnd)}
-                </span>
+              {displayRange && rangeText ? (
+                <span className="season-carousel-item-range">{rangeText}</span>
               ) : null}
             </button>
           );
