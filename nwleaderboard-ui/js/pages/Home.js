@@ -50,7 +50,16 @@ function normalisePlayers(players) {
       return;
     }
     seen.add(key);
-    normalised.push({ id, name });
+
+    const normalisedPlayer = { ...player };
+    if (id !== null) {
+      normalisedPlayer.id = id;
+    }
+    normalisedPlayer.name = name;
+    if (!normalisedPlayer.playerName) {
+      normalisedPlayer.playerName = name;
+    }
+    normalised.push(normalisedPlayer);
   });
   return normalised;
 }
