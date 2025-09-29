@@ -9,12 +9,14 @@ import com.opyruso.nwleaderboard.entity.RunTime;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,8 +37,11 @@ public class PlayerProfileService {
     @Inject
     RunTimeRepository runTimeRepository;
 
+    @Inject
+    WeekMutationDungeonRepository weekMutationDungeonRepository;
+
     @Transactional(Transactional.TxType.SUPPORTS)
-    public Optional<PlayerProfileResponse> getProfile(Long playerId) {
+    public Optional<PlayerProfileResponse> getProfile(Long playerId, Integer seasonId) {
         if (playerId == null) {
             return Optional.empty();
         }
@@ -47,7 +52,9 @@ public class PlayerProfileService {
 
         LinkedHashMap<Long, PlayerDungeonAggregate> aggregates = new LinkedHashMap<>();
 
-        List<RunScore> scoreRuns = runScoreRepository.listBestByPlayer(playerId);
+        LinkedHashSet<Integer> allowedWeeks = resolveAllowedWeeks(seasonId);
+
+        List<RunScore> scoreRuns = runScoreRepository.listBestByPlayer(playerId, allowedWeeks);
         for (RunScore run : scoreRuns) {
             if (run == null) {
                 continue;
@@ -64,7 +71,7 @@ public class PlayerProfileService {
             }
         }
 
-        List<RunTime> timeRuns = runTimeRepository.listBestByPlayer(playerId);
+        List<RunTime> timeRuns = runTimeRepository.listBestByPlayer(playerId, allowedWeeks);
         for (RunTime run : timeRuns) {
             if (run == null) {
                 continue;
@@ -81,10 +88,14 @@ public class PlayerProfileService {
             }
         }
 
-        Map<Long, Integer> minScores = runScoreRepository.findMinimumScoresByDungeonIds(aggregates.keySet());
-        Map<Long, Integer> maxScores = runScoreRepository.findMaximumScoresByDungeonIds(aggregates.keySet());
-        Map<Long, Integer> minTimes = runTimeRepository.findMinimumTimesByDungeonIds(aggregates.keySet());
-        Map<Long, Integer> maxTimes = runTimeRepository.findMaximumTimesByDungeonIds(aggregates.keySet());
+        Map<Long, Integer> minScores =
+                runScoreRepository.findMinimumScoresByDungeonIds(aggregates.keySet(), allowedWeeks);
+        Map<Long, Integer> maxScores =
+                runScoreRepository.findMaximumScoresByDungeonIds(aggregates.keySet(), allowedWeeks);
+        Map<Long, Integer> minTimes =
+                runTimeRepository.findMinimumTimesByDungeonIds(aggregates.keySet(), allowedWeeks);
+        Map<Long, Integer> maxTimes =
+                runTimeRepository.findMaximumTimesByDungeonIds(aggregates.keySet(), allowedWeeks);
 
         for (Map.Entry<Long, PlayerDungeonAggregate> entry : aggregates.entrySet()) {
             if (entry == null) {
@@ -110,6 +121,26 @@ public class PlayerProfileService {
         PlayerProfileResponse response = new PlayerProfileResponse(
                 player.getId(), player.getPlayerName(), regionId, mainId, mainName, dungeonSummaries);
         return Optional.of(response);
+    }
+
+    private LinkedHashSet<Integer> resolveAllowedWeeks(Integer seasonId) {
+        if (seasonId == null) {
+            return null;
+        }
+        LinkedHashSet<Integer> weeks = new LinkedHashSet<>();
+        if (seasonId <= 0) {
+            return weeks;
+        }
+        List<Integer> result = weekMutationDungeonRepository.findWeekNumbersBySeason(null, seasonId);
+        if (result == null || result.isEmpty()) {
+            return weeks;
+        }
+        for (Integer week : result) {
+            if (week != null) {
+                weeks.add(week);
+            }
+        }
+        return weeks;
     }
 
     private List<PlayerDungeonBestResponse> buildDungeonSummaries(Map<Long, PlayerDungeonAggregate> aggregates) {

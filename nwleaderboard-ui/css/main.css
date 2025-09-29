@@ -2488,6 +2488,107 @@ body[data-theme='light'] .player-dungeon-card {
   width: 3rem;
 }
 
+.season-carousel {
+  margin: 1.25rem 0;
+}
+
+.season-carousel-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.season-carousel-track {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+}
+
+.season-carousel-track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.season-carousel-track::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
+}
+
+.season-carousel-item {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.12);
+  color: inherit;
+  padding: 0.55rem 0.95rem;
+  min-width: 5.5rem;
+  text-align: center;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  scroll-snap-align: start;
+}
+
+.season-carousel-item-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.season-carousel-item-range {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.season-carousel-item.selected {
+  border-color: rgba(124, 92, 255, 0.85);
+  background: rgba(124, 92, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+}
+
+.season-carousel-item:not(.selected):hover,
+.season-carousel-item:not(.selected):focus-visible {
+  outline: none;
+  border-color: rgba(124, 92, 255, 0.6);
+  background: rgba(124, 92, 255, 0.16);
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18);
+}
+
+.season-carousel-status {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.season-carousel-status.error {
+  color: #ff9c9c;
+  opacity: 1;
+}
+
+body[data-theme='light'] .season-carousel-item {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.05);
+}
+
+body[data-theme='light'] .season-carousel-item.selected {
+  border-color: rgba(94, 53, 177, 0.75);
+  background: rgba(94, 53, 177, 0.18);
+  box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.25);
+}
+
+body[data-theme='light'] .season-carousel-item:not(.selected):hover,
+body[data-theme='light'] .season-carousel-item:not(.selected):focus-visible {
+  border-color: rgba(94, 53, 177, 0.6);
+  background: rgba(94, 53, 177, 0.15);
+}
+
+body[data-theme='light'] .season-carousel-status.error {
+  color: #c62828;
+}
+
 .leaderboard-status {
   margin: 0;
   font-size: 1.05rem;

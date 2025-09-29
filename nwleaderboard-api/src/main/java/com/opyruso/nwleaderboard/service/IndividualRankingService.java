@@ -10,6 +10,7 @@ import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -44,6 +46,9 @@ public class IndividualRankingService {
     @Inject
     RunTimePlayerRepository runTimePlayerRepository;
 
+    @Inject
+    WeekMutationDungeonRepository weekMutationDungeonRepository;
+
     public enum Mode {
         GLOBAL,
         SCORE,
@@ -62,12 +67,19 @@ public class IndividualRankingService {
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
-    public List<IndividualRankingEntryResponse> getRanking(Mode mode) {
+    public List<IndividualRankingEntryResponse> getRanking(Mode mode, Integer seasonId) {
         Map<Long, String> playerNames = new HashMap<>();
         Map<Long, String> playerRegions = new HashMap<>();
 
-        Map<Long, Map<Integer, Integer>> scorePlacements = computeScorePlacements(playerNames, playerRegions);
-        Map<Long, Map<Integer, Integer>> timePlacements = computeTimePlacements(playerNames, playerRegions);
+        Set<Integer> allowedWeeks = resolveAllowedWeeks(seasonId);
+        if (allowedWeeks != null && allowedWeeks.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Map<Integer, Integer>> scorePlacements =
+                computeScorePlacements(playerNames, playerRegions, allowedWeeks);
+        Map<Long, Map<Integer, Integer>> timePlacements =
+                computeTimePlacements(playerNames, playerRegions, allowedWeeks);
 
         if (scorePlacements.isEmpty() && timePlacements.isEmpty()) {
             return List.of();
@@ -179,8 +191,41 @@ public class IndividualRankingService {
         return List.copyOf(entries);
     }
 
+    private Set<Integer> resolveAllowedWeeks(Integer seasonId) {
+        if (seasonId == null) {
+            return null;
+        }
+        if (seasonId <= 0) {
+            return Set.of();
+        }
+        List<Integer> weeks = weekMutationDungeonRepository.findWeekNumbersBySeason(null, seasonId);
+        if (weeks == null || weeks.isEmpty()) {
+            return Set.of();
+        }
+        LinkedHashSet<Integer> unique = new LinkedHashSet<>();
+        for (Integer week : weeks) {
+            if (week != null) {
+                unique.add(week);
+            }
+        }
+        if (unique.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(unique);
+    }
+
+    private boolean isWeekAllowed(Integer week, Set<Integer> allowedWeeks) {
+        if (allowedWeeks == null) {
+            return true;
+        }
+        if (allowedWeeks.isEmpty()) {
+            return false;
+        }
+        return week != null && allowedWeeks.contains(week);
+    }
+
     private Map<Long, Map<Integer, Integer>> computeScorePlacements(
-            Map<Long, String> playerNames, Map<Long, String> playerRegions) {
+            Map<Long, String> playerNames, Map<Long, String> playerRegions, Set<Integer> allowedWeeks) {
         List<RunScore> runs = runScoreRepository
                 .find("ORDER BY week ASC, score DESC, id ASC")
                 .list();
@@ -196,6 +241,9 @@ public class IndividualRankingService {
             Integer week = run.getWeek();
             Integer score = run.getScore();
             if (week == null || score == null) {
+                continue;
+            }
+            if (!isWeekAllowed(week, allowedWeeks)) {
                 continue;
             }
             runsByWeek.computeIfAbsent(week, unused -> new ArrayList<>()).add(run);
@@ -268,7 +316,7 @@ public class IndividualRankingService {
     }
 
     private Map<Long, Map<Integer, Integer>> computeTimePlacements(
-            Map<Long, String> playerNames, Map<Long, String> playerRegions) {
+            Map<Long, String> playerNames, Map<Long, String> playerRegions, Set<Integer> allowedWeeks) {
         List<RunTime> runs = runTimeRepository
                 .find("ORDER BY week ASC, timeInSecond ASC, id ASC")
                 .list();
@@ -284,6 +332,9 @@ public class IndividualRankingService {
             Integer week = run.getWeek();
             Integer time = run.getTimeInSecond();
             if (week == null || time == null) {
+                continue;
+            }
+            if (!isWeekAllowed(week, allowedWeeks)) {
                 continue;
             }
             runsByWeek.computeIfAbsent(week, unused -> new ArrayList<>()).add(run);

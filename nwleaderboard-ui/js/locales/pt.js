@@ -7,6 +7,17 @@ const pt = {
   individual: 'Individual',
   player: 'Jogador',
   players: 'Jogadores',
+  seasonSelectorLabel: 'Temporada',
+  seasonSelectorAll: 'Todas as temporadas',
+  seasonSelectorLoading: 'Carregando temporadas…',
+  seasonSelectorError: 'Não foi possível carregar a lista de temporadas.',
+  seasonSelectorEmpty: 'Nenhuma temporada disponível.',
+  seasonSelectorItemLabel: (id) => `Temporada ${id}`,
+  seasonSelectorItemTitle: (id, start, end) => {
+    const inicio = start || '—';
+    const fim = end || '—';
+    return `Temporada ${id} (${inicio} – ${fim})`;
+  },
   login: 'Entrar',
   logout: 'Sair',
   register: 'Criar conta',

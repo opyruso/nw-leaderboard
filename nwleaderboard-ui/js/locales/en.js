@@ -7,6 +7,17 @@ const en = {
   individual: 'Individual',
   player: 'Player',
   players: 'Players',
+  seasonSelectorLabel: 'Season',
+  seasonSelectorAll: 'All seasons',
+  seasonSelectorLoading: 'Loading seasons…',
+  seasonSelectorError: 'Unable to load the season list.',
+  seasonSelectorEmpty: 'No seasons available.',
+  seasonSelectorItemLabel: (id) => `Season ${id}`,
+  seasonSelectorItemTitle: (id, start, end) => {
+    const startLabel = start || '—';
+    const endLabel = end || '—';
+    return `Season ${id} (${startLabel} – ${endLabel})`;
+  },
   login: 'Log in',
   logout: 'Log out',
   register: 'Create account',

@@ -1,4 +1,6 @@
 import { LangContext } from '../i18n.js';
+import SeasonCarousel from '../components/SeasonCarousel.js';
+import { sortSeasons } from '../seasons.js';
 import { translateRegion, extractRegionId } from '../regions.js';
 const { Link } = ReactRouterDOM;
 
@@ -20,14 +22,86 @@ export default function Individual() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
   const [selectedRegion, setSelectedRegion] = React.useState('');
+  const [seasons, setSeasons] = React.useState([]);
+  const [seasonLoading, setSeasonLoading] = React.useState(false);
+  const [seasonError, setSeasonError] = React.useState(false);
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(null);
+  const [seasonInitialised, setSeasonInitialised] = React.useState(false);
 
   React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setSeasonLoading(true);
+    setSeasonError(false);
+
+    fetch(`${API_BASE_URL}/seasons`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load seasons: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const sorted = sortSeasons(Array.isArray(data) ? data : []);
+        setSeasons(sorted);
+        setSelectedSeasonId((previous) => {
+          if (seasonInitialised) {
+            if (previous === null || previous === undefined) {
+              return previous;
+            }
+            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
+            if (hasPrevious) {
+              return String(previous);
+            }
+            const [firstSeason] = sorted;
+            return firstSeason ? String(firstSeason.id) : null;
+          }
+          const [first] = sorted;
+          return first ? String(first.id) : null;
+        });
+      })
+      .catch((seasonFetchError) => {
+        if (!active || seasonFetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load seasons', seasonFetchError);
+        setSeasonError(true);
+        setSeasons([]);
+        if (!seasonInitialised) {
+          setSelectedSeasonId(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setSeasonLoading(false);
+          setSeasonInitialised(true);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!seasonInitialised) {
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     setLoading(true);
     setError(false);
 
-    const url = `${API_BASE_URL}/leaderboard/individual?mode=${encodeURIComponent(mode)}`;
+    const params = new URLSearchParams();
+    params.set('mode', mode);
+    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
+      params.set('seasonId', selectedSeasonId);
+    }
+    const url = `${API_BASE_URL}/leaderboard/individual?${params.toString()}`;
 
     fetch(url, { signal: controller.signal })
       .then((response) => {
@@ -61,7 +135,7 @@ export default function Individual() {
       active = false;
       controller.abort();
     };
-  }, [mode]);
+  }, [mode, seasonInitialised, selectedSeasonId]);
 
   const handleModeChange = React.useCallback((value) => {
     setMode(value);
@@ -69,6 +143,16 @@ export default function Individual() {
 
   const handleRegionChange = React.useCallback((value) => {
     setSelectedRegion((previous) => (previous === value ? previous : value));
+  }, []);
+
+  const handleSeasonSelect = React.useCallback((value) => {
+    setSelectedSeasonId((previous) => {
+      const next = value === null || value === undefined ? null : String(value);
+      if (previous === next) {
+        return previous;
+      }
+      return next;
+    });
   }, []);
 
   const regionOptions = React.useMemo(() => {
@@ -163,6 +247,28 @@ export default function Individual() {
       </div>
 
       <section className="individual-results" aria-live="polite">
+        <SeasonCarousel
+          label={t.seasonSelectorLabel}
+          loading={!seasonInitialised || seasonLoading}
+          error={seasonError}
+          seasons={seasons}
+          selectedSeasonId={selectedSeasonId}
+          onSelect={handleSeasonSelect}
+          allLabel={t.seasonSelectorAll}
+          loadingLabel={t.seasonSelectorLoading}
+          errorLabel={t.seasonSelectorError}
+          emptyLabel={t.seasonSelectorEmpty}
+          formatSeasonLabel={(season) =>
+            typeof t.seasonSelectorItemLabel === 'function'
+              ? t.seasonSelectorItemLabel(season.id)
+              : `Season ${season.id}`
+          }
+          formatSeasonTitle={(season) =>
+            typeof t.seasonSelectorItemTitle === 'function'
+              ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
+              : undefined
+          }
+        />
         {loading ? (
           <p className="individual-status">{t.individualLoading}</p>
         ) : error ? (
