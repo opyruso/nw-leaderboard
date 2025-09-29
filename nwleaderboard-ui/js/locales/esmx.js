@@ -46,6 +46,7 @@ const esmx = {
   contributeExtracting: 'Extrayendo…',
   contributeClear: 'Limpiar selección',
   contributeResultsTitle: 'Runs detectadas',
+  contributeOriginalScreenshotAlt: 'Captura original',
   contributeRescan: 'Forzar reescaneo',
   contributeRescanning: 'Reescaneando…',
   contributeRescanPrompt: 'Ingresa el desplazamiento vertical (en píxeles) a utilizar:',

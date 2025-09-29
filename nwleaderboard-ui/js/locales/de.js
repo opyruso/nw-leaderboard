@@ -46,6 +46,7 @@ const de = {
   contributeExtracting: 'Extrahiere…',
   contributeClear: 'Auswahl löschen',
   contributeResultsTitle: 'Erkannte Runs',
+  contributeOriginalScreenshotAlt: 'Original-Screenshot',
   contributeRescan: 'Erneut scannen erzwingen',
   contributeRescanning: 'Erneuter Scan…',
   contributeRescanPrompt: 'Gib den vertikalen Versatz (Pixel) an:',

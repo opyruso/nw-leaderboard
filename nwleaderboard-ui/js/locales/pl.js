@@ -46,6 +46,7 @@ const pl = {
   contributeExtracting: 'Wyodrębnianie…',
   contributeClear: 'Wyczyść wybór',
   contributeResultsTitle: 'Wykryte runy',
+  contributeOriginalScreenshotAlt: 'Oryginalny zrzut ekranu',
   contributeRescan: 'Wymuś ponowne skanowanie',
   contributeRescanning: 'Ponowne skanowanie…',
   contributeRescanPrompt: 'Podaj przesunięcie pionowe (w pikselach):',

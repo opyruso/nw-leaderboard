@@ -3362,6 +3362,59 @@ body[data-theme='light'] .contribute-file-item--error {
   flex-wrap: wrap;
 }
 
+.contribute-results-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.contribute-results-picture-button {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.contribute-results-picture-thumb {
+  display: block;
+  width: 128px;
+  height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  object-fit: cover;
+}
+
+body[data-theme='light'] .contribute-results-picture-thumb {
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.contribute-picture-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  cursor: zoom-out;
+  z-index: 1000;
+}
+
+.contribute-picture-modal-image {
+  max-width: min(1200px, 90vw);
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+body[data-theme='light'] .contribute-picture-modal-image {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
 .contribute-results-actions {
   display: flex;
   align-items: center;

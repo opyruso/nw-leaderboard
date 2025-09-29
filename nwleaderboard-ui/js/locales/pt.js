@@ -46,6 +46,7 @@ const pt = {
   contributeExtracting: 'Extraindo…',
   contributeClear: 'Limpar seleção',
   contributeResultsTitle: 'Runs detectadas',
+  contributeOriginalScreenshotAlt: 'Captura original',
   contributeRescan: 'Forçar nova varredura',
   contributeRescanning: 'Nova varredura…',
   contributeRescanPrompt: 'Informe o deslocamento vertical (em pixels):',

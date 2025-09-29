@@ -47,6 +47,7 @@ const fr = {
   contributeExtracting: 'Extraction…',
   contributeClear: 'Effacer la sélection',
   contributeResultsTitle: 'Runs détectés',
+  contributeOriginalScreenshotAlt: 'Capture d’écran originale',
   contributeRescan: 'Re-scanner (offset forcé)',
   contributeRescanning: 'Re-scannage…',
   contributeRescanPrompt: 'Indiquez l\u2019offset vertical (en pixels) à utiliser :',
