@@ -2541,9 +2541,20 @@ body[data-theme='light'] .player-dungeon-card {
   padding-bottom: 0.35rem;
   scroll-snap-type: x proximity;
   width: 100%;
+  scrollbar-width: none;
+  scrollbar-gutter: stable both-edges;
+}
+
+.season-carousel-track:hover {
+  scrollbar-width: thin;
 }
 
 .season-carousel-track::-webkit-scrollbar {
+  height: 0;
+  transition: height 0.2s ease;
+}
+
+.season-carousel-track:hover::-webkit-scrollbar {
   height: 6px;
 }
 
@@ -2554,11 +2565,11 @@ body[data-theme='light'] .player-dungeon-card {
 
 .season-carousel-item {
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(148, 163, 184, 0.12);
   color: inherit;
-  padding: 0.55rem 0.95rem;
+  padding: 0rem 0.5rem;
   min-width: 5.5rem;
   text-align: center;
   cursor: pointer;
@@ -2573,6 +2584,7 @@ body[data-theme='light'] .player-dungeon-card {
 .season-carousel-item-label {
   font-weight: 600;
   letter-spacing: 0.01em;
+  font-size: 0.8rem;
 }
 
 .season-carousel-item-range {

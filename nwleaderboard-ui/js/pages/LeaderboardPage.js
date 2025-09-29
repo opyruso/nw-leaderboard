@@ -14,7 +14,13 @@ import {
 } from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { translateRegion, extractRegionId, normaliseRegionList, DEFAULT_REGIONS } from '../regions.js';
-import { sortSeasons } from '../seasons.js';
+import {
+  sortSeasons,
+  findCurrentSeasonId,
+  SEASON_STORAGE_PREFIX,
+  loadStoredSeasonId,
+  saveStoredSeasonId,
+} from '../seasons.js';
 import { capitaliseWords } from '../text.js';
 import { ThemeContext } from '../theme.js';
 
@@ -205,7 +211,13 @@ export default function LeaderboardPage({
   const [seasons, setSeasons] = React.useState([]);
   const [seasonLoading, setSeasonLoading] = React.useState(false);
   const [seasonError, setSeasonError] = React.useState(false);
-  const [selectedSeasonId, setSelectedSeasonId] = React.useState(null);
+  const seasonStorageKey = React.useMemo(
+    () => `${SEASON_STORAGE_PREFIX}leaderboard:${mode || 'default'}`,
+    [mode],
+  );
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(() =>
+    loadStoredSeasonId(seasonStorageKey),
+  );
   const [seasonInitialised, setSeasonInitialised] = React.useState(false);
   const [mutationFilters, setMutationFilters] = React.useState(() => {
     if (storedFilters?.mutation) {
@@ -250,6 +262,20 @@ export default function LeaderboardPage({
       hasUserAdjustedRegionFiltersRef.current = true;
     }
   }, [storedFilters]);
+
+  React.useEffect(() => {
+    const storedSeason = loadStoredSeasonId(seasonStorageKey);
+    if (storedSeason === undefined) {
+      setSelectedSeasonId(undefined);
+      return;
+    }
+    setSelectedSeasonId((previous) => {
+      if (previous === storedSeason || (previous === null && storedSeason === null)) {
+        return previous;
+      }
+      return storedSeason;
+    });
+  }, [seasonStorageKey]);
 
   const handleMutationPanelToggle = React.useCallback(() => {
     setIsMutationCollapsed((previous) => !previous);
@@ -400,23 +426,32 @@ export default function LeaderboardPage({
           return;
         }
         const sorted = sortSeasons(Array.isArray(data) ? data : []);
+        const availableIds = sorted.map((season) => String(season.id));
+        const currentSeasonId = findCurrentSeasonId(sorted);
+        const fallbackSeasonId =
+          currentSeasonId && availableIds.includes(currentSeasonId)
+            ? currentSeasonId
+            : availableIds[0] ?? null;
         setSeasons(sorted);
         setSelectedSeasonId((previous) => {
-          const availableIds = sorted.map((season) => String(season.id));
-          if (seasonInitialised) {
-            if (previous === null || previous === undefined) {
-              return previous;
-            }
-            const previousId = String(previous);
-            const hasPrevious = availableIds.includes(previousId);
-            if (hasPrevious) {
-              return previousId;
-            }
-            const [firstSeason] = sorted;
-            return firstSeason ? String(firstSeason.id) : null;
+          const normalisedPrevious =
+            previous === null || previous === undefined ? previous : String(previous);
+          if (normalisedPrevious === null) {
+            return null;
           }
-          const [first] = sorted;
-          return first ? String(first.id) : null;
+          if (seasonInitialised) {
+            if (
+              typeof normalisedPrevious === 'string' &&
+              availableIds.includes(normalisedPrevious)
+            ) {
+              return normalisedPrevious;
+            }
+            return fallbackSeasonId ?? null;
+          }
+          if (typeof normalisedPrevious === 'string' && availableIds.includes(normalisedPrevious)) {
+            return normalisedPrevious;
+          }
+          return fallbackSeasonId ?? null;
         });
       })
       .catch((fetchError) => {
@@ -913,6 +948,10 @@ export default function LeaderboardPage({
     saveStoredFilters(mode, mutationFilters, regionFilters, selectedDungeon);
   }, [mode, mutationFilters, regionFilters, selectedDungeon]);
 
+  React.useEffect(() => {
+    saveStoredSeasonId(seasonStorageKey, selectedSeasonId);
+  }, [seasonStorageKey, selectedSeasonId]);
+
   const getMutationIconSource = React.useCallback(
     (kind, id) => {
       if (!id) {
@@ -1246,6 +1285,7 @@ export default function LeaderboardPage({
   const seasonCarousel = (
     <SeasonCarousel
       label={t.seasonSelectorLabel}
+      hideLabel
       loading={!seasonInitialised || seasonLoading}
       error={seasonError}
       seasons={seasons}
