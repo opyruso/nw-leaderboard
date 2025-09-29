@@ -64,21 +64,65 @@ function normalisePlayers(players) {
   return normalised;
 }
 
+function formatWeekLabel(t, week) {
+  if (week === undefined || week === null) {
+    return null;
+  }
+  if (typeof t.playerWeekLabel === 'function') {
+    return t.playerWeekLabel(week);
+  }
+  const baseLabel = t.highlightWeekLabel ?? t.playerWeekLabel ?? 'Week';
+  return `${baseLabel} ${week}`;
+}
+
+function formatSeasonLabel(t, season) {
+  if (season === undefined || season === null) {
+    return null;
+  }
+  if (typeof t.seasonSelectorItemLabel === 'function') {
+    return t.seasonSelectorItemLabel(season);
+  }
+  const baseLabel = t.highlightSeasonLabel ?? t.seasonSelectorLabel ?? 'Season';
+  return `${baseLabel} ${season}`;
+}
+
+function formatPeriodLabel(regionLabel, seasonLabel, weekLabel) {
+  const parts = [];
+  if (regionLabel) {
+    parts.push(regionLabel);
+  }
+  if (seasonLabel) {
+    parts.push(seasonLabel);
+  }
+  if (weekLabel) {
+    parts.push(weekLabel);
+  }
+  return parts.length > 0 ? parts.join(' - ') : null;
+}
+
 function normaliseMetric(metric) {
   if (!metric || typeof metric !== 'object') {
     return null;
   }
   const value = metric.value ?? metric.score ?? metric.time ?? metric.points ?? null;
-  const week = metric.week ?? metric.period ?? metric.season ?? null;
+  const week = metric.week ?? metric.period ?? null;
   const players = normalisePlayers(metric.players);
   const mutations = extractMutationIds(metric);
   const region = extractRegionId(metric);
+  const seasonValue =
+    metric.season ??
+    metric.season_id ??
+    metric.seasonId ??
+    metric.id_season ??
+    metric.idSeason ??
+    null;
   const position = toPositiveInteger(
     metric.position ?? metric.rank ?? metric.place ?? metric.standing ?? metric.pos,
   );
   return {
     value: Number.isFinite(value) ? value : toPositiveInteger(value),
     week: toPositiveInteger(week),
+    season: toPositiveInteger(seasonValue),
     position,
     players,
     mutations,
@@ -228,6 +272,20 @@ export default function Home() {
               const timeWeek = time && time.week ? time.week : null;
               const scoreRegionLabel = score?.region ? translateRegion(t, score.region) : '';
               const timeRegionLabel = time?.region ? translateRegion(t, time.region) : '';
+              const scoreSeasonLabel = formatSeasonLabel(t, score?.season);
+              const timeSeasonLabel = formatSeasonLabel(t, time?.season);
+              const scoreWeekLabel = formatWeekLabel(t, scoreWeek);
+              const timeWeekLabel = formatWeekLabel(t, timeWeek);
+              const scorePeriodLabel = formatPeriodLabel(
+                scoreRegionLabel,
+                scoreSeasonLabel,
+                scoreWeekLabel,
+              );
+              const timePeriodLabel = formatPeriodLabel(
+                timeRegionLabel,
+                timeSeasonLabel,
+                timeWeekLabel,
+              );
               const hasScoreMutations = hasMutationIds(score?.mutations);
               const hasTimeMutations = hasMutationIds(time?.mutations);
               return (
@@ -247,12 +305,8 @@ export default function Home() {
                       />
                       <span className="highlight-metric-label">{t.highlightScoreLabel ?? t.playerBestScore}</span>
                       <span className="highlight-metric-value">{scoreValue}</span>
-                      {scoreWeek ? (
-                        <span className="highlight-metric-week">
-                          {typeof t.playerWeekLabel === 'function'
-                            ? t.playerWeekLabel(scoreWeek)
-                            : `${t.highlightWeekLabel ?? 'Week'} ${scoreWeek}`}
-                        </span>
+                      {scorePeriodLabel ? (
+                        <span className="highlight-metric-week">{scorePeriodLabel}</span>
                       ) : null}
                       {score && score.players.length ? (
                         <ul className="highlight-player-list">
@@ -295,17 +349,12 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
-                      {scoreRegionLabel || hasScoreMutations ? (
+                      {hasScoreMutations ? (
                         <div className="highlight-metric-mutations">
-                          {scoreRegionLabel ? (
-                            <span className="highlight-metric-region">{scoreRegionLabel}</span>
-                          ) : null}
-                          {hasScoreMutations ? (
-                            <MutationIconList
-                              {...(score?.mutations ?? {})}
-                              className="highlight-mutation-icons"
-                            />
-                          ) : null}
+                          <MutationIconList
+                            {...(score?.mutations ?? {})}
+                            className="highlight-mutation-icons"
+                          />
                         </div>
                       ) : null}
                     </div>
@@ -317,12 +366,8 @@ export default function Home() {
                       />
                       <span className="highlight-metric-label">{t.highlightTimeLabel ?? t.playerBestTime}</span>
                       <span className="highlight-metric-value">{timeValue}</span>
-                      {timeWeek ? (
-                        <span className="highlight-metric-week">
-                          {typeof t.playerWeekLabel === 'function'
-                            ? t.playerWeekLabel(timeWeek)
-                            : `${t.highlightWeekLabel ?? 'Week'} ${timeWeek}`}
-                        </span>
+                      {timePeriodLabel ? (
+                        <span className="highlight-metric-week">{timePeriodLabel}</span>
                       ) : null}
                       {time && time.players.length ? (
                         <ul className="highlight-player-list">
@@ -365,17 +410,12 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
-                      {timeRegionLabel || hasTimeMutations ? (
+                      {hasTimeMutations ? (
                         <div className="highlight-metric-mutations">
-                          {timeRegionLabel ? (
-                            <span className="highlight-metric-region">{timeRegionLabel}</span>
-                          ) : null}
-                          {hasTimeMutations ? (
-                            <MutationIconList
-                              {...(time?.mutations ?? {})}
-                              className="highlight-mutation-icons"
-                            />
-                          ) : null}
+                          <MutationIconList
+                            {...(time?.mutations ?? {})}
+                            className="highlight-mutation-icons"
+                          />
                         </div>
                       ) : null}
                     </div>
