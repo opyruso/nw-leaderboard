@@ -2535,6 +2535,7 @@ body[data-theme='light'] .player-dungeon-card {
   overflow-x: auto;
   padding-bottom: 0.35rem;
   scroll-snap-type: x proximity;
+  width: 100%;
 }
 
 .season-carousel-track::-webkit-scrollbar {
