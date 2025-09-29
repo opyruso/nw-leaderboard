@@ -1827,7 +1827,21 @@ export default function LeaderboardPage({
                         ) : (
                           entry.players.map((player, index) => {
                             const displayName =
-                              player.displayName || player.playerName || t.leaderboardUnknownPlayer;
+                              player.playerName || player.displayName || t.leaderboardUnknownPlayer;
+                            const tooltip = player.isAlt
+                              ? player.mainName || player.tooltip || ''
+                              : player.tooltip || '';
+                            const nameClass = `leaderboard-player-name${player.isAlt ? ' player-alt-name' : ''}`;
+                            const nameContent = player.isAlt ? (
+                              <>
+                                <em>{displayName}</em>
+                                <span className="player-alt-indicator" aria-hidden="true">
+                                  *
+                                </span>
+                              </>
+                            ) : (
+                              displayName
+                            );
                             const playerKey = player.id ?? player.displayName ?? `player-${index}`;
                             return (
                               <li key={playerKey} className="leaderboard-player">
@@ -1835,13 +1849,13 @@ export default function LeaderboardPage({
                                   <Link
                                     to={`/player/${encodeURIComponent(player.id)}`}
                                     className="leaderboard-player-link"
-                                    title={player.tooltip || undefined}
+                                    title={tooltip || undefined}
                                   >
-                                    {displayName}
+                                    <span className={nameClass}>{nameContent}</span>
                                   </Link>
                                 ) : (
-                                  <span className="leaderboard-player-name" title={player.tooltip || undefined}>
-                                    {displayName}
+                                  <span className={nameClass} title={tooltip || undefined}>
+                                    {nameContent}
                                   </span>
                                 )}
                               </li>

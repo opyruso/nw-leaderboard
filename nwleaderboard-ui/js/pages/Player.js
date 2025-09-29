@@ -378,9 +378,14 @@ export default function Player({ canContribute = false }) {
 
           const info = formatPlayerLinkProps(entry);
           const id = info?.id;
-          const name = typeof info?.displayName === 'string' ? info.displayName.trim() : '';
+          const nameCandidate =
+            typeof info?.playerName === 'string' && info.playerName.trim()
+              ? info.playerName.trim()
+              : typeof info?.displayName === 'string'
+              ? info.displayName.trim()
+              : '';
 
-          if (!id || !name) {
+          if (!id || !nameCandidate) {
             return;
           }
 
@@ -389,7 +394,14 @@ export default function Player({ canContribute = false }) {
             return;
           }
           seen.add(key);
-          mapped.push({ id, name, tooltip: info.tooltip || '' });
+          const tooltip = info.isAlt ? info.mainName || info.tooltip || '' : info.tooltip || '';
+          mapped.push({
+            id,
+            name: nameCandidate,
+            tooltip,
+            isAlt: Boolean(info.isAlt),
+            mainName: info.mainName || '',
+          });
         });
 
         setSearchResults(mapped);
@@ -682,16 +694,19 @@ export default function Player({ canContribute = false }) {
   }, [preparedDungeons, lang, t]);
 
   const playerNameInfo = React.useMemo(() => getPlayerNames(profile), [profile]);
+  const playerPrimaryName = playerNameInfo.playerName || '';
+  const playerMainName = playerNameInfo.mainPlayerName || '';
+  const playerIsAlt = Boolean(playerNameInfo.isAlt);
 
-  const playerDisplayName = React.useMemo(() => {
-    if (!playerNameInfo.playerName) {
+  const playerHeadingName = React.useMemo(() => {
+    if (!playerPrimaryName) {
       return '';
     }
-    if (playerNameInfo.isAlt && playerNameInfo.mainPlayerName) {
-      return `${playerNameInfo.playerName} (${playerNameInfo.mainPlayerName})`;
+    if (playerIsAlt && playerMainName) {
+      return `${playerPrimaryName} (${playerMainName})`;
     }
-    return playerNameInfo.playerName;
-  }, [playerNameInfo]);
+    return playerPrimaryName;
+  }, [playerIsAlt, playerMainName, playerPrimaryName]);
 
   const playerIdentifier = React.useMemo(() => {
     if (profile && profile.playerId !== undefined && profile.playerId !== null) {
@@ -847,14 +862,14 @@ export default function Player({ canContribute = false }) {
     if (!hasPlayerId) {
       return capitaliseWords(t.playerBrowseTitle || '');
     }
-    if (playerDisplayName) {
-      return profileRegionLabel ? `[${profileRegionLabel}] ${playerDisplayName}` : playerDisplayName;
+    if (playerHeadingName) {
+      return playerHeadingName;
     }
     if (loading) {
       return capitaliseWords(t.playerLoadingTitle || '');
     }
     return capitaliseWords(t.playerNotFoundTitle || '');
-  }, [hasPlayerId, playerDisplayName, loading, profileRegionLabel, t]);
+  }, [hasPlayerId, playerHeadingName, loading, t]);
 
   const headingIconId = React.useMemo(() => {
     for (const dungeon of preparedDungeons) {
@@ -884,21 +899,37 @@ export default function Player({ canContribute = false }) {
         <span>{heading}</span>
       </h1>
       <section className="player-dungeon-section" aria-live="polite">
-        {hasPlayerId && (playerDisplayName || playerIdentifier) ? (
+        {hasPlayerId && (playerPrimaryName || playerIdentifier) ? (
           <header
             className={`player-profile-header${editingMainLink ? ' editing-main-link' : ''}`}
             onDoubleClick={canContribute ? handleTitleDoubleClick : undefined}
             title={canContribute ? t.playerMainLinkTitle || undefined : undefined}
           >
-            <h2 className="player-profile-name">
-              {playerDisplayName
-                || (playerIdentifier
-                  ? typeof t.playerIdLabel === 'function'
-                    ? t.playerIdLabel(playerIdentifier)
-                    : `ID #${playerIdentifier}`
-                  : '')}
+            {profileRegionLabel ? (
+              <span className="player-profile-region">[{profileRegionLabel}]</span>
+            ) : null}
+            <h2
+              className="player-profile-name"
+              title={playerIsAlt && playerMainName ? playerMainName : undefined}
+            >
+              {playerPrimaryName ? (
+                playerIsAlt ? (
+                  <span className="player-alt-name">
+                    <em>{playerPrimaryName}</em>
+                    <span className="player-alt-indicator" aria-hidden="true">*</span>
+                  </span>
+                ) : (
+                  playerPrimaryName
+                )
+              ) : playerIdentifier ? (
+                typeof t.playerIdLabel === 'function'
+                  ? t.playerIdLabel(playerIdentifier)
+                  : `ID #${playerIdentifier}`
+              ) : (
+                ''
+              )}
             </h2>
-            {playerDisplayName && playerIdentifier ? (
+            {playerPrimaryName && playerIdentifier ? (
               <p className="player-profile-identifier">
                 {typeof t.playerIdLabel === 'function'
                   ? t.playerIdLabel(playerIdentifier)
@@ -1036,6 +1067,15 @@ export default function Player({ canContribute = false }) {
                     typeof t.playerIdLabel === 'function'
                       ? t.playerIdLabel(player.id)
                       : `ID #${player.id}`;
+                  const nameClass = `player-search-result-name${player.isAlt ? ' player-alt-name' : ''}`;
+                  const nameContent = player.isAlt ? (
+                    <>
+                      <em>{player.name}</em>
+                      <span className="player-alt-indicator" aria-hidden="true">*</span>
+                    </>
+                  ) : (
+                    player.name
+                  );
                   return (
                     <li key={player.id} className="player-search-result">
                       <Link
@@ -1044,7 +1084,7 @@ export default function Player({ canContribute = false }) {
                         aria-label={label}
                         title={player.tooltip || undefined}
                       >
-                        <span className="player-search-result-name">{player.name}</span>
+                        <span className={nameClass}>{nameContent}</span>
                         <span className="player-search-result-id">{identifierLabel}</span>
                       </Link>
                     </li>

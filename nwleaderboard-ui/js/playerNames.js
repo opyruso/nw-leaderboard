@@ -74,8 +74,8 @@ export function getPlayerNames(player) {
 
   const playerId = getRawPlayerId(player);
   const isAlt = Boolean((mainPlayerId && mainPlayerId.length > 0) || (mainPlayerName && mainPlayerName.length > 0));
-  const displayName = isAlt && mainPlayerName ? `${mainPlayerName}*` : playerName;
-  const tooltip = isAlt ? playerName || mainPlayerName : '';
+  const displayName = playerName || mainPlayerName;
+  const tooltip = isAlt ? mainPlayerName || '' : '';
 
   return {
     playerName,
