@@ -1720,12 +1720,13 @@ body[data-theme='light'] .leaderboard-chart {
   gap: 0.75rem;
   flex-wrap: wrap;
   position: sticky;
-  bottom: calc(var(--site-footer-height, 0px) + clamp(0.75rem, 2vh, 1.25rem));
+  bottom: 12px;
   padding: 0.85rem clamp(1rem, 3vw, 1.5rem);
   background: var(--surface-dark);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border-dark);
   box-shadow: 0 -12px 28px rgba(5, 8, 20, 0.45);
+  border-radius: 0 0 18px 18px;
   z-index: 910;
 }
 
