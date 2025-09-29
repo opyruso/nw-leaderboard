@@ -1009,11 +1009,11 @@ export default function LeaderboardPage({
     if (!chartConfig) {
       return null;
     }
-
-    const weeks = Array.isArray(chartData?.weeks) ? chartData.weeks : [];
-    if (weeks.length === 0) {
+    if (!chartData) {
       return null;
     }
+
+    const weeks = Array.isArray(chartData?.weeks) ? chartData.weeks : [];
 
     const legendColor = theme === 'light' ? 'rgba(30, 41, 59, 0.78)' : 'rgba(226, 232, 240, 0.92)';
 
@@ -1064,10 +1064,6 @@ export default function LeaderboardPage({
         };
       })
       .filter(Boolean);
-
-    if (points.length === 0) {
-      return null;
-    }
 
     points.sort((a, b) => {
       if (a.numericWeek !== null && b.numericWeek !== null && a.numericWeek !== b.numericWeek) {
@@ -1229,6 +1225,23 @@ export default function LeaderboardPage({
       options,
     };
   }, [chartConfig, chartData, formatWeekLabel, t, theme]);
+
+  const chartSection = chartMemo ? (
+    <div className="leaderboard-chart">
+      {chartConfig?.chartTitle ? (
+        <h2 className="leaderboard-chart-title">{chartConfig.chartTitle}</h2>
+      ) : null}
+      <div className="leaderboard-chart-body">
+        <ChartCanvas
+          type="line"
+          data={chartMemo.data}
+          options={chartMemo.options}
+          ariaLabel={chartConfig?.ariaLabel}
+          className="leaderboard-chart-canvas"
+        />
+      </div>
+    </div>
+  ) : null;
 
   const seasonCarousel = (
     <SeasonCarousel
@@ -1721,32 +1734,19 @@ export default function LeaderboardPage({
             </>
           ) : entriesError ? (
             <>
+              {chartSection}
               {seasonCarousel}
               <p className="leaderboard-status error">{t.leaderboardError}</p>
             </>
           ) : sortedEntries.length === 0 ? (
             <>
+              {chartSection}
               {seasonCarousel}
               <p className="leaderboard-status">{t.leaderboardNoResults}</p>
             </>
           ) : (
             <>
-              {chartMemo ? (
-                <div className="leaderboard-chart">
-                  {chartConfig?.chartTitle ? (
-                    <h2 className="leaderboard-chart-title">{chartConfig.chartTitle}</h2>
-                  ) : null}
-                  <div className="leaderboard-chart-body">
-                    <ChartCanvas
-                      type="line"
-                      data={chartMemo.data}
-                      options={chartMemo.options}
-                      ariaLabel={chartConfig?.ariaLabel}
-                      className="leaderboard-chart-canvas"
-                    />
-                  </div>
-                </div>
-              ) : null}
+              {chartSection}
               {seasonCarousel}
               <ul className="leaderboard-list">
                 {displayEntries.map((entry) => {
