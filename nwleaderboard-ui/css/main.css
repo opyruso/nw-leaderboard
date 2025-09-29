@@ -3813,6 +3813,11 @@ body[data-theme='light'] .contribute-runs-item {
   text-align: left;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  color: var(--color-foreground-dark);
+}
+
+body[data-theme='light'] .contribute-runs-summary {
+  color: var(--color-foreground-light);
 }
 
 .contribute-runs-summary:hover,
