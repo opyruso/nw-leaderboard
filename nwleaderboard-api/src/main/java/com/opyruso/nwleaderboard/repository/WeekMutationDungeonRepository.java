@@ -5,6 +5,7 @@ import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeonId;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -34,6 +35,13 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
         }
         WeekMutationDungeonId id = new WeekMutationDungeonId(week, dungeonId);
         return findById(id);
+    }
+
+    public List<WeekMutationDungeon> listByIds(Collection<WeekMutationDungeonId> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return find("id IN ?1", ids).list();
     }
 
     public List<Integer> findWeekNumbersByFilters(

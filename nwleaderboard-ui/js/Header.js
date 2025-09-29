@@ -243,6 +243,15 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                         </li>
                         <li>
                           <SiteNavLink
+                            to="/contribute/runs"
+                            className="site-nav__sublink"
+                            onClick={closeMenus}
+                          >
+                            {t.contributeMenuRuns}
+                          </SiteNavLink>
+                        </li>
+                        <li>
+                          <SiteNavLink
                             to="/contribute/players"
                             className="site-nav__sublink"
                             onClick={closeMenus}

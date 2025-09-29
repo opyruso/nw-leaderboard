@@ -47,6 +47,22 @@ public class RunTimePlayerRepository implements PanacheRepository<RunTimePlayer>
         return list("player.id", playerId);
     }
 
+    /** Returns player associations for the provided run identifier. */
+    public List<RunTimePlayer> listByRunId(Long runId) {
+        if (runId == null) {
+            return List.of();
+        }
+        return list("runTime.id", runId);
+    }
+
+    /** Deletes all player associations linked to the provided run. */
+    public long deleteByRunId(Long runId) {
+        if (runId == null) {
+            return 0L;
+        }
+        return delete("runTime.id", runId);
+    }
+
     /**
      * Lists the identifiers of time runs already linked to the provided player.
      *
