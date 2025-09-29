@@ -4,10 +4,12 @@ import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
+import SeasonCarousel from '../components/SeasonCarousel.js';
 import { capitaliseWords } from '../text.js';
 import { formatPlayerLinkProps, getPlayerNames } from '../playerNames.js';
 import { extractMutationIds } from '../mutations.js';
 import { translateRegion, extractRegionId, DEFAULT_REGIONS } from '../regions.js';
+import { sortSeasons } from '../seasons.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
 
@@ -159,6 +161,11 @@ export default function Player({ canContribute = false }) {
   const mainLinkSuggestionsListId = React.useId();
   const [mainLinkSuggestions, setMainLinkSuggestions] = React.useState([]);
   const [regionFilter, setRegionFilter] = React.useState('');
+  const [seasons, setSeasons] = React.useState([]);
+  const [seasonLoading, setSeasonLoading] = React.useState(false);
+  const [seasonError, setSeasonError] = React.useState(false);
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(null);
+  const [seasonInitialised, setSeasonInitialised] = React.useState(false);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -170,6 +177,65 @@ export default function Player({ canContribute = false }) {
   }, [hasPlayerId]);
 
   React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setSeasonLoading(true);
+    setSeasonError(false);
+
+    fetch(`${API_BASE_URL}/seasons`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load seasons: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const sorted = sortSeasons(Array.isArray(data) ? data : []);
+        setSeasons(sorted);
+        setSelectedSeasonId((previous) => {
+          if (seasonInitialised) {
+            if (previous === null || previous === undefined) {
+              return previous;
+            }
+            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
+            if (hasPrevious) {
+              return String(previous);
+            }
+            const [firstSeason] = sorted;
+            return firstSeason ? String(firstSeason.id) : null;
+          }
+          const [first] = sorted;
+          return first ? String(first.id) : null;
+        });
+      })
+      .catch((seasonFetchError) => {
+        if (!active || seasonFetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load seasons', seasonFetchError);
+        setSeasonError(true);
+        setSeasons([]);
+        if (!seasonInitialised) {
+          setSelectedSeasonId(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setSeasonLoading(false);
+          setSeasonInitialised(true);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  React.useEffect(() => {
     setEditingMainLink(false);
     setMainLinkName('');
     setMainLinkError('');
@@ -178,6 +244,16 @@ export default function Player({ canContribute = false }) {
   }, [normalisedPlayerId]);
 
   const trimmedMainLinkName = React.useMemo(() => mainLinkName.trim(), [mainLinkName]);
+
+  const handleSeasonSelect = React.useCallback((value) => {
+    setSelectedSeasonId((previous) => {
+      const next = value === null || value === undefined ? null : String(value);
+      if (previous === next) {
+        return previous;
+      }
+      return next;
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!editingMainLink) {
@@ -340,6 +416,9 @@ export default function Player({ canContribute = false }) {
       setLoading(false);
       return undefined;
     }
+    if (!seasonInitialised) {
+      return undefined;
+    }
 
     let active = true;
     const controller = new AbortController();
@@ -347,7 +426,16 @@ export default function Player({ canContribute = false }) {
     setError(false);
     setProfile(null);
 
-    fetch(`${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}`, {
+    const params = new URLSearchParams();
+    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
+      params.set('seasonId', selectedSeasonId);
+    }
+    const query = params.toString();
+    const url = query
+      ? `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}?${query}`
+      : `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}`;
+
+    fetch(url, {
       signal: controller.signal,
     })
       .then((response) => {
@@ -376,7 +464,7 @@ export default function Player({ canContribute = false }) {
       active = false;
       controller.abort();
     };
-  }, [hasPlayerId, normalisedPlayerId]);
+  }, [hasPlayerId, normalisedPlayerId, seasonInitialised, selectedSeasonId]);
 
   const preparedDungeons = React.useMemo(() => {
     if (!profile || !Array.isArray(profile.dungeons)) {
@@ -861,6 +949,30 @@ export default function Player({ canContribute = false }) {
               </form>
             ) : null}
           </header>
+        ) : null}
+        {hasPlayerId ? (
+          <SeasonCarousel
+            label={t.seasonSelectorLabel}
+            loading={!seasonInitialised || seasonLoading}
+            error={seasonError}
+            seasons={seasons}
+            selectedSeasonId={selectedSeasonId}
+            onSelect={handleSeasonSelect}
+            allLabel={t.seasonSelectorAll}
+            loadingLabel={t.seasonSelectorLoading}
+            errorLabel={t.seasonSelectorError}
+            emptyLabel={t.seasonSelectorEmpty}
+            formatSeasonLabel={(season) =>
+              typeof t.seasonSelectorItemLabel === 'function'
+                ? t.seasonSelectorItemLabel(season.id)
+                : `Season ${season.id}`
+            }
+            formatSeasonTitle={(season) =>
+              typeof t.seasonSelectorItemTitle === 'function'
+                ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
+                : undefined
+            }
+          />
         ) : null}
         {!hasPlayerId ? (
           <div className="player-search-container">

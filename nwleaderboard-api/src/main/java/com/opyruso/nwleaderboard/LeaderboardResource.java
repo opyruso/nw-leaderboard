@@ -46,7 +46,8 @@ public class LeaderboardResource {
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
-            @QueryParam("region") List<String> regionIds) {
+            @QueryParam("region") List<String> regionIds,
+            @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
@@ -59,7 +60,8 @@ public class LeaderboardResource {
                 mutationTypeIds,
                 mutationPromotionIds,
                 mutationCurseIds,
-                regionIds);
+                regionIds,
+                seasonId);
         return Response.ok(response).build();
     }
 
@@ -70,14 +72,15 @@ public class LeaderboardResource {
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
-            @QueryParam("region") List<String> regionIds) {
+            @QueryParam("region") List<String> regionIds,
+            @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
         LeaderboardChartResponse response = leaderboardService.getScoreChartData(
-                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds);
+                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds, seasonId);
         return Response.ok(response).build();
     }
 
@@ -90,7 +93,8 @@ public class LeaderboardResource {
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
-            @QueryParam("region") List<String> regionIds) {
+            @QueryParam("region") List<String> regionIds,
+            @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
@@ -103,7 +107,8 @@ public class LeaderboardResource {
                 mutationTypeIds,
                 mutationPromotionIds,
                 mutationCurseIds,
-                regionIds);
+                regionIds,
+                seasonId);
         return Response.ok(response).build();
     }
 
@@ -114,14 +119,15 @@ public class LeaderboardResource {
             @QueryParam("mutationType") List<String> mutationTypeIds,
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
-            @QueryParam("region") List<String> regionIds) {
+            @QueryParam("region") List<String> regionIds,
+            @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
                     .build();
         }
         LeaderboardChartResponse response = leaderboardService.getTimeChartData(
-                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds);
+                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds, seasonId);
         return Response.ok(response).build();
     }
 
@@ -134,9 +140,10 @@ public class LeaderboardResource {
 
     @GET
     @Path("/individual")
-    public Response getIndividualRanking(@QueryParam("mode") String modeParam) {
+    public Response getIndividualRanking(
+            @QueryParam("mode") String modeParam, @QueryParam("seasonId") Integer seasonId) {
         IndividualRankingService.Mode mode = IndividualRankingService.Mode.fromQuery(modeParam);
-        List<IndividualRankingEntryResponse> entries = individualRankingService.getRanking(mode);
+        List<IndividualRankingEntryResponse> entries = individualRankingService.getRanking(mode, seasonId);
         return Response.ok(entries).build();
     }
 

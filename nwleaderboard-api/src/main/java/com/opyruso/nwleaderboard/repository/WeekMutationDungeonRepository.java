@@ -76,6 +76,25 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
         return query.getResultList();
     }
 
+    public List<Integer> findWeekNumbersBySeason(Long dungeonId, Integer seasonId) {
+        if (seasonId == null) {
+            return List.of();
+        }
+
+        StringBuilder jpql = new StringBuilder(
+                "SELECT DISTINCT w.id.week FROM WeekMutationDungeon w WHERE w.season.id = :seasonId");
+        if (dungeonId != null) {
+            jpql.append(" AND w.dungeon.id = :dungeonId");
+        }
+        jpql.append(" ORDER BY w.id.week DESC");
+
+        var query = getEntityManager().createQuery(jpql.toString(), Integer.class).setParameter("seasonId", seasonId);
+        if (dungeonId != null) {
+            query.setParameter("dungeonId", dungeonId);
+        }
+        return query.getResultList();
+    }
+
     public int assignSeasonToPreviousWeeks(Integer week, Season season) {
         if (week == null || season == null) {
             return 0;

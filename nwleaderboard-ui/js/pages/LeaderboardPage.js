@@ -3,6 +3,7 @@ import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
+import SeasonCarousel from '../components/SeasonCarousel.js';
 import { getDungeonNameForLang, normaliseDungeons, sortDungeons } from '../dungeons.js';
 import {
   extractMutationIds,
@@ -13,6 +14,7 @@ import {
 } from '../mutations.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { translateRegion, extractRegionId, normaliseRegionList, DEFAULT_REGIONS } from '../regions.js';
+import { sortSeasons } from '../seasons.js';
 import { capitaliseWords } from '../text.js';
 import { ThemeContext } from '../theme.js';
 
@@ -200,6 +202,11 @@ export default function LeaderboardPage({
   const [entriesError, setEntriesError] = React.useState(false);
   const [chartData, setChartData] = React.useState(null);
   const [chartError, setChartError] = React.useState(false);
+  const [seasons, setSeasons] = React.useState([]);
+  const [seasonLoading, setSeasonLoading] = React.useState(false);
+  const [seasonError, setSeasonError] = React.useState(false);
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(null);
+  const [seasonInitialised, setSeasonInitialised] = React.useState(false);
   const [mutationFilters, setMutationFilters] = React.useState(() => {
     if (storedFilters?.mutation) {
       const initial = createEmptyMutationFilters();
@@ -331,8 +338,19 @@ export default function LeaderboardPage({
       }
     }
 
+    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
+      params.append('seasonId', String(selectedSeasonId));
+    }
+
     return params;
-  }, [selectedDungeon, mutationFilters, mutationOptions, regionFilters, regionOptions]);
+  }, [
+    selectedDungeon,
+    mutationFilters,
+    mutationOptions,
+    regionFilters,
+    regionOptions,
+    selectedSeasonId,
+  ]);
 
   const buildFilterParams = React.useCallback(
     (options = {}) => {
@@ -363,6 +381,65 @@ export default function LeaderboardPage({
     },
     [buildFilterParamsWithoutPagination, requestedPage, pageSize],
   );
+
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+    setSeasonLoading(true);
+    setSeasonError(false);
+
+    fetch(`${API_BASE_URL}/seasons`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load seasons: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const sorted = sortSeasons(Array.isArray(data) ? data : []);
+        setSeasons(sorted);
+        setSelectedSeasonId((previous) => {
+          if (seasonInitialised) {
+            if (previous === null || previous === undefined) {
+              return previous;
+            }
+            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
+            if (hasPrevious) {
+              return String(previous);
+            }
+            const [firstSeason] = sorted;
+            return firstSeason ? String(firstSeason.id) : null;
+          }
+          const [first] = sorted;
+          return first ? String(first.id) : null;
+        });
+      })
+      .catch((fetchError) => {
+        if (!active || fetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load seasons', fetchError);
+        setSeasonError(true);
+        setSeasons([]);
+        if (!seasonInitialised) {
+          setSelectedSeasonId(null);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setSeasonLoading(false);
+          setSeasonInitialised(true);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -477,6 +554,9 @@ export default function LeaderboardPage({
   }, [dungeons, lang, dungeonsLoading]);
 
   React.useEffect(() => {
+    if (!seasonInitialised) {
+      return;
+    }
     if (!selectedDungeon) {
       setEntries([]);
       setEntriesLoading(false);
@@ -595,9 +675,14 @@ export default function LeaderboardPage({
     requestedPage,
     pageSize,
     buildFilterParams,
+    seasonInitialised,
+    selectedSeasonId,
   ]);
 
   React.useEffect(() => {
+    if (!seasonInitialised) {
+      return;
+    }
     if (!selectedDungeon) {
       setChartData(null);
       setChartError(false);
@@ -651,7 +736,7 @@ export default function LeaderboardPage({
       active = false;
       controller.abort();
     };
-  }, [mode, selectedDungeon, buildFilterParamsWithoutPagination]);
+  }, [mode, selectedDungeon, buildFilterParamsWithoutPagination, seasonInitialised, selectedSeasonId]);
 
   const sortedDungeons = React.useMemo(() => sortDungeons(dungeons, lang), [dungeons, lang]);
 
@@ -755,7 +840,7 @@ export default function LeaderboardPage({
   React.useEffect(() => {
     setRequestedPage(1);
     setCurrentPage(1);
-  }, [selectedDungeon, mutationFilters, regionFilters]);
+  }, [selectedDungeon, mutationFilters, regionFilters, selectedSeasonId]);
 
   const handleMutationFilterToggle = React.useCallback((key, value) => {
     if (!MUTATION_FILTER_KEYS.includes(key)) {
@@ -809,6 +894,16 @@ export default function LeaderboardPage({
         return currentValues.filter((item) => item !== normalised);
       }
       return Array.from(new Set([...currentValues, normalised]));
+    });
+  }, []);
+
+  const handleSeasonSelect = React.useCallback((value) => {
+    setSelectedSeasonId((previous) => {
+      const next = value === null || value === undefined ? null : String(value);
+      if (previous === next) {
+        return previous;
+      }
+      return next;
     });
   }, []);
 
@@ -1132,6 +1227,31 @@ export default function LeaderboardPage({
       options,
     };
   }, [chartConfig, chartData, formatWeekLabel, t, theme]);
+
+  const seasonCarousel = (
+    <SeasonCarousel
+      label={t.seasonSelectorLabel}
+      loading={!seasonInitialised || seasonLoading}
+      error={seasonError}
+      seasons={seasons}
+      selectedSeasonId={selectedSeasonId}
+      onSelect={handleSeasonSelect}
+      allLabel={t.seasonSelectorAll}
+      loadingLabel={t.seasonSelectorLoading}
+      errorLabel={t.seasonSelectorError}
+      emptyLabel={t.seasonSelectorEmpty}
+      formatSeasonLabel={(season) =>
+        typeof t.seasonSelectorItemLabel === 'function'
+          ? t.seasonSelectorItemLabel(season.id)
+          : `Season ${season.id}`
+      }
+      formatSeasonTitle={(season) =>
+        typeof t.seasonSelectorItemTitle === 'function'
+          ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
+          : undefined
+      }
+    />
+  );
 
 
   const sortedEntries = React.useMemo(() => {
@@ -1592,11 +1712,20 @@ export default function LeaderboardPage({
         </aside>
         <section className="leaderboard-results" aria-live="polite">
           {entriesLoading ? (
-            <p className="leaderboard-status">{t.leaderboardLoading}</p>
+            <>
+              {seasonCarousel}
+              <p className="leaderboard-status">{t.leaderboardLoading}</p>
+            </>
           ) : entriesError ? (
-            <p className="leaderboard-status error">{t.leaderboardError}</p>
+            <>
+              {seasonCarousel}
+              <p className="leaderboard-status error">{t.leaderboardError}</p>
+            </>
           ) : sortedEntries.length === 0 ? (
-            <p className="leaderboard-status">{t.leaderboardNoResults}</p>
+            <>
+              {seasonCarousel}
+              <p className="leaderboard-status">{t.leaderboardNoResults}</p>
+            </>
           ) : (
             <>
               {chartMemo ? (
@@ -1615,6 +1744,7 @@ export default function LeaderboardPage({
                   </div>
                 </div>
               ) : null}
+              {seasonCarousel}
               <ul className="leaderboard-list">
                 {displayEntries.map((entry) => {
                   const regionLabel = entry.region ? translateRegion(t, entry.region) : '';

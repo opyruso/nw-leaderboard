@@ -67,8 +67,9 @@ public class PlayerResource {
 
     @GET
     @Path("/{playerId}")
-    public Response getProfile(@PathParam("playerId") Long playerId) {
-        Optional<PlayerProfileResponse> profile = playerProfileService.getProfile(playerId);
+    public Response getProfile(
+            @PathParam("playerId") Long playerId, @QueryParam("seasonId") Integer seasonId) {
+        Optional<PlayerProfileResponse> profile = playerProfileService.getProfile(playerId, seasonId);
         if (profile.isEmpty()) {
             return Response.status(Status.NOT_FOUND)
                     .entity(new ApiMessageResponse("player not found", null))

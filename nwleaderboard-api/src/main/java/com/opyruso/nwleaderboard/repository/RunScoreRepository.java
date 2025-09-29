@@ -226,31 +226,42 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
      * @param playerId identifier of the player
      * @return list of runs sorted by score descending and week descending
      */
-    public List<RunScore> listBestByPlayer(Long playerId) {
-        if (playerId == null) {
+    public List<RunScore> listBestByPlayer(Long playerId, Collection<Integer> weeks) {
+        if (playerId == null || (weeks != null && weeks.isEmpty())) {
             return List.of();
         }
-        return find(
-                        "SELECT DISTINCT run FROM RunScorePlayer rsp "
-                                + "JOIN rsp.runScore run "
-                                + "JOIN FETCH run.dungeon dungeon "
-                                + "WHERE rsp.player.id = ?1 "
-                                + "ORDER BY run.score DESC, run.week DESC, run.id ASC",
-                        playerId)
-                .list();
+        StringBuilder jpql = new StringBuilder(
+                "SELECT DISTINCT run FROM RunScorePlayer rsp "
+                        + "JOIN rsp.runScore run "
+                        + "JOIN FETCH run.dungeon dungeon "
+                        + "WHERE rsp.player.id = :playerId");
+        Parameters parameters = Parameters.with("playerId", playerId);
+        if (weeks != null && !weeks.isEmpty()) {
+            jpql.append(" AND run.week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
+        }
+        jpql.append(" ORDER BY run.score DESC, run.week DESC, run.id ASC");
+        return find(jpql.toString(), parameters).list();
     }
 
     /** Returns the lowest score recorded for each provided dungeon identifier. */
-    public Map<Long, Integer> findMinimumScoresByDungeonIds(Collection<Long> dungeonIds) {
-        if (dungeonIds == null || dungeonIds.isEmpty()) {
+    public Map<Long, Integer> findMinimumScoresByDungeonIds(
+            Collection<Long> dungeonIds, Collection<Integer> weeks) {
+        if (dungeonIds == null || dungeonIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
             return Map.of();
         }
-        List<Object[]> rows = getEntityManager()
-                .createQuery(
-                        "SELECT run.dungeon.id, MIN(run.score) FROM RunScore run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
-                        Object[].class)
-                .setParameter(1, dungeonIds)
-                .getResultList();
+        StringBuilder query = new StringBuilder(
+                "SELECT run.dungeon.id, MIN(run.score) FROM RunScore run WHERE run.dungeon.id IN :dungeons");
+        if (weeks != null && !weeks.isEmpty()) {
+            query.append(" AND run.week IN :weeks");
+        }
+        query.append(" GROUP BY run.dungeon.id");
+        var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
+        typedQuery.setParameter("dungeons", dungeonIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        List<Object[]> rows = typedQuery.getResultList();
         Map<Long, Integer> result = new HashMap<>();
         for (Object[] row : rows) {
             if (row == null || row.length < 2) {
@@ -267,16 +278,23 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /** Returns the highest score recorded for each provided dungeon identifier. */
-    public Map<Long, Integer> findMaximumScoresByDungeonIds(Collection<Long> dungeonIds) {
-        if (dungeonIds == null || dungeonIds.isEmpty()) {
+    public Map<Long, Integer> findMaximumScoresByDungeonIds(
+            Collection<Long> dungeonIds, Collection<Integer> weeks) {
+        if (dungeonIds == null || dungeonIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
             return Map.of();
         }
-        List<Object[]> rows = getEntityManager()
-                .createQuery(
-                        "SELECT run.dungeon.id, MAX(run.score) FROM RunScore run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
-                        Object[].class)
-                .setParameter(1, dungeonIds)
-                .getResultList();
+        StringBuilder query = new StringBuilder(
+                "SELECT run.dungeon.id, MAX(run.score) FROM RunScore run WHERE run.dungeon.id IN :dungeons");
+        if (weeks != null && !weeks.isEmpty()) {
+            query.append(" AND run.week IN :weeks");
+        }
+        query.append(" GROUP BY run.dungeon.id");
+        var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
+        typedQuery.setParameter("dungeons", dungeonIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        List<Object[]> rows = typedQuery.getResultList();
         Map<Long, Integer> result = new HashMap<>();
         for (Object[] row : rows) {
             if (row == null || row.length < 2) {

@@ -226,31 +226,42 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
      * @param playerId identifier of the player
      * @return list of runs sorted by duration ascending and week descending
      */
-    public List<RunTime> listBestByPlayer(Long playerId) {
-        if (playerId == null) {
+    public List<RunTime> listBestByPlayer(Long playerId, Collection<Integer> weeks) {
+        if (playerId == null || (weeks != null && weeks.isEmpty())) {
             return List.of();
         }
-        return find(
-                        "SELECT DISTINCT run FROM RunTimePlayer rtp "
-                                + "JOIN rtp.runTime run "
-                                + "JOIN FETCH run.dungeon dungeon "
-                                + "WHERE rtp.player.id = ?1 "
-                                + "ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC",
-                        playerId)
-                .list();
+        StringBuilder jpql = new StringBuilder(
+                "SELECT DISTINCT run FROM RunTimePlayer rtp "
+                        + "JOIN rtp.runTime run "
+                        + "JOIN FETCH run.dungeon dungeon "
+                        + "WHERE rtp.player.id = :playerId");
+        Parameters parameters = Parameters.with("playerId", playerId);
+        if (weeks != null && !weeks.isEmpty()) {
+            jpql.append(" AND run.week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
+        }
+        jpql.append(" ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC");
+        return find(jpql.toString(), parameters).list();
     }
 
     /** Returns the fastest time recorded for each provided dungeon identifier. */
-    public Map<Long, Integer> findMinimumTimesByDungeonIds(Collection<Long> dungeonIds) {
-        if (dungeonIds == null || dungeonIds.isEmpty()) {
+    public Map<Long, Integer> findMinimumTimesByDungeonIds(
+            Collection<Long> dungeonIds, Collection<Integer> weeks) {
+        if (dungeonIds == null || dungeonIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
             return Map.of();
         }
-        List<Object[]> rows = getEntityManager()
-                .createQuery(
-                        "SELECT run.dungeon.id, MIN(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
-                        Object[].class)
-                .setParameter(1, dungeonIds)
-                .getResultList();
+        StringBuilder query = new StringBuilder(
+                "SELECT run.dungeon.id, MIN(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN :dungeons");
+        if (weeks != null && !weeks.isEmpty()) {
+            query.append(" AND run.week IN :weeks");
+        }
+        query.append(" GROUP BY run.dungeon.id");
+        var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
+        typedQuery.setParameter("dungeons", dungeonIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        List<Object[]> rows = typedQuery.getResultList();
         Map<Long, Integer> result = new HashMap<>();
         for (Object[] row : rows) {
             if (row == null || row.length < 2) {
@@ -267,16 +278,23 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     /** Returns the slowest time recorded for each provided dungeon identifier. */
-    public Map<Long, Integer> findMaximumTimesByDungeonIds(Collection<Long> dungeonIds) {
-        if (dungeonIds == null || dungeonIds.isEmpty()) {
+    public Map<Long, Integer> findMaximumTimesByDungeonIds(
+            Collection<Long> dungeonIds, Collection<Integer> weeks) {
+        if (dungeonIds == null || dungeonIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
             return Map.of();
         }
-        List<Object[]> rows = getEntityManager()
-                .createQuery(
-                        "SELECT run.dungeon.id, MAX(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN ?1 GROUP BY run.dungeon.id",
-                        Object[].class)
-                .setParameter(1, dungeonIds)
-                .getResultList();
+        StringBuilder query = new StringBuilder(
+                "SELECT run.dungeon.id, MAX(run.timeInSecond) FROM RunTime run WHERE run.dungeon.id IN :dungeons");
+        if (weeks != null && !weeks.isEmpty()) {
+            query.append(" AND run.week IN :weeks");
+        }
+        query.append(" GROUP BY run.dungeon.id");
+        var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
+        typedQuery.setParameter("dungeons", dungeonIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        List<Object[]> rows = typedQuery.getResultList();
         Map<Long, Integer> result = new HashMap<>();
         for (Object[] row : rows) {
             if (row == null || row.length < 2) {
