@@ -275,12 +275,16 @@ public class LeaderboardService {
                     bestScore != null ? bestScore.getDungeon() : null,
                     mutationCache);
             Integer scorePosition = bestScore != null ? runScoreRepository.findPositionInDungeon(bestScore) : null;
+            String scoreRegion = bestScore != null
+                    ? normaliseRegionId(bestScore.getRegion() != null ? bestScore.getRegion().getId() : null)
+                    : null;
             HighlightMetricResponse scoreMetric = bestScore != null
                     ? new HighlightMetricResponse(
                             bestScore.getScore(),
                             bestScore.getWeek(),
                             scorePosition,
                             scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()),
+                            scoreRegion,
                             scoreMutations.typeId(),
                             scoreMutations.promotionId(),
                             scoreMutations.curseId())
@@ -290,19 +294,31 @@ public class LeaderboardService {
                     bestTime != null ? bestTime.getDungeon() : null,
                     mutationCache);
             Integer timePosition = bestTime != null ? runTimeRepository.findPositionInDungeon(bestTime) : null;
+            String timeRegion = bestTime != null
+                    ? normaliseRegionId(bestTime.getRegion() != null ? bestTime.getRegion().getId() : null)
+                    : null;
             HighlightMetricResponse timeMetric = bestTime != null
                     ? new HighlightMetricResponse(
                             bestTime.getTimeInSecond(),
                             bestTime.getWeek(),
                             timePosition,
                             timePlayersByRun.getOrDefault(bestTime.getId(), List.of()),
+                            timeRegion,
                             timeMutations.typeId(),
                             timeMutations.promotionId(),
                             timeMutations.curseId())
                     : null;
             Map<String, String> names = buildNameMap(dungeon);
             String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon.getNameLocalEn()));
-            responses.add(new HighlightResponse(dungeonId, fallbackName, names, dungeon.getPlayerCount(), scoreMetric, timeMetric));
+            String highlightRegion = resolveHighlightRegion(scoreRegion, timeRegion);
+            responses.add(new HighlightResponse(
+                    dungeonId,
+                    fallbackName,
+                    names,
+                    dungeon.getPlayerCount(),
+                    highlightRegion,
+                    scoreMetric,
+                    timeMetric));
         }
 
         Collator collator = Collator.getInstance(Locale.ENGLISH);
@@ -424,6 +440,17 @@ public class LeaderboardService {
         }
         String trimmed = value.strip();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String resolveHighlightRegion(String scoreRegion, String timeRegion) {
+        String normalisedScore = normaliseRegionId(scoreRegion);
+        String normalisedTime = normaliseRegionId(timeRegion);
+        if (normalisedScore != null) {
+            if (normalisedTime == null || normalisedScore.equals(normalisedTime)) {
+                return normalisedScore;
+            }
+        }
+        return normalisedTime;
     }
 
     private String normaliseRegionId(String raw) {
