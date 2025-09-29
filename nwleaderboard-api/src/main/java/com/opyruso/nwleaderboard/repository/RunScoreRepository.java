@@ -75,7 +75,12 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     public List<RunScore> listByDungeonAndWeeks(
-            Long dungeonId, List<Integer> weeks, Collection<String> regions, int pageIndex, int pageSize) {
+            Long dungeonId,
+            List<Integer> weeks,
+            Collection<String> regions,
+            Integer seasonId,
+            int pageIndex,
+            int pageSize) {
         if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
             return List.of();
         }
@@ -92,12 +97,18 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
             query.append(" AND region.id IN :regions");
             parameters = parameters.and("regions", regions);
         }
+        if (seasonId != null) {
+            query.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
+                            + "WHERE w.id.week = week AND w.dungeon.id = dungeon.id AND w.season.id = :seasonId)");
+            parameters = parameters.and("seasonId", seasonId);
+        }
         query.append(" ORDER BY score DESC, week DESC, id ASC");
         return find(query.toString(), parameters).page(Page.of(pageIndex, pageSize)).list();
     }
 
     public List<Object[]> aggregateByDungeonAndWeeks(
-            Long dungeonId, List<Integer> weeks, Collection<String> regions) {
+            Long dungeonId, List<Integer> weeks, Collection<String> regions, Integer seasonId) {
         if (dungeonId == null) {
             return List.of();
         }
@@ -113,6 +124,11 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         if (regions != null && !regions.isEmpty()) {
             query.append(" AND run.region.id IN :regions");
         }
+        if (seasonId != null) {
+            query.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
+                            + "WHERE w.id.week = run.week AND w.dungeon.id = run.dungeon.id AND w.season.id = :seasonId)");
+        }
         query.append(" GROUP BY run.week");
 
         var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
@@ -123,10 +139,14 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         if (regions != null && !regions.isEmpty()) {
             typedQuery.setParameter("regions", regions);
         }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
         return typedQuery.getResultList();
     }
 
-    public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, Collection<String> regions) {
+    public long countByDungeonAndWeeks(
+            Long dungeonId, List<Integer> weeks, Collection<String> regions, Integer seasonId) {
         if (dungeonId == null) {
             return 0L;
         }
@@ -142,6 +162,12 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         if (regions != null && !regions.isEmpty()) {
             query.append(" AND region.id IN :regions");
             parameters = parameters.and("regions", regions);
+        }
+        if (seasonId != null) {
+            query.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
+                            + "WHERE w.id.week = week AND w.dungeon.id = dungeon.id AND w.season.id = :seasonId)");
+            parameters = parameters.and("seasonId", seasonId);
         }
         return count(query.toString(), parameters);
     }

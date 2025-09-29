@@ -85,15 +85,15 @@ public class LeaderboardService {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
 
-        long totalRuns = runScoreRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter);
+        long totalRuns = runScoreRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, seasonId);
         int totalPages = computeTotalPages(totalRuns, safePageSize);
         int safePage = clampPage(requestedPage, totalPages);
         if (totalRuns == 0) {
             return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
 
-        List<RunScore> runs =
-                runScoreRepository.listByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, safePage - 1, safePageSize);
+        List<RunScore> runs = runScoreRepository.listByDungeonAndWeeks(
+                dungeonId, weekFilter, regionFilter, seasonId, safePage - 1, safePageSize);
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForScoreRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
@@ -146,15 +146,15 @@ public class LeaderboardService {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
 
-        long totalRuns = runTimeRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter);
+        long totalRuns = runTimeRepository.countByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, seasonId);
         int totalPages = computeTotalPages(totalRuns, safePageSize);
         int safePage = clampPage(requestedPage, totalPages);
         if (totalRuns == 0) {
             return new LeaderboardPageResponse(List.of(), 0L, safePage, safePageSize, totalPages);
         }
 
-        List<RunTime> runs =
-                runTimeRepository.listByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, safePage - 1, safePageSize);
+        List<RunTime> runs = runTimeRepository.listByDungeonAndWeeks(
+                dungeonId, weekFilter, regionFilter, seasonId, safePage - 1, safePageSize);
         Map<Long, List<LeaderboardPlayerResponse>> playersByRun = loadPlayersForTimeRuns(runs);
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
         List<LeaderboardEntryResponse> responses = new ArrayList<>(runs.size());
@@ -205,7 +205,7 @@ public class LeaderboardService {
         }
 
         List<ChartAggregate> aggregates = mapChartAggregates(
-                runScoreRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter));
+                runScoreRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, seasonId));
         return buildChartResponse(aggregates, false);
     }
 
@@ -229,7 +229,7 @@ public class LeaderboardService {
         }
 
         List<ChartAggregate> aggregates = mapChartAggregates(
-                runTimeRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter));
+                runTimeRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, seasonId));
         return buildChartResponse(aggregates, true);
     }
 
