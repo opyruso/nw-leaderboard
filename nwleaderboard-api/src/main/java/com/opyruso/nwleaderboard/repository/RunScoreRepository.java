@@ -87,24 +87,37 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         if (weeks != null && weeks.isEmpty()) {
             return List.of();
         }
-        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
-        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+
+        StringBuilder jpql = new StringBuilder("SELECT run FROM RunScore run WHERE run.dungeon.id = :dungeonId");
         if (weeks != null) {
-            query.append(" AND week IN :weeks");
-            parameters = parameters.and("weeks", weeks);
+            jpql.append(" AND run.week IN :weeks");
         }
         if (regions != null && !regions.isEmpty()) {
-            query.append(" AND region.id IN :regions");
-            parameters = parameters.and("regions", regions);
+            jpql.append(" AND run.region.id IN :regions");
         }
         if (seasonId != null) {
-            query.append(
-                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
-                            + "WHERE w.id.week = week AND w.dungeon.id = dungeon.id AND w.season.id = :seasonId)");
-            parameters = parameters.and("seasonId", seasonId);
+            jpql.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
         }
-        query.append(" ORDER BY score DESC, week DESC, id ASC");
-        return find(query.toString(), parameters).page(Page.of(pageIndex, pageSize)).list();
+        jpql.append(" ORDER BY run.score DESC, run.week DESC, run.id ASC");
+
+        var typedQuery = getEntityManager().createQuery(jpql.toString(), RunScore.class);
+        typedQuery.setParameter("dungeonId", dungeonId);
+        if (weeks != null) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        if (regions != null && !regions.isEmpty()) {
+            typedQuery.setParameter("regions", regions);
+        }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
+        typedQuery.setFirstResult(pageIndex * pageSize);
+        typedQuery.setMaxResults(pageSize);
+        return typedQuery.getResultList();
     }
 
     public List<Object[]> aggregateByDungeonAndWeeks(
@@ -126,8 +139,10 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         }
         if (seasonId != null) {
             query.append(
-                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
-                            + "WHERE w.id.week = run.week AND w.dungeon.id = run.dungeon.id AND w.season.id = :seasonId)");
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
         }
         query.append(" GROUP BY run.week");
 
@@ -153,23 +168,36 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         if (weeks != null && weeks.isEmpty()) {
             return 0L;
         }
-        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
-        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+
+        StringBuilder jpql = new StringBuilder("SELECT COUNT(run) FROM RunScore run WHERE run.dungeon.id = :dungeonId");
         if (weeks != null) {
-            query.append(" AND week IN :weeks");
-            parameters = parameters.and("weeks", weeks);
+            jpql.append(" AND run.week IN :weeks");
         }
         if (regions != null && !regions.isEmpty()) {
-            query.append(" AND region.id IN :regions");
-            parameters = parameters.and("regions", regions);
+            jpql.append(" AND run.region.id IN :regions");
         }
         if (seasonId != null) {
-            query.append(
-                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon w "
-                            + "WHERE w.id.week = week AND w.dungeon.id = dungeon.id AND w.season.id = :seasonId)");
-            parameters = parameters.and("seasonId", seasonId);
+            jpql.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
         }
-        return count(query.toString(), parameters);
+
+        var typedQuery = getEntityManager().createQuery(jpql.toString(), Long.class);
+        typedQuery.setParameter("dungeonId", dungeonId);
+        if (weeks != null) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        if (regions != null && !regions.isEmpty()) {
+            typedQuery.setParameter("regions", regions);
+        }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
+
+        Long result = typedQuery.getSingleResult();
+        return result != null ? result : 0L;
     }
 
     /**
