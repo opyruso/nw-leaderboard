@@ -400,21 +400,24 @@ export default function LeaderboardPage({
           return;
         }
         const sorted = sortSeasons(Array.isArray(data) ? data : []);
-        setSeasons(sorted);
+        const ascendingSeasons = sorted.slice().reverse();
+        setSeasons(ascendingSeasons);
         setSelectedSeasonId((previous) => {
+          const availableIds = ascendingSeasons.map((season) => String(season.id));
           if (seasonInitialised) {
             if (previous === null || previous === undefined) {
               return previous;
             }
-            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
+            const previousId = String(previous);
+            const hasPrevious = availableIds.includes(previousId);
             if (hasPrevious) {
-              return String(previous);
+              return previousId;
             }
-            const [firstSeason] = sorted;
-            return firstSeason ? String(firstSeason.id) : null;
+            const latestSeason = ascendingSeasons[ascendingSeasons.length - 1];
+            return latestSeason ? String(latestSeason.id) : null;
           }
-          const [first] = sorted;
-          return first ? String(first.id) : null;
+          const latestSeason = ascendingSeasons[ascendingSeasons.length - 1];
+          return latestSeason ? String(latestSeason.id) : null;
         });
       })
       .catch((fetchError) => {
@@ -1228,17 +1231,12 @@ export default function LeaderboardPage({
     };
   }, [chartConfig, chartData, formatWeekLabel, t, theme]);
 
-  const displaySeasons = React.useMemo(
-    () => (Array.isArray(seasons) ? seasons.slice().reverse() : []),
-    [seasons],
-  );
-
   const seasonCarousel = (
     <SeasonCarousel
       label={t.seasonSelectorLabel}
       loading={!seasonInitialised || seasonLoading}
       error={seasonError}
-      seasons={displaySeasons}
+      seasons={seasons}
       selectedSeasonId={selectedSeasonId}
       onSelect={handleSeasonSelect}
       allLabel={t.seasonSelectorAll}
