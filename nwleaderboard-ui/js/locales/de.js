@@ -148,6 +148,8 @@ const de = {
   contributeStatsError: 'Run-Statistiken konnten nicht geladen werden.',
   contributeStatsEmpty: 'Es wurden noch keine Runs erfasst.',
   contributeStatsWeek: 'Woche',
+  contributeStatsScoreShort: 'Score',
+  contributeStatsTimeShort: 'Zeit',
   contributeStatsScoreRuns: 'Score-Runs',
   contributeStatsScoreRunsRegion: (region) => `${region} – Score-Runs`,
   contributeStatsTimeRuns: 'Zeit-Runs',

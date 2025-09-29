@@ -147,6 +147,8 @@ const en = {
   contributeStatsError: 'Unable to load run statistics.',
   contributeStatsEmpty: 'No runs recorded yet.',
   contributeStatsWeek: 'Week',
+  contributeStatsScoreShort: 'Score',
+  contributeStatsTimeShort: 'Time',
   contributeStatsScoreRuns: 'Score runs',
   contributeStatsScoreRunsRegion: (region) => `${region} – Score runs`,
   contributeStatsTimeRuns: 'Time runs',

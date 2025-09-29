@@ -148,6 +148,8 @@ const esmx = {
   contributeStatsError: 'No se pueden cargar las estadísticas de runs.',
   contributeStatsEmpty: 'Aún no hay runs registradas.',
   contributeStatsWeek: 'Semana',
+  contributeStatsScoreShort: 'Puntuación',
+  contributeStatsTimeShort: 'Tiempo',
   contributeStatsScoreRuns: 'Runs de score',
   contributeStatsScoreRunsRegion: (region) => `${region} – Runs de score`,
   contributeStatsTimeRuns: 'Runs de tiempo',

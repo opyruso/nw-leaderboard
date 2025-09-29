@@ -1,5 +1,5 @@
 import { LangContext } from '../i18n.js';
-import { normaliseRegionList, translateRegion } from '../regions.js';
+import { normaliseRegionList } from '../regions.js';
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
@@ -175,19 +175,12 @@ export default function ContributeStats() {
                 <tr>
                   <th scope="col">{t.contributeStatsWeek}</th>
                   {regionColumns.map((region) => {
-                    const regionName = translateRegion(t, region);
-                    const scoreHeader =
-                      typeof t.contributeStatsScoreRunsRegion === 'function'
-                        ? t.contributeStatsScoreRunsRegion(regionName)
-                        : `${regionName} ${t.contributeStatsScoreRuns}`;
-                    const timeHeader =
-                      typeof t.contributeStatsTimeRunsRegion === 'function'
-                        ? t.contributeStatsTimeRunsRegion(regionName)
-                        : `${regionName} ${t.contributeStatsTimeRuns}`;
+                    const scoreLabel = t.contributeStatsScoreShort || 'Score';
+                    const timeLabel = t.contributeStatsTimeShort || 'Time';
                     return (
                       <React.Fragment key={region}>
-                        <th scope="col">{scoreHeader}</th>
-                        <th scope="col">{timeHeader}</th>
+                        <th scope="col">{`${region} ${scoreLabel}`}</th>
+                        <th scope="col">{`${region} ${timeLabel}`}</th>
                       </React.Fragment>
                     );
                   })}
