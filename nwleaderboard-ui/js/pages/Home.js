@@ -9,7 +9,7 @@ import {
   sortDungeons,
   toPositiveInteger,
 } from '../dungeons.js';
-import { extractMutationIds } from '../mutations.js';
+import { extractMutationIds, hasMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { extractRegionId, translateRegion } from '../regions.js';
@@ -220,6 +220,8 @@ export default function Home() {
               const regionLabel = highlight.region ? translateRegion(t, highlight.region) : '';
               const scoreRegionLabel = score?.region ? translateRegion(t, score.region) : '';
               const timeRegionLabel = time?.region ? translateRegion(t, time.region) : '';
+              const hasScoreMutations = hasMutationIds(score?.mutations);
+              const hasTimeMutations = hasMutationIds(time?.mutations);
               return (
                 <li key={highlight.id} className="highlight-item">
                   <header className="highlight-header">
@@ -271,13 +273,19 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
-                      {scoreRegionLabel ? (
-                        <span className="highlight-metric-region">{scoreRegionLabel}</span>
+                      {scoreRegionLabel || hasScoreMutations ? (
+                        <div className="highlight-metric-mutations">
+                          {scoreRegionLabel ? (
+                            <span className="highlight-metric-region">{scoreRegionLabel}</span>
+                          ) : null}
+                          {hasScoreMutations ? (
+                            <MutationIconList
+                              {...(score?.mutations ?? {})}
+                              className="highlight-mutation-icons"
+                            />
+                          ) : null}
+                        </div>
                       ) : null}
-                      <MutationIconList
-                        {...(score?.mutations ?? {})}
-                        className="highlight-mutation-icons"
-                      />
                     </div>
                     <div className="highlight-metric">
                       <RankBadge
@@ -321,13 +329,19 @@ export default function Home() {
                           })}
                         </ul>
                       ) : null}
-                      {timeRegionLabel ? (
-                        <span className="highlight-metric-region">{timeRegionLabel}</span>
+                      {timeRegionLabel || hasTimeMutations ? (
+                        <div className="highlight-metric-mutations">
+                          {timeRegionLabel ? (
+                            <span className="highlight-metric-region">{timeRegionLabel}</span>
+                          ) : null}
+                          {hasTimeMutations ? (
+                            <MutationIconList
+                              {...(time?.mutations ?? {})}
+                              className="highlight-mutation-icons"
+                            />
+                          ) : null}
+                        </div>
                       ) : null}
-                      <MutationIconList
-                        {...(time?.mutations ?? {})}
-                        className="highlight-mutation-icons"
-                      />
                     </div>
                   </div>
                   {regionLabel ? (

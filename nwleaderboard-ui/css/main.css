@@ -1377,6 +1377,15 @@ body[data-theme='light'] .highlight-item {
   opacity: 0.7;
 }
 
+.highlight-metric-mutations {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 body[data-theme='light'] .highlight-metric {
   background: var(--surface-light-soft);
   border-color: var(--border-light);
@@ -1459,8 +1468,8 @@ body[data-theme='light'] .mutation-icon {
 }
 
 .highlight-mutation-icons {
-  align-self: flex-end;
-  margin-top: auto;
+  margin-top: 0;
+  align-self: auto;
 }
 
 .highlight-player {
