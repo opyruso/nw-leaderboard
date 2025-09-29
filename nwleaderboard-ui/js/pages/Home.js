@@ -50,7 +50,16 @@ function normalisePlayers(players) {
       return;
     }
     seen.add(key);
-    normalised.push({ id, name });
+
+    const normalisedPlayer = { ...player };
+    if (id !== null) {
+      normalisedPlayer.id = id;
+    }
+    normalisedPlayer.name = name;
+    if (!normalisedPlayer.playerName) {
+      normalisedPlayer.playerName = name;
+    }
+    normalised.push(normalisedPlayer);
   });
   return normalised;
 }
@@ -249,22 +258,36 @@ export default function Home() {
                         <ul className="highlight-player-list">
                           {score.players.map((player, index) => {
                             const info = formatPlayerLinkProps(player);
-                            const name =
-                              info.displayName || info.playerName || t.leaderboardUnknownPlayer;
+                            const displayName =
+                              info.playerName || info.displayName || t.leaderboardUnknownPlayer;
+                            const tooltip = info.isAlt
+                              ? info.mainName || info.tooltip || ''
+                              : info.tooltip || '';
+                            const nameClass = `highlight-player-name${info.isAlt ? ' player-alt-name' : ''}`;
                             const key = info.id ?? `${highlight.id}-score-${index}`;
+                            const nameContent = info.isAlt ? (
+                              <>
+                                <em>{displayName}</em>
+                                <span className="player-alt-indicator" aria-hidden="true">
+                                  *
+                                </span>
+                              </>
+                            ) : (
+                              displayName
+                            );
                             return (
                               <li key={key} className="highlight-player">
                                 {info.id ? (
                                   <Link
                                     to={`/player/${encodeURIComponent(info.id)}`}
                                     className="highlight-player-link"
-                                    title={info.tooltip || undefined}
+                                    title={tooltip || undefined}
                                   >
-                                    {name}
+                                    <span className={nameClass}>{nameContent}</span>
                                   </Link>
                                 ) : (
-                                  <span className="highlight-player-name" title={info.tooltip || undefined}>
-                                    {name}
+                                  <span className={nameClass} title={tooltip || undefined}>
+                                    {nameContent}
                                   </span>
                                 )}
                               </li>
@@ -305,22 +328,36 @@ export default function Home() {
                         <ul className="highlight-player-list">
                           {time.players.map((player, index) => {
                             const info = formatPlayerLinkProps(player);
-                            const name =
-                              info.displayName || info.playerName || t.leaderboardUnknownPlayer;
+                            const displayName =
+                              info.playerName || info.displayName || t.leaderboardUnknownPlayer;
+                            const tooltip = info.isAlt
+                              ? info.mainName || info.tooltip || ''
+                              : info.tooltip || '';
+                            const nameClass = `highlight-player-name${info.isAlt ? ' player-alt-name' : ''}`;
                             const key = info.id ?? `${highlight.id}-time-${index}`;
+                            const nameContent = info.isAlt ? (
+                              <>
+                                <em>{displayName}</em>
+                                <span className="player-alt-indicator" aria-hidden="true">
+                                  *
+                                </span>
+                              </>
+                            ) : (
+                              displayName
+                            );
                             return (
                               <li key={key} className="highlight-player">
                                 {info.id ? (
                                   <Link
                                     to={`/player/${encodeURIComponent(info.id)}`}
                                     className="highlight-player-link"
-                                    title={info.tooltip || undefined}
+                                    title={tooltip || undefined}
                                   >
-                                    {name}
+                                    <span className={nameClass}>{nameContent}</span>
                                   </Link>
                                 ) : (
-                                  <span className="highlight-player-name" title={info.tooltip || undefined}>
-                                    {name}
+                                  <span className={nameClass} title={tooltip || undefined}>
+                                    {nameContent}
                                   </span>
                                 )}
                               </li>
