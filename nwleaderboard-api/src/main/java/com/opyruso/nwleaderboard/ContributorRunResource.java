@@ -3,8 +3,10 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.ContributorRunSummaryResponse;
 import com.opyruso.nwleaderboard.dto.ContributorRunUpdateRequest;
+import com.opyruso.nwleaderboard.dto.ContributorWeeklyRunsResponse;
 import com.opyruso.nwleaderboard.service.ContributorRunService;
 import com.opyruso.nwleaderboard.service.ContributorRunService.ContributorRunException;
+import com.opyruso.nwleaderboard.service.ContributorStatisticsService;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
@@ -38,6 +40,9 @@ public class ContributorRunResource {
     ContributorRunService runService;
 
     @Inject
+    ContributorStatisticsService statisticsService;
+
+    @Inject
     SecurityIdentity identity;
 
     @Inject
@@ -66,6 +71,23 @@ public class ContributorRunResource {
             LOG.error("Unable to search runs", e);
             return Response.status(Status.BAD_GATEWAY)
                     .entity(new ApiMessageResponse("Unable to search runs", null))
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/weekly")
+    public Response listRunsByWeek() {
+        if (!hasContributorRole()) {
+            return forbidden();
+        }
+        try {
+            List<ContributorWeeklyRunsResponse> summaries = statisticsService.listRunsByWeek();
+            return Response.ok(summaries).build();
+        } catch (Exception e) {
+            LOG.error("Unable to load contributor run statistics", e);
+            return Response.status(Status.BAD_GATEWAY)
+                    .entity(new ApiMessageResponse("Unable to load run statistics", null))
                     .build();
         }
     }
