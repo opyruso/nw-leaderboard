@@ -469,10 +469,9 @@ export default function ContributePlayers() {
           'Manage player names and validity for leaderboard submissions.'}
       </p>
       <div className="contribute-players-controls">
-        <div className="contribute-players-bulk-actions">
+        <div className="contribute-players-bulk-actions form-actions">
           <button
             type="button"
-            className="button button-secondary"
             onClick={handleValidateEligiblePlayers}
             disabled={disableAutoButton}
           >
@@ -480,7 +479,6 @@ export default function ContributePlayers() {
           </button>
           <button
             type="button"
-            className="button button-secondary"
             onClick={handleValidateAllPendingPlayers}
             disabled={disableAllButton}
           >

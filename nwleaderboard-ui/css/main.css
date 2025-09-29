@@ -3747,6 +3747,7 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 0;
 }
 
 .contribute-players-visibility {
