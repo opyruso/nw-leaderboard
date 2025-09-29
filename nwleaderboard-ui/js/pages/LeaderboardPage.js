@@ -31,6 +31,46 @@ const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = Object.freeze([25, 50, 100]);
 const MUTATION_FILTER_KEYS = ['type', 'promotion', 'curse'];
 const FILTER_STORAGE_PREFIX = 'nwleaderboard:filters:';
+const SHARED_FILTER_STORAGE_KEY = `${FILTER_STORAGE_PREFIX}score-time`;
+const SHARED_FILTER_MODES = new Set(['score', 'time']);
+
+function getFilterStorageKeys(mode, { includeLegacy = false } = {}) {
+  if (!mode) {
+    return [];
+  }
+  if (SHARED_FILTER_MODES.has(mode)) {
+    const keys = [SHARED_FILTER_STORAGE_KEY];
+    if (includeLegacy) {
+      keys.push(`${FILTER_STORAGE_PREFIX}${mode}`);
+    }
+    return keys;
+  }
+  return [`${FILTER_STORAGE_PREFIX}${mode}`];
+}
+
+function normaliseStoredFilters(parsed) {
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+  const storedMutation = parsed.mutation && typeof parsed.mutation === 'object' ? parsed.mutation : {};
+  const mutation = createEmptyMutationFilters();
+  MUTATION_FILTER_KEYS.forEach((key) => {
+    const values = Array.isArray(storedMutation[key]) ? storedMutation[key] : [];
+    mutation[key] = values
+      .map((value) => (typeof value === 'string' ? value.trim() : String(value || '').trim()))
+      .filter((value) => value.length > 0);
+  });
+  const regions = Array.isArray(parsed.regions)
+    ? parsed.regions
+        .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
+        .filter((value) => value.length > 0)
+    : [];
+  const dungeon =
+    typeof parsed.dungeon === 'string' || typeof parsed.dungeon === 'number'
+      ? String(parsed.dungeon).trim()
+      : '';
+  return { mutation, regions, dungeon: dungeon || null };
+}
 
 function createEmptyMutationFilters() {
   return { type: [], promotion: [], curse: [] };
@@ -40,36 +80,27 @@ function loadStoredFilters(mode) {
   if (!mode || typeof window === 'undefined' || !window.localStorage) {
     return null;
   }
-  try {
-    const raw = window.localStorage.getItem(`${FILTER_STORAGE_PREFIX}${mode}`);
-    if (!raw) {
-      return null;
+  const storageKeys = getFilterStorageKeys(mode, { includeLegacy: true });
+  for (const key of storageKeys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+      const parsed = JSON.parse(raw);
+      const normalised = normaliseStoredFilters(parsed);
+      if (!normalised) {
+        continue;
+      }
+      if (SHARED_FILTER_MODES.has(mode) && key !== SHARED_FILTER_STORAGE_KEY) {
+        saveStoredFilters(mode, normalised.mutation, normalised.regions, normalised.dungeon);
+      }
+      return normalised;
+    } catch (error) {
+      // ignore malformed storage entries and continue
     }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') {
-      return null;
-    }
-    const storedMutation = parsed.mutation && typeof parsed.mutation === 'object' ? parsed.mutation : {};
-    const mutation = createEmptyMutationFilters();
-    MUTATION_FILTER_KEYS.forEach((key) => {
-      const values = Array.isArray(storedMutation[key]) ? storedMutation[key] : [];
-      mutation[key] = values
-        .map((value) => (typeof value === 'string' ? value.trim() : String(value || '').trim()))
-        .filter((value) => value.length > 0);
-    });
-    const regions = Array.isArray(parsed.regions)
-      ? parsed.regions
-          .map((value) => (typeof value === 'string' ? value.trim().toUpperCase() : ''))
-          .filter((value) => value.length > 0)
-      : [];
-    const dungeon =
-      typeof parsed.dungeon === 'string' || typeof parsed.dungeon === 'number'
-        ? String(parsed.dungeon).trim()
-        : '';
-    return { mutation, regions, dungeon: dungeon || null };
-  } catch (error) {
-    return null;
   }
+  return null;
 }
 
 function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
@@ -95,7 +126,10 @@ function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
           ? String(dungeonId).trim()
           : null,
     };
-    window.localStorage.setItem(`${FILTER_STORAGE_PREFIX}${mode}`, JSON.stringify(payload));
+    const storageKeys = Array.from(new Set(getFilterStorageKeys(mode, { includeLegacy: true })));
+    storageKeys.forEach((key) => {
+      window.localStorage.setItem(key, JSON.stringify(payload));
+    });
   } catch (error) {
     // ignore storage errors
   }
