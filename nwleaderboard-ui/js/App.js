@@ -15,6 +15,7 @@ import ContributeSeasons from './pages/ContributeSeasons.js';
 import ContributeStats from './pages/ContributeStats.js';
 import ContributePlayers from './pages/ContributePlayers.js';
 import ContributeValidate from './pages/ContributeValidate.js';
+import ContributeRuns from './pages/ContributeRuns.js';
 import Player from './pages/Player.js';
 import Suggestions from './pages/Suggestions.js';
 import VersionChecker from './VersionChecker.js';
@@ -127,6 +128,7 @@ export default function App() {
                 <Route path="validate" element={<ContributeValidate />} />
                 <Route path="stats" element={<ContributeStats />} />
                 <Route path="players" element={<ContributePlayers />} />
+                <Route path="runs" element={<ContributeRuns />} />
                 <Route path="*" element={<Navigate to="." replace />} />
               </Route>
               <Route

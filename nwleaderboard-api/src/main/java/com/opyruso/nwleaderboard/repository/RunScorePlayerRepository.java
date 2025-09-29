@@ -47,6 +47,22 @@ public class RunScorePlayerRepository implements PanacheRepository<RunScorePlaye
         return list("player.id", playerId);
     }
 
+    /** Returns player associations for the provided run identifier. */
+    public List<RunScorePlayer> listByRunId(Long runId) {
+        if (runId == null) {
+            return List.of();
+        }
+        return list("runScore.id", runId);
+    }
+
+    /** Deletes all player associations linked to the provided run. */
+    public long deleteByRunId(Long runId) {
+        if (runId == null) {
+            return 0L;
+        }
+        return delete("runScore.id", runId);
+    }
+
     /**
      * Lists the identifiers of runs already linked to the provided player.
      *

@@ -35,6 +35,34 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
     }
 
     /**
+     * Returns recently updated score runs matching the provided optional filters.
+     */
+    public List<RunScore> listRecentRuns(Integer week, Integer score, Region region, int limit) {
+        int safeLimit = limit > 0 ? Math.min(limit, 400) : 0;
+        if (safeLimit <= 0) {
+            return List.of();
+        }
+        Map<String, Object> parameters = new HashMap<>();
+        StringBuilder query = new StringBuilder("1 = 1");
+        if (week != null) {
+            query.append(" AND week = :week");
+            parameters.put("week", week);
+        }
+        if (score != null) {
+            query.append(" AND score = :score");
+            parameters.put("score", score);
+        }
+        if (region != null && region.getId() != null && !region.getId().isBlank()) {
+            query.append(" AND region.id = :region");
+            parameters.put("region", region.getId());
+        }
+        query.append(" ORDER BY updateDate DESC, id DESC");
+        return find(query.toString(), parameters)
+                .page(Page.ofSize(safeLimit))
+                .list();
+    }
+
+    /**
      * Returns a page of score runs ordered by score for the provided dungeon.
      */
     public List<RunScore> listTopByDungeonPaged(Long dungeonId, int pageIndex, int pageSize) {
