@@ -1,5 +1,6 @@
 export default function SeasonCarousel({
   label,
+  ariaLabel,
   loading = false,
   error = false,
   seasons = [],
@@ -12,6 +13,7 @@ export default function SeasonCarousel({
   formatSeasonLabel,
   formatSeasonTitle,
   displayRange = true,
+  hideLabel = false,
 }) {
   const handleSelect = React.useCallback(
     (value) => {
@@ -95,9 +97,11 @@ export default function SeasonCarousel({
     );
   }
 
+  const groupLabel = ariaLabel || label;
+
   return (
-    <div className="season-carousel" role="group" aria-label={label || undefined}>
-      {label ? <span className="season-carousel-label">{label}</span> : null}
+    <div className="season-carousel" role="group" aria-label={groupLabel || undefined}>
+      {label && !hideLabel ? <span className="season-carousel-label">{label}</span> : null}
       {content}
     </div>
   );

@@ -1,6 +1,12 @@
 import { LangContext } from '../i18n.js';
 import SeasonCarousel from '../components/SeasonCarousel.js';
-import { sortSeasons } from '../seasons.js';
+import {
+  sortSeasons,
+  findCurrentSeasonId,
+  SEASON_STORAGE_PREFIX,
+  loadStoredSeasonId,
+  saveStoredSeasonId,
+} from '../seasons.js';
 import { translateRegion, extractRegionId } from '../regions.js';
 const { Link } = ReactRouterDOM;
 
@@ -25,7 +31,10 @@ export default function Individual() {
   const [seasons, setSeasons] = React.useState([]);
   const [seasonLoading, setSeasonLoading] = React.useState(false);
   const [seasonError, setSeasonError] = React.useState(false);
-  const [selectedSeasonId, setSelectedSeasonId] = React.useState(null);
+  const seasonStorageKey = React.useMemo(() => `${SEASON_STORAGE_PREFIX}individual`, []);
+  const [selectedSeasonId, setSelectedSeasonId] = React.useState(() =>
+    loadStoredSeasonId(seasonStorageKey),
+  );
   const [seasonInitialised, setSeasonInitialised] = React.useState(false);
 
   React.useEffect(() => {
@@ -46,21 +55,32 @@ export default function Individual() {
           return;
         }
         const sorted = sortSeasons(Array.isArray(data) ? data : []);
+        const availableIds = sorted.map((season) => String(season.id));
+        const currentSeasonId = findCurrentSeasonId(sorted);
+        const fallbackSeasonId =
+          currentSeasonId && availableIds.includes(currentSeasonId)
+            ? currentSeasonId
+            : availableIds[0] ?? null;
         setSeasons(sorted);
         setSelectedSeasonId((previous) => {
-          if (seasonInitialised) {
-            if (previous === null || previous === undefined) {
-              return previous;
-            }
-            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
-            if (hasPrevious) {
-              return String(previous);
-            }
-            const [firstSeason] = sorted;
-            return firstSeason ? String(firstSeason.id) : null;
+          const normalisedPrevious =
+            previous === null || previous === undefined ? previous : String(previous);
+          if (normalisedPrevious === null) {
+            return null;
           }
-          const [first] = sorted;
-          return first ? String(first.id) : null;
+          if (seasonInitialised) {
+            if (
+              typeof normalisedPrevious === 'string' &&
+              availableIds.includes(normalisedPrevious)
+            ) {
+              return normalisedPrevious;
+            }
+            return fallbackSeasonId ?? null;
+          }
+          if (typeof normalisedPrevious === 'string' && availableIds.includes(normalisedPrevious)) {
+            return normalisedPrevious;
+          }
+          return fallbackSeasonId ?? null;
         });
       })
       .catch((seasonFetchError) => {
@@ -86,6 +106,10 @@ export default function Individual() {
       controller.abort();
     };
   }, []);
+
+  React.useEffect(() => {
+    saveStoredSeasonId(seasonStorageKey, selectedSeasonId);
+  }, [seasonStorageKey, selectedSeasonId]);
 
   React.useEffect(() => {
     if (!seasonInitialised) {
@@ -249,6 +273,7 @@ export default function Individual() {
       <section className="individual-results" aria-live="polite">
         <SeasonCarousel
           label={t.seasonSelectorLabel}
+          hideLabel
           loading={!seasonInitialised || seasonLoading}
           error={seasonError}
           seasons={seasons}
