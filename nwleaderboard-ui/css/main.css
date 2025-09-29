@@ -1375,15 +1375,17 @@ body[data-theme='light'] .highlight-item {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   opacity: 0.7;
+  margin-right: auto;
 }
 
 .highlight-metric-mutations {
   margin-top: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 0.5rem;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 body[data-theme='light'] .highlight-metric {
