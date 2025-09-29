@@ -75,29 +75,52 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
     }
 
     public List<RunTime> listByDungeonAndWeeks(
-            Long dungeonId, List<Integer> weeks, Collection<String> regions, int pageIndex, int pageSize) {
+            Long dungeonId,
+            List<Integer> weeks,
+            Collection<String> regions,
+            Integer seasonId,
+            int pageIndex,
+            int pageSize) {
         if (dungeonId == null || pageIndex < 0 || pageSize <= 0) {
             return List.of();
         }
         if (weeks != null && weeks.isEmpty()) {
             return List.of();
         }
-        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
-        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+        StringBuilder jpql = new StringBuilder("SELECT run FROM RunTime run WHERE run.dungeon.id = :dungeonId");
         if (weeks != null) {
-            query.append(" AND week IN :weeks");
-            parameters = parameters.and("weeks", weeks);
+            jpql.append(" AND run.week IN :weeks");
         }
         if (regions != null && !regions.isEmpty()) {
-            query.append(" AND region.id IN :regions");
-            parameters = parameters.and("regions", regions);
+            jpql.append(" AND run.region.id IN :regions");
         }
-        query.append(" ORDER BY timeInSecond ASC, week DESC, id ASC");
-        return find(query.toString(), parameters).page(Page.of(pageIndex, pageSize)).list();
+        if (seasonId != null) {
+            jpql.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
+        }
+        jpql.append(" ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC");
+
+        var typedQuery = getEntityManager().createQuery(jpql.toString(), RunTime.class);
+        typedQuery.setParameter("dungeonId", dungeonId);
+        if (weeks != null) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        if (regions != null && !regions.isEmpty()) {
+            typedQuery.setParameter("regions", regions);
+        }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
+        typedQuery.setFirstResult(pageIndex * pageSize);
+        typedQuery.setMaxResults(pageSize);
+        return typedQuery.getResultList();
     }
 
     public List<Object[]> aggregateByDungeonAndWeeks(
-            Long dungeonId, List<Integer> weeks, Collection<String> regions) {
+            Long dungeonId, List<Integer> weeks, Collection<String> regions, Integer seasonId) {
         if (dungeonId == null) {
             return List.of();
         }
@@ -113,6 +136,13 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
         if (regions != null && !regions.isEmpty()) {
             query.append(" AND run.region.id IN :regions");
         }
+        if (seasonId != null) {
+            query.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
+        }
         query.append(" GROUP BY run.week");
 
         var typedQuery = getEntityManager().createQuery(query.toString(), Object[].class);
@@ -123,27 +153,49 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
         if (regions != null && !regions.isEmpty()) {
             typedQuery.setParameter("regions", regions);
         }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
         return typedQuery.getResultList();
     }
 
-    public long countByDungeonAndWeeks(Long dungeonId, List<Integer> weeks, Collection<String> regions) {
+    public long countByDungeonAndWeeks(
+            Long dungeonId, List<Integer> weeks, Collection<String> regions, Integer seasonId) {
         if (dungeonId == null) {
             return 0L;
         }
         if (weeks != null && weeks.isEmpty()) {
             return 0L;
         }
-        StringBuilder query = new StringBuilder("dungeon.id = :dungeonId");
-        Parameters parameters = Parameters.with("dungeonId", dungeonId);
+        StringBuilder jpql = new StringBuilder("SELECT COUNT(run) FROM RunTime run WHERE run.dungeon.id = :dungeonId");
         if (weeks != null) {
-            query.append(" AND week IN :weeks");
-            parameters = parameters.and("weeks", weeks);
+            jpql.append(" AND run.week IN :weeks");
         }
         if (regions != null && !regions.isEmpty()) {
-            query.append(" AND region.id IN :regions");
-            parameters = parameters.and("regions", regions);
+            jpql.append(" AND run.region.id IN :regions");
         }
-        return count(query.toString(), parameters);
+        if (seasonId != null) {
+            jpql.append(
+                    " AND EXISTS (SELECT 1 FROM WeekMutationDungeon seasonWeek "
+                            + "WHERE seasonWeek.id.week = run.week "
+                            + "AND seasonWeek.id.dungeonId = :dungeonId "
+                            + "AND seasonWeek.season.id = :seasonId)");
+        }
+
+        var typedQuery = getEntityManager().createQuery(jpql.toString(), Long.class);
+        typedQuery.setParameter("dungeonId", dungeonId);
+        if (weeks != null) {
+            typedQuery.setParameter("weeks", weeks);
+        }
+        if (regions != null && !regions.isEmpty()) {
+            typedQuery.setParameter("regions", regions);
+        }
+        if (seasonId != null) {
+            typedQuery.setParameter("seasonId", seasonId);
+        }
+
+        Long result = typedQuery.getSingleResult();
+        return result != null ? result : 0L;
     }
 
     /**

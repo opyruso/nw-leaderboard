@@ -196,13 +196,15 @@ export default function Player({ canContribute = false }) {
         const sorted = sortSeasons(Array.isArray(data) ? data : []);
         setSeasons(sorted);
         setSelectedSeasonId((previous) => {
+          const availableIds = sorted.map((season) => String(season.id));
           if (seasonInitialised) {
             if (previous === null || previous === undefined) {
               return previous;
             }
-            const hasPrevious = sorted.some((season) => String(season.id) === String(previous));
+            const previousId = String(previous);
+            const hasPrevious = availableIds.includes(previousId);
             if (hasPrevious) {
-              return String(previous);
+              return previousId;
             }
             const [firstSeason] = sorted;
             return firstSeason ? String(firstSeason.id) : null;
@@ -972,6 +974,7 @@ export default function Player({ canContribute = false }) {
                 ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
                 : undefined
             }
+            displayRange={false}
           />
         ) : null}
         {!hasPlayerId ? (

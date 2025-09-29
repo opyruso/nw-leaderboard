@@ -1666,7 +1666,9 @@ body[data-theme='light'] .bottom-nav {
 }
 
 .leaderboard-results {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
 }
 
 .leaderboard-chart {
@@ -2553,6 +2555,7 @@ body[data-theme='light'] .player-dungeon-card {
   overflow-x: auto;
   padding-bottom: 0.35rem;
   scroll-snap-type: x proximity;
+  width: 100%;
 }
 
 .season-carousel-track::-webkit-scrollbar {
