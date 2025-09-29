@@ -430,6 +430,8 @@ const en = {
   playerMainLinkHint: 'Enter the main character name to associate. Leave empty to remove the link.',
   playerMainLinkError:
     'Unable to update the main character link. Make sure both players belong to the same region.',
+  playerAlternateListLabel: 'Alternate characters:',
+  playerMainAccountLabel: 'Main account:',
   playerSearchLoading: 'Searching players…',
   playerSearchError: 'Unable to search players right now.',
   playerSearchNoResults: 'No players match this search yet.',

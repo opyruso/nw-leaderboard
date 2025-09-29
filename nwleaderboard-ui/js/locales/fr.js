@@ -438,6 +438,8 @@ const fr = {
     'Saisissez le nom du personnage principal à associer. Laissez vide pour retirer le lien.',
   playerMainLinkError:
     'Impossible de lier ce personnage. Assurez-vous que les deux joueurs sont dans la même région.',
+  playerAlternateListLabel: 'Personnages secondaires :',
+  playerMainAccountLabel: 'Compte principal :',
   playerSearchLoading: 'Recherche des joueurs…',
   playerSearchError: 'Impossible de rechercher des joueurs pour le moment.',
   playerSearchNoResults: 'Aucun joueur ne correspond pour le moment.',

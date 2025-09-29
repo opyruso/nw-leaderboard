@@ -429,6 +429,8 @@ const de = {
   playerMainLinkHint: 'Gib den Namen des Main-Charakters ein. Leer lassen, um die Verknüpfung zu entfernen.',
   playerMainLinkError:
     'Verknüpfung konnte nicht aktualisiert werden. Stelle sicher, dass beide Spieler in derselben Region sind.',
+  playerAlternateListLabel: 'Nebencharaktere:',
+  playerMainAccountLabel: 'Hauptkonto:',
   playerSearchLoading: 'Spielersuche…',
   playerSearchError: 'Spieler können derzeit nicht gesucht werden.',
   playerSearchNoResults: 'Keine Spieler gefunden.',

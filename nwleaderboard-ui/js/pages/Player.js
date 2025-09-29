@@ -738,6 +738,7 @@ export default function Player({ canContribute = false }) {
   const playerNameInfo = React.useMemo(() => getPlayerNames(profile), [profile]);
   const playerPrimaryName = playerNameInfo.playerName || '';
   const playerMainName = playerNameInfo.mainPlayerName || '';
+  const playerMainId = playerNameInfo.mainPlayerId || null;
   const playerIsAlt = Boolean(playerNameInfo.isAlt);
 
   const playerHeadingName = React.useMemo(() => {
@@ -759,6 +760,75 @@ export default function Player({ canContribute = false }) {
     }
     return '';
   }, [profile, hasPlayerId, normalisedPlayerId]);
+
+  const alternatePlayers = React.useMemo(() => {
+    if (!profile) {
+      return [];
+    }
+    const sourceList = Array.isArray(profile.alternatePlayers)
+      ? profile.alternatePlayers
+      : Array.isArray(profile.alternate_players)
+      ? profile.alternate_players
+      : [];
+    if (sourceList.length === 0) {
+      return [];
+    }
+    const seenIds = new Set();
+    const results = [];
+    sourceList.forEach((entry, index) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const link = formatPlayerLinkProps(entry);
+      let id = link.id;
+      if (!id && entry.playerId !== undefined && entry.playerId !== null) {
+        id = String(entry.playerId);
+      }
+      if (!id && entry.player_id !== undefined && entry.player_id !== null) {
+        id = String(entry.player_id);
+      }
+      if (!id) {
+        return;
+      }
+      const normalisedId = String(id).trim();
+      if (!normalisedId || seenIds.has(normalisedId)) {
+        return;
+      }
+      const name = typeof link.displayName === 'string' ? link.displayName.trim() : '';
+      if (!name) {
+        return;
+      }
+      seenIds.add(normalisedId);
+      results.push({
+        id: normalisedId,
+        name,
+        tooltip: typeof link.tooltip === 'string' && link.tooltip.trim() ? link.tooltip : undefined,
+      });
+    });
+    return results;
+  }, [profile]);
+
+  const mainPlayerLink = React.useMemo(() => {
+    const rawId =
+      profile && profile.mainPlayerId !== undefined && profile.mainPlayerId !== null
+        ? profile.mainPlayerId
+        : profile && profile.main_player_id !== undefined && profile.main_player_id !== null
+        ? profile.main_player_id
+        : playerMainId;
+    const rawName =
+      profile && typeof profile.mainPlayerName === 'string'
+        ? profile.mainPlayerName
+        : profile && typeof profile.main_player_name === 'string'
+        ? profile.main_player_name
+        : playerMainName;
+    const id =
+      rawId === undefined || rawId === null ? '' : String(rawId).trim();
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+    if (!id || !name) {
+      return null;
+    }
+    return { id, name };
+  }, [playerMainId, playerMainName, profile]);
 
   const handleSearchChange = React.useCallback((event) => {
     setSearchTerm(event.target.value);
@@ -971,6 +1041,40 @@ export default function Player({ canContribute = false }) {
                 ''
               )}
             </h2>
+            {playerIsAlt && mainPlayerLink ? (
+              <p className="player-profile-related player-profile-main-account">
+                <span className="player-profile-related-label">
+                  {t.playerMainAccountLabel || 'Main account:'}
+                </span>{' '}
+                <Link
+                  to={`/player/${encodeURIComponent(mainPlayerLink.id)}`}
+                  className="player-profile-related-link"
+                >
+                  {mainPlayerLink.name}
+                </Link>
+              </p>
+            ) : null}
+            {!playerIsAlt && alternatePlayers.length > 0 ? (
+              <p className="player-profile-related player-profile-alternate-list">
+                <span className="player-profile-related-label">
+                  {t.playerAlternateListLabel || 'Alternate characters:'}
+                </span>{' '}
+                {alternatePlayers.map((alt, index) => (
+                  <React.Fragment key={alt.id || `${alt.name}-${index}`}>
+                    {index > 0 ? (
+                      <span className="player-profile-related-separator">, </span>
+                    ) : null}
+                    <Link
+                      to={`/player/${encodeURIComponent(alt.id)}`}
+                      className="player-profile-related-link"
+                      title={alt.tooltip || undefined}
+                    >
+                      {alt.name}
+                    </Link>
+                  </React.Fragment>
+                ))}
+              </p>
+            ) : null}
             {playerPrimaryName && playerIdentifier ? (
               <p className="player-profile-identifier">
                 {typeof t.playerIdLabel === 'function'

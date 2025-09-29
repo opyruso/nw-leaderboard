@@ -430,6 +430,8 @@ const pt = {
     'Informe o nome do personagem principal para associar. Deixe em branco para remover o vínculo.',
   playerMainLinkError:
     'Não foi possível atualizar o vínculo. Verifique se os jogadores estão na mesma região.',
+  playerAlternateListLabel: 'Personagens secundários:',
+  playerMainAccountLabel: 'Conta principal:',
   playerSearchLoading: 'Buscando jogadores…',
   playerSearchError: 'Não foi possível buscar jogadores agora.',
   playerSearchNoResults: 'Nenhum jogador corresponde à busca ainda.',

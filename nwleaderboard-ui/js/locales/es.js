@@ -432,6 +432,8 @@ const es = {
     'Introduce el nombre del personaje principal para asociarlo. Déjalo vacío para eliminar el vínculo.',
   playerMainLinkError:
     'No se puede actualizar el vínculo del personaje principal. Asegúrate de que ambos jugadores pertenezcan a la misma región.',
+  playerAlternateListLabel: 'Personajes secundarios:',
+  playerMainAccountLabel: 'Cuenta principal:',
   playerSearchLoading: 'Buscando jugadores…',
   playerSearchError: 'No se puede buscar jugadores en este momento.',
   playerSearchNoResults: 'Ningún jugador coincide con la búsqueda todavía.',

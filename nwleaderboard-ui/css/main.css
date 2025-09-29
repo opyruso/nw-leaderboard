@@ -2199,6 +2199,36 @@ body[data-theme='light'] .player-profile-region {
   opacity: 0.7;
 }
 
+.player-profile-related {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+body[data-theme='light'] .player-profile-related {
+  color: rgba(30, 41, 59, 0.72);
+}
+
+.player-profile-related-label {
+  font-weight: 600;
+}
+
+.player-profile-related-link {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.player-profile-related-link:hover,
+.player-profile-related-link:focus-visible {
+  text-decoration: none;
+}
+
+.player-profile-related-separator {
+  color: inherit;
+}
+
 .player-main-link-form {
   display: grid;
   gap: 0.75rem;
