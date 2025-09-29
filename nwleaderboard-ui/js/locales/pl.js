@@ -148,6 +148,8 @@ const pl = {
   contributeStatsError: 'Nie można załadować statystyk run.',
   contributeStatsEmpty: 'Nie zarejestrowano jeszcze run.',
   contributeStatsWeek: 'Tydzień',
+  contributeStatsScoreShort: 'Wynik',
+  contributeStatsTimeShort: 'Czas',
   contributeStatsScoreRuns: 'Runy wynikowe',
   contributeStatsScoreRunsRegion: (region) => `${region} – Runy wynikowe`,
   contributeStatsTimeRuns: 'Runy czasowe',

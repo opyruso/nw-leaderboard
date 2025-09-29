@@ -149,6 +149,8 @@ const es = {
   contributeStatsError: 'No se pueden cargar las estadísticas de partidas.',
   contributeStatsEmpty: 'Todavía no hay partidas registradas.',
   contributeStatsWeek: 'Semana',
+  contributeStatsScoreShort: 'Puntuación',
+  contributeStatsTimeShort: 'Tiempo',
   contributeStatsScoreRuns: 'Partidas de puntuación',
   contributeStatsScoreRunsRegion: (region) => `${region} – Partidas de puntuación`,
   contributeStatsTimeRuns: 'Partidas de tiempo',

@@ -148,6 +148,8 @@ const fr = {
   contributeStatsError: 'Impossible de charger les statistiques des runs.',
   contributeStatsEmpty: 'Aucun run enregistré pour le moment.',
   contributeStatsWeek: 'Semaine',
+  contributeStatsScoreShort: 'Score',
+  contributeStatsTimeShort: 'Temps',
   contributeStatsScoreRuns: 'Runs score',
   contributeStatsScoreRunsRegion: (region) => `${region} – Runs score`,
   contributeStatsTimeRuns: 'Runs temps',
