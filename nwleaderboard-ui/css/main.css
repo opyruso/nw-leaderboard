@@ -1373,22 +1373,6 @@ body[data-theme='light'] .highlight-item {
   gap: 1.25rem;
 }
 
-.highlight-footer {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-top: auto;
-  padding-top: 0.5rem;
-}
-
-.highlight-region {
-  font-size: 0.85rem;
-  opacity: 0.75;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  align-self: flex-start;
-}
-
 .highlight-metric {
   display: flex;
   flex-direction: column;

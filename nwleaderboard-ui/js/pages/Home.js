@@ -217,7 +217,6 @@ export default function Home() {
               const timeValue = time ? formatTime(time.value) : t.highlightNoTime;
               const scoreWeek = score && score.week ? score.week : null;
               const timeWeek = time && time.week ? time.week : null;
-              const regionLabel = highlight.region ? translateRegion(t, highlight.region) : '';
               const scoreRegionLabel = score?.region ? translateRegion(t, score.region) : '';
               const timeRegionLabel = time?.region ? translateRegion(t, time.region) : '';
               const hasScoreMutations = hasMutationIds(score?.mutations);
@@ -344,11 +343,6 @@ export default function Home() {
                       ) : null}
                     </div>
                   </div>
-                  {regionLabel ? (
-                    <div className="highlight-footer">
-                      <span className="highlight-region">{regionLabel}</span>
-                    </div>
-                  ) : null}
                 </li>
               );
             })}
