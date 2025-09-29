@@ -1228,12 +1228,17 @@ export default function LeaderboardPage({
     };
   }, [chartConfig, chartData, formatWeekLabel, t, theme]);
 
+  const displaySeasons = React.useMemo(
+    () => (Array.isArray(seasons) ? seasons.slice().reverse() : []),
+    [seasons],
+  );
+
   const seasonCarousel = (
     <SeasonCarousel
       label={t.seasonSelectorLabel}
       loading={!seasonInitialised || seasonLoading}
       error={seasonError}
-      seasons={seasons}
+      seasons={displaySeasons}
       selectedSeasonId={selectedSeasonId}
       onSelect={handleSeasonSelect}
       allLabel={t.seasonSelectorAll}
@@ -1250,6 +1255,7 @@ export default function LeaderboardPage({
           ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
           : undefined
       }
+      displayRange={false}
     />
   );
 

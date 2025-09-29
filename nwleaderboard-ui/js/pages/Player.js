@@ -864,6 +864,11 @@ export default function Player({ canContribute = false }) {
     return null;
   }, [preparedDungeons]);
 
+  const displaySeasons = React.useMemo(
+    () => (Array.isArray(seasons) ? seasons.slice().reverse() : []),
+    [seasons],
+  );
+
   const renderWeek = (week) => {
     const numeric = Number(week);
     if (!Number.isFinite(numeric)) {
@@ -955,7 +960,7 @@ export default function Player({ canContribute = false }) {
             label={t.seasonSelectorLabel}
             loading={!seasonInitialised || seasonLoading}
             error={seasonError}
-            seasons={seasons}
+            seasons={displaySeasons}
             selectedSeasonId={selectedSeasonId}
             onSelect={handleSeasonSelect}
             allLabel={t.seasonSelectorAll}
@@ -972,6 +977,7 @@ export default function Player({ canContribute = false }) {
                 ? t.seasonSelectorItemTitle(season.id, season.dateBegin, season.dateEnd)
                 : undefined
             }
+            displayRange={false}
           />
         ) : null}
         {!hasPlayerId ? (
