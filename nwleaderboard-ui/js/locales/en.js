@@ -46,6 +46,7 @@ const en = {
   contributeExtracting: 'Extracting…',
   contributeClear: 'Clear selection',
   contributeResultsTitle: 'Detected runs',
+  contributeOriginalScreenshotAlt: 'Original screenshot',
   contributeRescan: 'Force re-scan',
   contributeRescanning: 'Re-scanning…',
   contributeRescanPrompt: 'Enter the vertical offset (pixels) to use:',

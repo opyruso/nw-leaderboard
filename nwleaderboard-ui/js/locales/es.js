@@ -47,6 +47,7 @@ const es = {
   contributeExtracting: 'Extrayendo…',
   contributeClear: 'Limpiar selección',
   contributeResultsTitle: 'Partidas detectadas',
+  contributeOriginalScreenshotAlt: 'Captura original',
   contributeRescan: 'Forzar reescaneo',
   contributeRescanning: 'Reescaneando…',
   contributeRescanPrompt: 'Introduce el desplazamiento vertical (píxeles) que se usará:',

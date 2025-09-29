@@ -46,6 +46,7 @@ const it = {
   contributeExtracting: 'Estrazione…',
   contributeClear: 'Pulisci selezione',
   contributeResultsTitle: 'Run rilevate',
+  contributeOriginalScreenshotAlt: 'Schermata originale',
   contributeRescan: 'Forza nuova scansione',
   contributeRescanning: 'Nuova scansione…',
   contributeRescanPrompt: 'Inserisci l’offset verticale (in pixel) da utilizzare:',

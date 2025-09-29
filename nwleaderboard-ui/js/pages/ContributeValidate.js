@@ -393,6 +393,7 @@ export default function ContributeValidate() {
   const [rescanning, setRescanning] = React.useState(false);
   const [deletingScan, setDeletingScan] = React.useState(false);
   const [groupOffsets, setGroupOffsets] = React.useState(() => Array(5).fill('0'));
+  const [showPictureModal, setShowPictureModal] = React.useState(false);
 
   const getConfidenceLabel = React.useCallback((confidence) => formatConfidenceLabel(t, confidence), [t]);
 
@@ -419,6 +420,9 @@ export default function ContributeValidate() {
     typeof t.contributeRescanOffsetsLabel === 'string'
       ? t.contributeRescanOffsetsLabel
       : 'Offsets (px)';
+  const resultPicture = typeof result?.picture === 'string' ? result.picture : '';
+  const hasResultPicture = Boolean(resultPicture);
+  const resultId = result?.id || null;
   const getGroupOffsetLabel = React.useCallback(
     (groupIndex) => {
       if (typeof t.contributeRescanGroupOffsetLabel === 'function') {
@@ -428,6 +432,24 @@ export default function ContributeValidate() {
     },
     [t],
   );
+
+  React.useEffect(() => {
+    setShowPictureModal(false);
+  }, [resultId]);
+
+  const handleOpenPicture = React.useCallback(() => {
+    if (resultPicture) {
+      setShowPictureModal(true);
+    }
+  }, [resultPicture]);
+
+  const handleClosePicture = React.useCallback(() => {
+    setShowPictureModal(false);
+  }, []);
+  const originalPictureAlt =
+    typeof t.contributeOriginalScreenshotAlt === 'string'
+      ? t.contributeOriginalScreenshotAlt
+      : t.contributeResultsTitle;
 
   React.useEffect(() => {
     let active = true;
@@ -1926,6 +1948,15 @@ export default function ContributeValidate() {
 
   return (
     <section className="contribute-validate">
+      {showPictureModal && hasResultPicture ? (
+        <div className="contribute-picture-modal" onClick={handleClosePicture} role="presentation">
+          <img
+            className="contribute-picture-modal-image"
+            src={resultPicture}
+            alt={originalPictureAlt}
+          />
+        </div>
+      ) : null}
       <p className="page-description">{t.contributeValidateDescription}</p>
       <div className="contribute-validate-layout">
         <section className="form contribute-form" aria-live="polite">
@@ -2025,7 +2056,23 @@ export default function ContributeValidate() {
           {result ? (
             <div className={`form contribute-results${showSuccess ? '' : ' contribute-results--hide-success'}`}>
               <div className="contribute-results-top">
-                <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
+                <div className="contribute-results-heading">
+                  {hasResultPicture ? (
+                    <button
+                      type="button"
+                      className="contribute-results-picture-button"
+                      onClick={handleOpenPicture}
+                      title={originalPictureAlt}
+                    >
+                      <img
+                        className="contribute-results-picture-thumb"
+                        src={resultPicture}
+                        alt={originalPictureAlt}
+                      />
+                    </button>
+                  ) : null}
+                  <h2 className="contribute-section-title">{t.contributeResultsTitle}</h2>
+                </div>
                 <div className="contribute-results-actions">
                   {selectedScanId ? (
                     <>
