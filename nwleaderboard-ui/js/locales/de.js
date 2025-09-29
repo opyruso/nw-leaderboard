@@ -382,6 +382,7 @@ const de = {
   individualScorePointsHeader: 'Score-Punkte',
   individualTimePointsHeader: 'Zeit-Punkte',
   dungeonSelectorTitle: 'Dungeon auswählen',
+  dungeonSelectorCurrent: 'Ausgewählter Dungeon',
   dungeonSelectorEmpty: 'Noch keine Dungeons verfügbar.',
   dungeonSelectorError: 'Dungeons konnten nicht geladen werden. Bitte später versuchen.',
   mutationFilterTitle: 'Nach Mutation filtern',

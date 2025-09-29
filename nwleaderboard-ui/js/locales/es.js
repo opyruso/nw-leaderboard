@@ -384,6 +384,7 @@ const es = {
   individualScorePointsHeader: 'Pts. puntuación',
   individualTimePointsHeader: 'Pts. tiempo',
   dungeonSelectorTitle: 'Selecciona una mazmorra',
+  dungeonSelectorCurrent: 'Mazmorra seleccionada',
   dungeonSelectorEmpty: 'Todavía no hay mazmorras disponibles.',
   dungeonSelectorError: 'No se pueden cargar las mazmorras. Inténtalo más tarde.',
   mutationFilterTitle: 'Filtrar por mutación',

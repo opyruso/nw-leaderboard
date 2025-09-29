@@ -226,7 +226,7 @@ export default function LeaderboardPage({
   const [regionLoading, setRegionLoading] = React.useState(false);
   const [regionError, setRegionError] = React.useState(false);
   const [isDungeonCollapsed, setIsDungeonCollapsed] = React.useState(false);
-  const [isRegionCollapsed, setIsRegionCollapsed] = React.useState(false);
+  const [isRegionCollapsed, setIsRegionCollapsed] = React.useState(true);
   const [isMutationCollapsed, setIsMutationCollapsed] = React.useState(true);
   const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
   const [requestedPage, setRequestedPage] = React.useState(1);
@@ -1432,6 +1432,38 @@ export default function LeaderboardPage({
   const hasRegionData = sortedRegionOptions.length > 0;
   const regionPanelId = React.useMemo(() => `${mode}-region-filter`, [mode]);
 
+  const selectedDungeonDetails = React.useMemo(() => {
+    if (!selectedDungeon) {
+      return null;
+    }
+    const selectedId = String(selectedDungeon);
+    return (
+      sortedDungeons.find((dungeon) => {
+        if (!dungeon || typeof dungeon !== 'object') {
+          return false;
+        }
+        const dungeonId =
+          typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+            ? String(dungeon.id)
+            : '';
+        return dungeonId === selectedId;
+      }) || null
+    );
+  }, [selectedDungeon, sortedDungeons]);
+
+  const selectedDungeonName = React.useMemo(() => {
+    if (selectedDungeonDetails) {
+      return getDungeonNameForLang(selectedDungeonDetails, lang);
+    }
+    if (!selectedDungeon) {
+      return '';
+    }
+    return String(selectedDungeon);
+  }, [selectedDungeonDetails, selectedDungeon, lang]);
+
+  const selectedDungeonIconId = selectedDungeonDetails?.id ?? selectedDungeon ?? null;
+  const selectedDungeonDisplayName = selectedDungeonName || t.dungeonSelectorEmpty;
+
   const hasMutationData =
     mutationOptions.type.length > 0 ||
     mutationOptions.promotion.length > 0 ||
@@ -1481,6 +1513,8 @@ export default function LeaderboardPage({
                   <div className="region-filter-list" role="group" aria-label={t.regionFilterTitle}>
                     {sortedRegionOptions.map((regionId) => {
                       const isActive = regionFilters.includes(regionId);
+                      const regionLabel = translateRegion(t, regionId) || regionId;
+                      const regionCode = typeof regionId === 'string' ? regionId : String(regionId || '');
                       return (
                         <button
                           key={regionId}
@@ -1488,8 +1522,10 @@ export default function LeaderboardPage({
                           className={`region-filter-button${isActive ? ' active' : ''}`}
                           onClick={() => handleRegionFilterToggle(regionId)}
                           aria-pressed={isActive}
+                          title={regionLabel}
+                          aria-label={regionLabel}
                         >
-                          {translateRegion(t, regionId)}
+                          <span className="region-filter-button-code">{regionCode}</span>
                         </button>
                       );
                     })}
@@ -1698,30 +1734,39 @@ export default function LeaderboardPage({
               ) : dungeons.length === 0 ? (
                 <p className="leaderboard-status">{t.dungeonSelectorEmpty}</p>
               ) : (
-                <ul className="dungeon-list">
-                  {sortedDungeons.map((dungeon) => {
-                    const displayName = getDungeonNameForLang(dungeon, lang);
-                    const dungeonId =
-                      typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
-                        ? String(dungeon.id)
-                        : '';
-                    const isActive = selectedDungeon === dungeonId;
-                    return (
-                      <li key={dungeon.id}>
+                <div className="dungeon-selector-panel">
+                  <div className="dungeon-selected-display">
+                    <DungeonIcon dungeonId={selectedDungeonIconId} className="dungeon-selected-icon" />
+                    <div className="dungeon-selected-text">
+                      <span className="dungeon-selected-label">{t.dungeonSelectorCurrent}</span>
+                      <span className="dungeon-selected-name">{selectedDungeonDisplayName}</span>
+                    </div>
+                  </div>
+                  <div className="dungeon-grid" role="group" aria-label={t.dungeonSelectorTitle}>
+                    {sortedDungeons.map((dungeon) => {
+                      const displayName = getDungeonNameForLang(dungeon, lang);
+                      const dungeonId =
+                        typeof dungeon.id === 'string' || typeof dungeon.id === 'number'
+                          ? String(dungeon.id)
+                          : '';
+                      const isActive = selectedDungeon === dungeonId;
+                      const dungeonTitle = displayName || dungeonId || t.dungeonSelectorTitle;
+                      return (
                         <button
+                          key={dungeon.id}
                           type="button"
-                          className={isActive ? 'dungeon-button active' : 'dungeon-button'}
+                          className={isActive ? 'dungeon-grid-button active' : 'dungeon-grid-button'}
                           onClick={() => handleSelectDungeon(dungeonId)}
+                          aria-pressed={isActive}
+                          title={dungeonTitle}
+                          aria-label={dungeonTitle}
                         >
-                          <span className="dungeon-button-content">
-                            <DungeonIcon dungeonId={dungeon.id} className="dungeon-button-icon" />
-                            <span className="dungeon-button-label">{displayName}</span>
-                          </span>
+                          <DungeonIcon dungeonId={dungeon.id} className="dungeon-grid-button-icon" />
                         </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </section>

@@ -383,6 +383,7 @@ const en = {
   individualScorePointsHeader: 'Score pts',
   individualTimePointsHeader: 'Time pts',
   dungeonSelectorTitle: 'Select a dungeon',
+  dungeonSelectorCurrent: 'Selected dungeon',
   dungeonSelectorEmpty: 'No dungeon available yet.',
   dungeonSelectorError: 'Unable to load dungeons. Please try again later.',
   mutationFilterTitle: 'Filter by mutation',

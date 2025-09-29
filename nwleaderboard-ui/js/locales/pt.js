@@ -382,6 +382,7 @@ const pt = {
   individualScorePointsHeader: 'Pts. score',
   individualTimePointsHeader: 'Pts. tempo',
   dungeonSelectorTitle: 'Selecione uma masmorra',
+  dungeonSelectorCurrent: 'Masmorra selecionada',
   dungeonSelectorEmpty: 'Nenhuma masmorra disponível ainda.',
   dungeonSelectorError: 'Não foi possível carregar as masmorras. Tente novamente mais tarde.',
   mutationFilterTitle: 'Filtrar por mutação',

@@ -389,6 +389,7 @@ const fr = {
   individualScorePointsHeader: 'Points score',
   individualTimePointsHeader: 'Points temps',
   dungeonSelectorTitle: 'Sélectionnez un donjon',
+  dungeonSelectorCurrent: 'Donjon sélectionné',
   dungeonSelectorEmpty: 'Aucun donjon disponible pour le moment.',
   dungeonSelectorError: 'Impossible de charger les donjons. Veuillez réessayer plus tard.',
   mutationFilterTitle: 'Filtrer par mutation',
