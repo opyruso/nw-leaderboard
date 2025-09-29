@@ -1401,6 +1401,24 @@ body[data-theme='light'] .highlight-item {
   position: relative;
 }
 
+.highlight-metric-region {
+  font-size: 0.8rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-right: auto;
+}
+
+.highlight-metric-mutations {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
 body[data-theme='light'] .highlight-metric {
   background: var(--surface-light-soft);
   border-color: var(--border-light);
@@ -1483,8 +1501,8 @@ body[data-theme='light'] .mutation-icon {
 }
 
 .highlight-mutation-icons {
-  align-self: flex-end;
-  margin-top: auto;
+  margin-top: 0;
+  align-self: auto;
 }
 
 .highlight-player {

@@ -13,6 +13,7 @@ public record HighlightMetricResponse(
         Integer week,
         Integer position,
         List<LeaderboardPlayerResponse> players,
+        @JsonProperty("region") String region,
         @JsonProperty("mutation_type_id") String mutationTypeId,
         @JsonProperty("mutation_promotion_id") String mutationPromotionId,
         @JsonProperty("mutation_curse_id") String mutationCurseId) {

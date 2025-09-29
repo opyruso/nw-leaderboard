@@ -11,5 +11,6 @@ public record HighlightResponse(
         String name,
         Map<String, String> names,
         @JsonProperty("player_count") Integer playerCount,
+        @JsonProperty("region") String region,
         @JsonProperty("best_score") HighlightMetricResponse bestScore,
         @JsonProperty("best_time") HighlightMetricResponse bestTime) {}
