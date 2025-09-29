@@ -715,6 +715,26 @@ export default function Player({ canContribute = false }) {
     return { data, options };
   }, [preparedDungeons, lang, t]);
 
+  const renderRankIndicator = React.useCallback((position, label) => {
+    if (position === undefined || position === null) {
+      return null;
+    }
+    const numeric = Number(position);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+    const integer = Math.max(1, Math.floor(numeric));
+    if (integer <= 9) {
+      return <RankBadge position={integer} label={label} className="player-rank-badge" />;
+    }
+    const title = label ? `${label} #${integer}` : `#${integer}`;
+    return (
+      <span className="rank-badge-text player-rank-badge" aria-label={title} title={title}>
+        #{integer}
+      </span>
+    );
+  }, []);
+
   const playerNameInfo = React.useMemo(() => getPlayerNames(profile), [profile]);
   const playerPrimaryName = playerNameInfo.playerName || '';
   const playerMainName = playerNameInfo.mainPlayerName || '';
@@ -1171,11 +1191,7 @@ export default function Player({ canContribute = false }) {
                     </h2>
                     <dl className="player-dungeon-stats">
                       <div className="player-dungeon-stat">
-                        <RankBadge
-                          position={dungeon.bestScorePosition}
-                          label={t.playerBestScore}
-                          className="player-rank-badge"
-                        />
+                        {renderRankIndicator(dungeon.bestScorePosition, t.playerBestScore)}
                         <dt>{t.playerBestScore}</dt>
                         <dd>
                           {hasScore ? (
@@ -1195,11 +1211,7 @@ export default function Player({ canContribute = false }) {
                         </dd>
                       </div>
                       <div className="player-dungeon-stat">
-                        <RankBadge
-                          position={dungeon.bestTimePosition}
-                          label={t.playerBestTime}
-                          className="player-rank-badge"
-                        />
+                        {renderRankIndicator(dungeon.bestTimePosition, t.playerBestTime)}
                         <dt>{t.playerBestTime}</dt>
                         <dd>
                           {hasTime ? (
