@@ -12,7 +12,8 @@ public record PlayerProfileResponse(
         String region,
         Long mainPlayerId,
         String mainPlayerName,
-        List<PlayerDungeonBestResponse> dungeons) {
+        List<PlayerDungeonBestResponse> dungeons,
+        List<PlayerProfileAlternateResponse> alternatePlayers) {
 
     public PlayerProfileResponse {
         if (playerName != null) {
@@ -33,6 +34,8 @@ public record PlayerProfileResponse(
             mainPlayerName = null;
         }
         dungeons = dungeons == null ? List.of() : List.copyOf(dungeons);
+        alternatePlayers =
+                alternatePlayers == null ? List.of() : List.copyOf(alternatePlayers);
     }
 }
 

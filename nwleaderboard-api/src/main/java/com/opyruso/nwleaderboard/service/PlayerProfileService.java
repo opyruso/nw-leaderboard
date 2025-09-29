@@ -1,6 +1,7 @@
 package com.opyruso.nwleaderboard.service;
 
 import com.opyruso.nwleaderboard.dto.PlayerDungeonBestResponse;
+import com.opyruso.nwleaderboard.dto.PlayerProfileAlternateResponse;
 import com.opyruso.nwleaderboard.dto.PlayerProfileResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
@@ -117,9 +118,37 @@ public class PlayerProfileService {
         Player main = resolveMain(player);
         Long mainId = main != null && !main.equals(player) ? main.getId() : null;
         String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
+        List<PlayerProfileAlternateResponse> alternatePlayers = List.of();
+        if (main == null || main.equals(player)) {
+            List<Player> alternates = playerRepository.listByMainCharacterId(player.getId());
+            if (alternates != null && !alternates.isEmpty()) {
+                Collator nameCollator = Collator.getInstance(Locale.ENGLISH);
+                nameCollator.setStrength(Collator.PRIMARY);
+                List<PlayerProfileAlternateResponse> summaries = new ArrayList<>();
+                for (Player alternate : alternates) {
+                    if (alternate == null || alternate.getId() == null) {
+                        continue;
+                    }
+                    String altName = alternate.getPlayerName();
+                    if (altName != null) {
+                        altName = altName.strip();
+                    }
+                    if (altName == null || altName.isEmpty()) {
+                        continue;
+                    }
+                    summaries.add(new PlayerProfileAlternateResponse(alternate.getId(), altName));
+                }
+                summaries.sort(
+                        (left, right) ->
+                                nameCollator.compare(
+                                        left.playerName() != null ? left.playerName() : "",
+                                        right.playerName() != null ? right.playerName() : ""));
+                alternatePlayers = List.copyOf(summaries);
+            }
+        }
         String regionId = normaliseRegionId(player.getRegion() != null ? player.getRegion().getId() : null);
         PlayerProfileResponse response = new PlayerProfileResponse(
-                player.getId(), player.getPlayerName(), regionId, mainId, mainName, dungeonSummaries);
+                player.getId(), player.getPlayerName(), regionId, mainId, mainName, dungeonSummaries, alternatePlayers);
         return Optional.of(response);
     }
 

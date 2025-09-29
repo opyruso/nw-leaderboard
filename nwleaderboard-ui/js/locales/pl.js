@@ -428,6 +428,8 @@ const pl = {
   playerMainLinkHint: 'Podaj nazwę postaci głównej. Pozostaw puste, aby usunąć powiązanie.',
   playerMainLinkError:
     'Nie udało się zaktualizować powiązania. Upewnij się, że gracze są w tym samym regionie.',
+  playerAlternateListLabel: 'Postacie poboczne:',
+  playerMainAccountLabel: 'Konto główne:',
   playerSearchLoading: 'Wyszukiwanie graczy…',
   playerSearchError: 'Nie można teraz wyszukać graczy.',
   playerSearchNoResults: 'Brak dopasowań.',

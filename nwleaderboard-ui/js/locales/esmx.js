@@ -428,6 +428,8 @@ const esmx = {
   playerMainLinkHint: 'Ingresa el nombre del personaje principal. Deja vacío para quitar el vínculo.',
   playerMainLinkError:
     'No se puede actualizar el vínculo del personaje principal. Verifica que los jugadores sean de la misma región.',
+  playerAlternateListLabel: 'Personajes secundarios:',
+  playerMainAccountLabel: 'Cuenta principal:',
   playerSearchLoading: 'Buscando jugadores…',
   playerSearchError: 'No se pueden buscar jugadores en este momento.',
   playerSearchNoResults: 'Aún no hay jugadores que coincidan.',
