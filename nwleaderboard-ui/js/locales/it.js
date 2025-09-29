@@ -382,6 +382,7 @@ const it = {
   individualScorePointsHeader: 'Punti score',
   individualTimePointsHeader: 'Punti tempo',
   dungeonSelectorTitle: 'Seleziona una spedizione',
+  dungeonSelectorCurrent: 'Spedizione selezionata',
   dungeonSelectorEmpty: 'Nessuna spedizione disponibile.',
   dungeonSelectorError: 'Impossibile caricare le spedizioni. Riprova più tardi.',
   mutationFilterTitle: 'Filtra per mutazione',

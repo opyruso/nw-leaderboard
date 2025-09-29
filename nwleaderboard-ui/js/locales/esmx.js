@@ -382,6 +382,7 @@ const esmx = {
   individualScorePointsHeader: 'Pts. score',
   individualTimePointsHeader: 'Pts. tiempo',
   dungeonSelectorTitle: 'Selecciona una mazmorra',
+  dungeonSelectorCurrent: 'Mazmorra seleccionada',
   dungeonSelectorEmpty: 'Aún no hay mazmorras disponibles.',
   dungeonSelectorError: 'No se pueden cargar las mazmorras. Intenta después.',
   mutationFilterTitle: 'Filtrar por mutación',

@@ -382,6 +382,7 @@ const pl = {
   individualScorePointsHeader: 'Punkty wyniku',
   individualTimePointsHeader: 'Punkty czasu',
   dungeonSelectorTitle: 'Wybierz loch',
+  dungeonSelectorCurrent: 'Wybrany loch',
   dungeonSelectorEmpty: 'Brak dostępnych lochów.',
   dungeonSelectorError: 'Nie można załadować lochów. Spróbuj później.',
   mutationFilterTitle: 'Filtruj mutacje',
