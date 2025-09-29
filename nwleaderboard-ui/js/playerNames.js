@@ -45,6 +45,7 @@ export function getPlayerNames(player) {
   const playerName =
     extractName(player.playerName) ||
     extractName(player.player_name) ||
+    extractName(player.display_name) ||
     extractName(player.name) ||
     extractName(player.label) ||
     extractName(player.displayName) ||
@@ -53,13 +54,22 @@ export function getPlayerNames(player) {
 
   const mainPlayerName =
     extractName(player.mainPlayerName) ||
-    extractName(player.main_player_name);
+    extractName(player.main_player_name) ||
+    extractName(player.mainName) ||
+    extractName(player.main_name) ||
+    extractName(player.main) ||
+    extractName(player.mainCharacterName) ||
+    extractName(player.main_character_name);
 
   const mainPlayerIdRaw =
     player.mainPlayerId ??
     player.main_player_id ??
     player.mainId ??
     player.main_id ??
+    player.mainCharacterId ??
+    player.main_character_id ??
+    player.mainIdPlayer ??
+    player.main_id_player ??
     null;
   const mainPlayerId =
     mainPlayerIdRaw === null || mainPlayerIdRaw === undefined
@@ -73,9 +83,16 @@ export function getPlayerNames(player) {
       : null;
 
   const playerId = getRawPlayerId(player);
-  const isAlt = Boolean((mainPlayerId && mainPlayerId.length > 0) || (mainPlayerName && mainPlayerName.length > 0));
+  const explicitAlt =
+    player.isAlt ?? player.is_alt ?? player.alt ?? player.isAlternate ?? player.is_alternate ?? false;
   const displayName = playerName || mainPlayerName;
-  const tooltip = isAlt ? mainPlayerName || '' : '';
+  const providedTooltip = extractName(player.tooltip) || extractName(player.title) || '';
+  const isAlt = Boolean(
+    explicitAlt ||
+      (mainPlayerId && mainPlayerId.length > 0) ||
+      (mainPlayerName && mainPlayerName.length > 0),
+  );
+  const tooltip = isAlt ? mainPlayerName || providedTooltip : providedTooltip;
 
   return {
     playerName,
