@@ -73,6 +73,16 @@ function sortPlayers(list) {
   });
 }
 
+function computeTotalRuns(player) {
+  if (!player || typeof player !== 'object') {
+    return 0;
+  }
+  const scoreRuns = Number.isFinite(player.scoreRuns) ? player.scoreRuns : 0;
+  const timeRuns = Number.isFinite(player.timeRuns) ? player.timeRuns : 0;
+  const totalRuns = Number.isFinite(player.totalRuns) ? player.totalRuns : scoreRuns + timeRuns;
+  return Number.isFinite(totalRuns) && totalRuns >= 0 ? totalRuns : 0;
+}
+
 export default function ContributePlayers() {
   const { t } = React.useContext(LangContext);
   const [players, setPlayers] = React.useState([]);
@@ -83,6 +93,7 @@ export default function ContributePlayers() {
   const [editingName, setEditingName] = React.useState('');
   const [pendingIds, setPendingIds] = React.useState(() => new Set());
   const [feedback, setFeedback] = React.useState({ type: '', text: '' });
+  const [bulkUpdating, setBulkUpdating] = React.useState(false);
 
   const formatRunCounts = React.useCallback(
     (total, score, time) => {
@@ -303,15 +314,13 @@ export default function ContributePlayers() {
     [editingId, editingName, handleCommitEdit],
   );
 
-  const handleToggleValidity = React.useCallback(
-    (player) => {
+  const requestSetPlayerValidity = React.useCallback(
+    (player, nextValid) => {
       if (!player || pendingIds.has(player.id)) {
-        return;
+        return Promise.resolve({ success: false });
       }
-      const nextValid = !player.valid;
       addPending(player.id);
-      setFeedback({ type: '', text: '' });
-      fetch(`${API_BASE_URL}/contributor/players/${player.id}/valid`, {
+      return fetch(`${API_BASE_URL}/contributor/players/${player.id}/valid`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ valid: nextValid }),
@@ -324,18 +333,20 @@ export default function ContributePlayers() {
               .then((data) => {
                 const message =
                   data && typeof data.message === 'string' ? data.message : t.contributePlayerUpdateError;
-                throw new Error(message || `Failed to toggle validity: ${response.status}`);
+                throw new Error(message || `Failed to update validity: ${response.status}`);
               });
           }
           return response.json();
         })
         .then((data) => {
           applyUpdate(data);
+          return { success: true };
         })
         .catch((error) => {
-          console.error('Unable to toggle player validity', error);
+          console.error('Unable to update player validity', error);
           const message = error && error.message ? error.message : t.contributePlayerUpdateError;
           setFeedback({ type: 'error', text: message || 'Unable to update this player.' });
+          return { success: false };
         })
         .finally(() => {
           removePending(player.id);
@@ -343,6 +354,87 @@ export default function ContributePlayers() {
     },
     [addPending, applyUpdate, pendingIds, removePending, t],
   );
+
+  const handleToggleValidity = React.useCallback(
+    (player) => {
+      if (!player) {
+        return;
+      }
+      setFeedback({ type: '', text: '' });
+      requestSetPlayerValidity(player, !player.valid);
+    },
+    [requestSetPlayerValidity],
+  );
+
+  const handleValidateEligiblePlayers = React.useCallback(() => {
+    const targets = players.filter((player) => player && !player.valid && computeTotalRuns(player) >= 2);
+    if (targets.length === 0) {
+      setFeedback({
+        type: '',
+        text:
+          t.contributePlayersBulkAutoNone ||
+          'No pending players have at least two runs to validate automatically.',
+      });
+      return;
+    }
+    setFeedback({ type: '', text: '' });
+    setBulkUpdating(true);
+    Promise.all(targets.map((player) => requestSetPlayerValidity(player, true)))
+      .then((results) => {
+        const successCount = results.filter((result) => result && result.success).length;
+        const failureCount = targets.length - successCount;
+        if (failureCount === 0) {
+          const message =
+            typeof t.contributePlayersBulkAutoSuccess === 'function'
+              ? t.contributePlayersBulkAutoSuccess(successCount)
+              : `${successCount} player(s) validated automatically.`;
+          setFeedback({ type: 'success', text: message });
+        } else {
+          const message =
+            typeof t.contributePlayersBulkPartial === 'function'
+              ? t.contributePlayersBulkPartial(successCount, failureCount)
+              : `${successCount} player(s) validated, ${failureCount} failed.`;
+          setFeedback({ type: 'error', text: message });
+        }
+      })
+      .finally(() => {
+        setBulkUpdating(false);
+      });
+  }, [players, requestSetPlayerValidity, t]);
+
+  const handleValidateAllPendingPlayers = React.useCallback(() => {
+    const targets = players.filter((player) => player && !player.valid);
+    if (targets.length === 0) {
+      setFeedback({
+        type: '',
+        text: t.contributePlayersBulkAllNone || 'All players are already validated.',
+      });
+      return;
+    }
+    setFeedback({ type: '', text: '' });
+    setBulkUpdating(true);
+    Promise.all(targets.map((player) => requestSetPlayerValidity(player, true)))
+      .then((results) => {
+        const successCount = results.filter((result) => result && result.success).length;
+        const failureCount = targets.length - successCount;
+        if (failureCount === 0) {
+          const message =
+            typeof t.contributePlayersBulkAllSuccess === 'function'
+              ? t.contributePlayersBulkAllSuccess(successCount)
+              : `${successCount} player(s) validated.`;
+          setFeedback({ type: 'success', text: message });
+        } else {
+          const message =
+            typeof t.contributePlayersBulkPartial === 'function'
+              ? t.contributePlayersBulkPartial(successCount, failureCount)
+              : `${successCount} player(s) validated, ${failureCount} failed.`;
+          setFeedback({ type: 'error', text: message });
+        }
+      })
+      .finally(() => {
+        setBulkUpdating(false);
+      });
+  }, [players, requestSetPlayerValidity, t]);
 
   const visiblePlayers = React.useMemo(() => {
     if (!hideValid) {
@@ -352,6 +444,23 @@ export default function ContributePlayers() {
   }, [hideValid, players]);
 
   const isPending = React.useCallback((playerId) => pendingIds.has(playerId), [pendingIds]);
+  const hasAnyPending = pendingIds.size > 0;
+  const hasEligibleAuto = React.useMemo(
+    () =>
+      players.some((player) => {
+        if (!player || player.valid) {
+          return false;
+        }
+        return computeTotalRuns(player) >= 2;
+      }),
+    [players],
+  );
+  const hasInvalidPlayers = React.useMemo(
+    () => players.some((player) => player && !player.valid),
+    [players],
+  );
+  const disableAutoButton = loading || bulkUpdating || hasAnyPending || !hasEligibleAuto;
+  const disableAllButton = loading || bulkUpdating || hasAnyPending || !hasInvalidPlayers;
 
   return (
     <section className="contribute-players" aria-live="polite">
@@ -360,20 +469,40 @@ export default function ContributePlayers() {
           'Manage player names and validity for leaderboard submissions.'}
       </p>
       <div className="contribute-players-controls">
-        <label className="contribute-toggle-success">
-          <input
-            type="checkbox"
-            className="contribute-toggle-success-input"
-            checked={hideValid}
-            onChange={handleToggleHideValid}
-          />
-          <span className="contribute-toggle-success-text">
-            {t.contributePlayersHideValid || 'Hide valid players'}
-          </span>
-        </label>
-        <p className="form-hint contribute-players-hint">
-          {t.contributePlayersEditHint || 'Double-click a player to rename it.'}
-        </p>
+        <div className="contribute-players-bulk-actions">
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={handleValidateEligiblePlayers}
+            disabled={disableAutoButton}
+          >
+            {t.contributePlayersValidateRuns || 'Validate players with ≥ 2 runs'}
+          </button>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={handleValidateAllPendingPlayers}
+            disabled={disableAllButton}
+          >
+            {t.contributePlayersValidateAll || 'Validate all pending players'}
+          </button>
+        </div>
+        <div className="contribute-players-visibility">
+          <label className="contribute-toggle-success">
+            <input
+              type="checkbox"
+              className="contribute-toggle-success-input"
+              checked={hideValid}
+              onChange={handleToggleHideValid}
+            />
+            <span className="contribute-toggle-success-text">
+              {t.contributePlayersHideValid || 'Hide valid players'}
+            </span>
+          </label>
+          <p className="form-hint contribute-players-hint">
+            {t.contributePlayersEditHint || 'Double-click a player to rename it.'}
+          </p>
+        </div>
       </div>
       {loading ? <p className="form-hint">{t.contributePlayersLoading || 'Loading players…'}</p> : null}
       {error ? (

@@ -3715,6 +3715,19 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   flex-wrap: wrap;
 }
 
+.contribute-players-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contribute-players-visibility {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
 .contribute-players-hint {
   margin: 0;
 }
@@ -3729,6 +3742,8 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   gap: 0.75rem;
   cursor: default;
   transition: opacity 0.2s ease;
+  height: 200px;
+  min-height: 200px;
 }
 
 .contribute-player-card.is-pending {
@@ -3761,9 +3776,11 @@ body[data-theme='light'] .contribute-compact-table tbody td {
 
 .contribute-player-card-valid {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.75rem;
+  margin-top: auto;
+  align-self: flex-end;
 }
 
 .contribute-player-card-label {
