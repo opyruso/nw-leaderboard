@@ -1416,6 +1416,19 @@ body[data-theme='light'] .highlight-metric {
   display: block;
 }
 
+.rank-badge-text {
+  height: 2.75rem;
+  border-radius: 999px;
+  background: rgba(124, 92, 255, 0.15);
+  border: 1px solid rgba(124, 92, 255, 0.35);
+  color: var(--color-accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .highlight-rank-badge {
   position: absolute;
   top: 0.75rem;
