@@ -179,6 +179,29 @@ export default function Player({ canContribute = false }) {
   const [individualRankLoading, setIndividualRankLoading] = React.useState(false);
   const [individualRankError, setIndividualRankError] = React.useState(false);
 
+  const profilePlayerId = React.useMemo(() => {
+    if (!profile) {
+      return '';
+    }
+    if (profile.playerId !== undefined && profile.playerId !== null) {
+      return String(profile.playerId);
+    }
+    if (profile.player_id !== undefined && profile.player_id !== null) {
+      return String(profile.player_id);
+    }
+    return '';
+  }, [profile]);
+
+  const targetPlayerId = React.useMemo(() => {
+    if (profilePlayerId) {
+      return profilePlayerId;
+    }
+    if (hasPlayerId && normalisedPlayerId) {
+      return normalisedPlayerId;
+    }
+    return '';
+  }, [hasPlayerId, normalisedPlayerId, profilePlayerId]);
+
   React.useEffect(() => {
     if (hasPlayerId) {
       setSearchTerm('');
@@ -845,29 +868,6 @@ export default function Player({ canContribute = false }) {
     }
     return '';
   }, [profile, hasPlayerId, normalisedPlayerId]);
-
-  const profilePlayerId = React.useMemo(() => {
-    if (!profile) {
-      return '';
-    }
-    if (profile.playerId !== undefined && profile.playerId !== null) {
-      return String(profile.playerId);
-    }
-    if (profile.player_id !== undefined && profile.player_id !== null) {
-      return String(profile.player_id);
-    }
-    return '';
-  }, [profile]);
-
-  const targetPlayerId = React.useMemo(() => {
-    if (profilePlayerId) {
-      return profilePlayerId;
-    }
-    if (hasPlayerId && normalisedPlayerId) {
-      return normalisedPlayerId;
-    }
-    return '';
-  }, [hasPlayerId, normalisedPlayerId, profilePlayerId]);
 
   const hasIndividualRankTarget = React.useMemo(() => {
     if (typeof targetPlayerId !== 'string') {
