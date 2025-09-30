@@ -436,6 +436,8 @@ const en = {
   playerSearchError: 'Unable to search players right now.',
   playerSearchNoResults: 'No players match this search yet.',
   playerSearchOpenProfile: (name) => `Open profile for ${name}`,
+  playerAdaptabilityLabel: 'Adaptability',
+  playerAdaptabilityAria: (value) => `Adaptability index: ${value}%`,
   playerIdLabel: (id) => `ID #${id}`,
   playerLoading: 'Loading player profile…',
   playerError: 'Unable to load this player right now.',

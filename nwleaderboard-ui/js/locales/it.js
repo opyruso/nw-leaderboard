@@ -436,6 +436,8 @@ const it = {
   playerSearchError: 'Impossibile cercare i giocatori in questo momento.',
   playerSearchNoResults: 'Nessun giocatore corrispondente al momento.',
   playerSearchOpenProfile: (name) => `Apri profilo di ${name}`,
+  playerAdaptabilityLabel: 'Indice di adattabilità',
+  playerAdaptabilityAria: (value) => `Indice di adattabilità: ${value}%`,
   playerIdLabel: (id) => `ID #${id}`,
   playerLoading: 'Caricamento profilo giocatore…',
   playerError: 'Impossibile caricare questo giocatore ora.',

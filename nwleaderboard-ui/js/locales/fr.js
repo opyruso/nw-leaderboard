@@ -444,6 +444,8 @@ const fr = {
   playerSearchError: 'Impossible de rechercher des joueurs pour le moment.',
   playerSearchNoResults: 'Aucun joueur ne correspond pour le moment.',
   playerSearchOpenProfile: (name) => `Ouvrir le profil de ${name}`,
+  playerAdaptabilityLabel: 'Indice d’adaptabilité',
+  playerAdaptabilityAria: (value) => `Indice d’adaptabilité : ${value} %`,
   playerIdLabel: (id) => `Identifiant #${id}`,
   playerLoading: 'Chargement du profil joueur…',
   playerError: 'Impossible de charger ce joueur pour le moment.',

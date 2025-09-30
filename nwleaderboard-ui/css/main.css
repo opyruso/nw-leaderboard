@@ -2159,6 +2159,73 @@ body[data-theme='light'] .individual-table tbody tr:hover {
   gap: 0.35rem;
 }
 
+.player-profile-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.player-adaptability {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.65rem;
+  text-align: right;
+  color: rgba(148, 163, 184, 0.88);
+}
+
+body[data-theme='light'] .player-adaptability {
+  color: rgba(30, 41, 59, 0.7);
+}
+
+.player-adaptability-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.35px;
+}
+
+.player-adaptability-gauge {
+  position: relative;
+  width: 0.8rem;
+  height: 3.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: linear-gradient(
+    to top,
+    #ef4444 0%,
+    #f97316 25%,
+    #facc15 50%,
+    #84cc16 75%,
+    #22c55e 100%
+  );
+  overflow: hidden;
+  box-shadow: inset 0 0 6px rgba(15, 23, 42, 0.45);
+}
+
+body[data-theme='light'] .player-adaptability-gauge {
+  border-color: rgba(71, 85, 105, 0.25);
+  box-shadow: inset 0 0 6px rgba(148, 163, 184, 0.35);
+}
+
+.player-adaptability-gauge-mask {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-dark);
+  opacity: 0.82;
+  transition: height 0.3s ease;
+}
+
+body[data-theme='light'] .player-adaptability-gauge-mask {
+  background: var(--surface-light);
+  opacity: 0.88;
+}
+
+.player-adaptability-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
 .player-profile-header.editing-main-link {
   gap: 0.75rem;
 }

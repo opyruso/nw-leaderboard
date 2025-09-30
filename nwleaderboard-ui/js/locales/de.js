@@ -435,6 +435,8 @@ const de = {
   playerSearchError: 'Spieler können derzeit nicht gesucht werden.',
   playerSearchNoResults: 'Keine Spieler gefunden.',
   playerSearchOpenProfile: (name) => `Profil von ${name} öffnen`,
+  playerAdaptabilityLabel: 'Anpassungsindex',
+  playerAdaptabilityAria: (value) => `Anpassungsindex: ${value}%`,
   playerIdLabel: (id) => `ID #${id}`,
   playerLoading: 'Spielerprofil wird geladen…',
   playerError: 'Dieser Spieler kann derzeit nicht geladen werden.',
