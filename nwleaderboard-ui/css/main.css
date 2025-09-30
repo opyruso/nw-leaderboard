@@ -2166,7 +2166,6 @@ body[data-theme='light'] .individual-table tbody tr:hover {
 }
 
 .player-adaptability {
-  margin-left: auto;
   display: flex;
   align-items: flex-end;
   gap: 0.65rem;
@@ -2176,6 +2175,54 @@ body[data-theme='light'] .individual-table tbody tr:hover {
 
 body[data-theme='light'] .player-adaptability {
   color: rgba(30, 41, 59, 0.7);
+}
+
+.player-profile-metrics {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+}
+
+.player-individual-ranking {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  text-align: right;
+  color: rgba(148, 163, 184, 0.88);
+}
+
+body[data-theme='light'] .player-individual-ranking {
+  color: rgba(30, 41, 59, 0.7);
+}
+
+.player-individual-ranking-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.35px;
+}
+
+.player-individual-ranking-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-foreground-dark);
+}
+
+body[data-theme='light'] .player-individual-ranking-value {
+  color: var(--color-foreground-light);
+}
+
+.player-individual-ranking-loading,
+.player-individual-ranking-empty {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.player-individual-ranking-error {
+  font-weight: 600;
+  color: #fda4af;
 }
 
 .player-adaptability-label {

@@ -175,6 +175,9 @@ export default function Player({ canContribute = false }) {
     loadStoredSeasonId(seasonStorageKey),
   );
   const [seasonInitialised, setSeasonInitialised] = React.useState(false);
+  const [individualRank, setIndividualRank] = React.useState(null);
+  const [individualRankLoading, setIndividualRankLoading] = React.useState(false);
+  const [individualRankError, setIndividualRankError] = React.useState(false);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -258,6 +261,88 @@ export default function Player({ canContribute = false }) {
   React.useEffect(() => {
     saveStoredSeasonId(seasonStorageKey, selectedSeasonId);
   }, [seasonStorageKey, selectedSeasonId]);
+
+  React.useEffect(() => {
+    if (!seasonInitialised) {
+      return undefined;
+    }
+
+    const trimmedTargetId = typeof targetPlayerId === 'string' ? targetPlayerId.trim() : '';
+    if (!trimmedTargetId) {
+      setIndividualRank(null);
+      setIndividualRankLoading(false);
+      setIndividualRankError(false);
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    setIndividualRankLoading(true);
+    setIndividualRankError(false);
+    setIndividualRank(null);
+
+    const params = new URLSearchParams();
+    params.set('mode', 'global');
+    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
+      const normalisedSeasonId = String(selectedSeasonId).trim();
+      if (normalisedSeasonId) {
+        params.set('seasonId', normalisedSeasonId);
+      }
+    }
+    const url = `${API_BASE_URL}/leaderboard/individual?${params.toString()}`;
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load individual ranking: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const entries = Array.isArray(data) ? data : [];
+        const matchedIndex = entries.findIndex((entry) => {
+          if (!entry) {
+            return false;
+          }
+          if (entry.playerId !== undefined && entry.playerId !== null) {
+            return String(entry.playerId) === trimmedTargetId;
+          }
+          if (entry.player_id !== undefined && entry.player_id !== null) {
+            return String(entry.player_id) === trimmedTargetId;
+          }
+          return false;
+        });
+        if (matchedIndex >= 0) {
+          const entry = entries[matchedIndex] || {};
+          const rawPoints = entry?.points;
+          const numericPoints = Number(rawPoints);
+          setIndividualRank({
+            position: matchedIndex + 1,
+            points: Number.isFinite(numericPoints) ? numericPoints : null,
+          });
+        } else {
+          setIndividualRank(null);
+        }
+        setIndividualRankLoading(false);
+      })
+      .catch((rankError) => {
+        if (!active || rankError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load individual ranking for player', rankError);
+        setIndividualRankError(true);
+        setIndividualRankLoading(false);
+        setIndividualRank(null);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [seasonInitialised, selectedSeasonId, targetPlayerId]);
 
   React.useEffect(() => {
     setEditingMainLink(false);
@@ -761,6 +846,36 @@ export default function Player({ canContribute = false }) {
     return '';
   }, [profile, hasPlayerId, normalisedPlayerId]);
 
+  const profilePlayerId = React.useMemo(() => {
+    if (!profile) {
+      return '';
+    }
+    if (profile.playerId !== undefined && profile.playerId !== null) {
+      return String(profile.playerId);
+    }
+    if (profile.player_id !== undefined && profile.player_id !== null) {
+      return String(profile.player_id);
+    }
+    return '';
+  }, [profile]);
+
+  const targetPlayerId = React.useMemo(() => {
+    if (profilePlayerId) {
+      return profilePlayerId;
+    }
+    if (hasPlayerId && normalisedPlayerId) {
+      return normalisedPlayerId;
+    }
+    return '';
+  }, [hasPlayerId, normalisedPlayerId, profilePlayerId]);
+
+  const hasIndividualRankTarget = React.useMemo(() => {
+    if (typeof targetPlayerId !== 'string') {
+      return false;
+    }
+    return targetPlayerId.trim().length > 0;
+  }, [targetPlayerId]);
+
   const alternatePlayers = React.useMemo(() => {
     if (!profile) {
       return [];
@@ -1035,6 +1150,38 @@ export default function Player({ canContribute = false }) {
     return `${adaptabilityLabel}: ${adaptabilityIndex}%`;
   }, [adaptabilityIndex, adaptabilityLabel, t]);
 
+  const individualRankLabel = React.useMemo(() => {
+    const label = t.playerIndividualRankLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Individual ranking';
+  }, [t]);
+
+  const individualRankLoadingLabel = React.useMemo(() => {
+    const label = t.playerIndividualRankLoading;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Loading…';
+  }, [t]);
+
+  const individualRankErrorLabel = React.useMemo(() => {
+    const label = t.playerIndividualRankError;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Unavailable';
+  }, [t]);
+
+  const individualRankEmptyLabel = React.useMemo(() => {
+    const label = t.playerIndividualRankEmpty;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Not ranked';
+  }, [t]);
+
   const renderWeek = (week) => {
     const numeric = Number(week);
     if (!Number.isFinite(numeric)) {
@@ -1084,21 +1231,49 @@ export default function Player({ canContribute = false }) {
                   ''
                 )}
               </h2>
-              {adaptabilityIndex !== null ? (
-                <div
-                  className="player-adaptability"
-                  role="group"
-                  aria-label={adaptabilityAriaLabel || undefined}
-                  title={adaptabilityAriaLabel || undefined}
-                >
-                  <span className="player-adaptability-label">{adaptabilityLabel}</span>
-                  <div className="player-adaptability-gauge" aria-hidden="true">
+              {adaptabilityIndex !== null || hasIndividualRankTarget ? (
+                <div className="player-profile-metrics">
+                  {adaptabilityIndex !== null ? (
                     <div
-                      className="player-adaptability-gauge-mask"
-                      style={{ height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%` }}
-                    />
-                  </div>
-                  <span className="player-adaptability-value">{adaptabilityIndex}%</span>
+                      className="player-adaptability"
+                      role="group"
+                      aria-label={adaptabilityAriaLabel || undefined}
+                      title={adaptabilityAriaLabel || undefined}
+                    >
+                      <span className="player-adaptability-label">{adaptabilityLabel}</span>
+                      <div className="player-adaptability-gauge" aria-hidden="true">
+                        <div
+                          className="player-adaptability-gauge-mask"
+                          style={{
+                            height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="player-adaptability-value">{adaptabilityIndex}%</span>
+                    </div>
+                  ) : null}
+                  {hasIndividualRankTarget ? (
+                    <div className="player-individual-ranking">
+                      <span className="player-individual-ranking-label">{individualRankLabel}</span>
+                      <div className="player-individual-ranking-value">
+                        {individualRankLoading ? (
+                          <span className="player-individual-ranking-loading">
+                            {individualRankLoadingLabel}
+                          </span>
+                        ) : individualRankError ? (
+                          <span className="player-individual-ranking-error">
+                            {individualRankErrorLabel}
+                          </span>
+                        ) : individualRank ? (
+                          renderRankIndicator(individualRank.position, individualRankLabel)
+                        ) : (
+                          <span className="player-individual-ranking-empty">
+                            {individualRankEmptyLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
             </div>
