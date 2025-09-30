@@ -435,6 +435,8 @@ const pl = {
   playerSearchError: 'Nie można teraz wyszukać graczy.',
   playerSearchNoResults: 'Brak dopasowań.',
   playerSearchOpenProfile: (name) => `Otwórz profil ${name}`,
+  playerAdaptabilityLabel: 'Wskaźnik adaptacji',
+  playerAdaptabilityAria: (value) => `Wskaźnik adaptacji: ${value}%`,
   playerIdLabel: (id) => `ID #${id}`,
   playerLoading: 'Ładowanie profilu gracza…',
   playerError: 'Nie można teraz wczytać tego gracza.',

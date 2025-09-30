@@ -993,6 +993,48 @@ export default function Player({ canContribute = false }) {
     return null;
   }, [preparedDungeons]);
 
+  const adaptabilityIndex = React.useMemo(() => {
+    if (!profile) {
+      return null;
+    }
+    const rawValue =
+      profile.adaptabilityIndex !== undefined && profile.adaptabilityIndex !== null
+        ? profile.adaptabilityIndex
+        : profile.adaptability_index !== undefined && profile.adaptability_index !== null
+        ? profile.adaptability_index
+        : null;
+    if (rawValue === null) {
+      return null;
+    }
+    const numeric = Number(rawValue);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+  }, [profile]);
+
+  const adaptabilityLabel = React.useMemo(() => {
+    const label = t.playerAdaptabilityLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Indice d’adaptabilité';
+  }, [t]);
+
+  const adaptabilityAriaLabel = React.useMemo(() => {
+    if (adaptabilityIndex === null) {
+      return '';
+    }
+    const aria = t.playerAdaptabilityAria;
+    if (typeof aria === 'function') {
+      return aria(adaptabilityIndex);
+    }
+    if (typeof aria === 'string' && aria.trim().length > 0) {
+      return aria.replace('{value}', String(adaptabilityIndex));
+    }
+    return `${adaptabilityLabel}: ${adaptabilityIndex}%`;
+  }, [adaptabilityIndex, adaptabilityLabel, t]);
+
   const renderWeek = (week) => {
     const numeric = Number(week);
     if (!Number.isFinite(numeric)) {
@@ -1020,27 +1062,46 @@ export default function Player({ canContribute = false }) {
             {profileRegionLabel ? (
               <span className="player-profile-region">[{profileRegionLabel}]</span>
             ) : null}
-            <h2
-              className="player-profile-name"
-              title={playerIsAlt && playerMainName ? playerMainName : undefined}
-            >
-              {playerPrimaryName ? (
-                playerIsAlt ? (
-                  <span className="player-alt-name">
-                    <em>{playerPrimaryName}</em>
-                    <span className="player-alt-indicator" aria-hidden="true">*</span>
-                  </span>
+            <div className="player-profile-title-row">
+              <h2
+                className="player-profile-name"
+                title={playerIsAlt && playerMainName ? playerMainName : undefined}
+              >
+                {playerPrimaryName ? (
+                  playerIsAlt ? (
+                    <span className="player-alt-name">
+                      <em>{playerPrimaryName}</em>
+                      <span className="player-alt-indicator" aria-hidden="true">*</span>
+                    </span>
+                  ) : (
+                    playerPrimaryName
+                  )
+                ) : playerIdentifier ? (
+                  typeof t.playerIdLabel === 'function'
+                    ? t.playerIdLabel(playerIdentifier)
+                    : `ID #${playerIdentifier}`
                 ) : (
-                  playerPrimaryName
-                )
-              ) : playerIdentifier ? (
-                typeof t.playerIdLabel === 'function'
-                  ? t.playerIdLabel(playerIdentifier)
-                  : `ID #${playerIdentifier}`
-              ) : (
-                ''
-              )}
-            </h2>
+                  ''
+                )}
+              </h2>
+              {adaptabilityIndex !== null ? (
+                <div
+                  className="player-adaptability"
+                  role="group"
+                  aria-label={adaptabilityAriaLabel || undefined}
+                  title={adaptabilityAriaLabel || undefined}
+                >
+                  <span className="player-adaptability-label">{adaptabilityLabel}</span>
+                  <div className="player-adaptability-gauge" aria-hidden="true">
+                    <div
+                      className="player-adaptability-gauge-mask"
+                      style={{ height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%` }}
+                    />
+                  </div>
+                  <span className="player-adaptability-value">{adaptabilityIndex}%</span>
+                </div>
+              ) : null}
+            </div>
             {playerIsAlt && mainPlayerLink ? (
               <p className="player-profile-related player-profile-main-account">
                 <span className="player-profile-related-label">

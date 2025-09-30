@@ -13,6 +13,7 @@ public record PlayerProfileResponse(
         Long mainPlayerId,
         String mainPlayerName,
         List<PlayerDungeonBestResponse> dungeons,
+        Integer adaptabilityIndex,
         List<PlayerProfileAlternateResponse> alternatePlayers) {
 
     public PlayerProfileResponse {
@@ -34,6 +35,10 @@ public record PlayerProfileResponse(
             mainPlayerName = null;
         }
         dungeons = dungeons == null ? List.of() : List.copyOf(dungeons);
+        if (adaptabilityIndex != null) {
+            int clamped = Math.max(0, Math.min(100, adaptabilityIndex));
+            adaptabilityIndex = clamped;
+        }
         alternatePlayers =
                 alternatePlayers == null ? List.of() : List.copyOf(alternatePlayers);
     }

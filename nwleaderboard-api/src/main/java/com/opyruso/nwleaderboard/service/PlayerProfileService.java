@@ -6,9 +6,11 @@ import com.opyruso.nwleaderboard.dto.PlayerProfileResponse;
 import com.opyruso.nwleaderboard.entity.Dungeon;
 import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.entity.RunScore;
+import com.opyruso.nwleaderboard.entity.RunScorePlayer;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
+import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
 import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,12 +18,15 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Aggregates leaderboard information for a single player.
@@ -34,6 +39,9 @@ public class PlayerProfileService {
 
     @Inject
     RunScoreRepository runScoreRepository;
+
+    @Inject
+    RunScorePlayerRepository runScorePlayerRepository;
 
     @Inject
     RunTimeRepository runTimeRepository;
@@ -147,9 +155,60 @@ public class PlayerProfileService {
             }
         }
         String regionId = normaliseRegionId(player.getRegion() != null ? player.getRegion().getId() : null);
+        Integer adaptabilityIndex = calculateAdaptabilityIndex(player.getId());
         PlayerProfileResponse response = new PlayerProfileResponse(
-                player.getId(), player.getPlayerName(), regionId, mainId, mainName, dungeonSummaries, alternatePlayers);
+                player.getId(),
+                player.getPlayerName(),
+                regionId,
+                mainId,
+                mainName,
+                dungeonSummaries,
+                adaptabilityIndex,
+                alternatePlayers);
         return Optional.of(response);
+    }
+
+    private Integer calculateAdaptabilityIndex(Long playerId) {
+        if (playerId == null) {
+            return 0;
+        }
+        List<RunScorePlayer> associations = runScorePlayerRepository.listByPlayerId(playerId);
+        if (associations == null || associations.isEmpty()) {
+            return 0;
+        }
+        List<Long> runIds = associations.stream()
+                .filter(association -> association != null && association.getRunScore() != null)
+                .map(association -> association.getRunScore().getId())
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        if (runIds.isEmpty()) {
+            return 0;
+        }
+        List<RunScorePlayer> runParticipants = runScorePlayerRepository.listWithPlayersByRunIds(runIds);
+        if (runParticipants == null || runParticipants.isEmpty()) {
+            return 0;
+        }
+        long totalPartners = 0L;
+        Set<Long> uniquePartners = new HashSet<>();
+        for (RunScorePlayer association : runParticipants) {
+            if (association == null || association.getPlayer() == null) {
+                continue;
+            }
+            Player teammate = association.getPlayer();
+            Long teammateId = teammate.getId();
+            if (teammateId == null || teammateId.equals(playerId)) {
+                continue;
+            }
+            totalPartners++;
+            uniquePartners.add(teammateId);
+        }
+        if (totalPartners <= 0L) {
+            return 0;
+        }
+        double ratio = uniquePartners.isEmpty() ? 0.0 : (double) uniquePartners.size() / (double) totalPartners;
+        ratio = Math.max(0.0, Math.min(1.0, ratio));
+        return (int) Math.round(ratio * 100.0);
     }
 
     private LinkedHashSet<Integer> resolveAllowedWeeks(Integer seasonId) {
