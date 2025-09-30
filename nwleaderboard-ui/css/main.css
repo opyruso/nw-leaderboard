@@ -2703,10 +2703,9 @@ body[data-theme='light'] .player-dungeon-card {
 }
 
 .player-rank-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 3rem;
+  max-width: 100%;
+  flex-shrink: 0;
 }
 
 .season-carousel {
