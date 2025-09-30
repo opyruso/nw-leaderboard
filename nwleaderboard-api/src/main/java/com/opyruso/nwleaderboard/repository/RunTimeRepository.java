@@ -215,7 +215,11 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
      * @return one-based position or {@code null} when it cannot be determined
      */
     public Integer findPositionInDungeon(RunTime run) {
-        if (run == null) {
+        return findPositionInDungeon(run, null);
+    }
+
+    public Integer findPositionInDungeon(RunTime run, Collection<Integer> weeks) {
+        if (run == null || (weeks != null && weeks.isEmpty())) {
             return null;
         }
         Long dungeonId = run.getDungeon() != null ? run.getDungeon().getId() : null;
@@ -227,19 +231,27 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
         }
 
         Long safeRunId = runId != null ? runId : Long.MAX_VALUE;
-        Long betterCount = getEntityManager()
-                .createQuery(
-                        "SELECT COUNT(other) FROM RunTime other "
-                                + "WHERE other.dungeon.id = :dungeonId "
-                                + "AND (other.timeInSecond < :time "
-                                + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) > COALESCE(:week, -1)) "
-                                + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) = COALESCE(:week, -1) AND other.id < :runId))",
-                        Long.class)
+        StringBuilder jpql = new StringBuilder(
+                "SELECT COUNT(other) FROM RunTime other "
+                        + "WHERE other.dungeon.id = :dungeonId ");
+        if (weeks != null && !weeks.isEmpty()) {
+            jpql.append("AND other.week IN :weeks ");
+        }
+        jpql.append(
+                "AND (other.timeInSecond < :time "
+                        + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) > COALESCE(:week, -1)) "
+                        + "OR (other.timeInSecond = :time AND COALESCE(other.week, -1) = COALESCE(:week, -1) AND other.id < :runId))");
+
+        var query = getEntityManager()
+                .createQuery(jpql.toString(), Long.class)
                 .setParameter("dungeonId", dungeonId)
                 .setParameter("time", time)
                 .setParameter("week", week)
-                .setParameter("runId", safeRunId)
-                .getSingleResult();
+                .setParameter("runId", safeRunId);
+        if (weeks != null && !weeks.isEmpty()) {
+            query.setParameter("weeks", weeks);
+        }
+        Long betterCount = query.getSingleResult();
         if (betterCount == null) {
             return null;
         }

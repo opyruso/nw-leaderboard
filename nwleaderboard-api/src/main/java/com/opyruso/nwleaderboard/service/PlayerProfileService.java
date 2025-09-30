@@ -18,6 +18,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -121,7 +122,7 @@ public class PlayerProfileService {
             aggregate.maxTime = maxTimes.get(dungeonId);
         }
 
-        List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates);
+        List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates, allowedWeeks);
 
         Player main = resolveMain(player);
         Long mainId = main != null && !main.equals(player) ? main.getId() : null;
@@ -231,7 +232,8 @@ public class PlayerProfileService {
         return weeks;
     }
 
-    private List<PlayerDungeonBestResponse> buildDungeonSummaries(Map<Long, PlayerDungeonAggregate> aggregates) {
+    private List<PlayerDungeonBestResponse> buildDungeonSummaries(
+            Map<Long, PlayerDungeonAggregate> aggregates, Collection<Integer> allowedWeeks) {
         if (aggregates == null || aggregates.isEmpty()) {
             return List.of();
         }
@@ -240,7 +242,7 @@ public class PlayerProfileService {
             if (aggregate == null || aggregate.dungeon == null || aggregate.dungeon.getId() == null) {
                 continue;
             }
-            summaries.add(createSummary(aggregate));
+            summaries.add(createSummary(aggregate, allowedWeeks));
         }
         Collator collator = Collator.getInstance(Locale.ENGLISH);
         collator.setStrength(Collator.PRIMARY);
@@ -252,7 +254,8 @@ public class PlayerProfileService {
         return List.copyOf(summaries);
     }
 
-    private PlayerDungeonBestResponse createSummary(PlayerDungeonAggregate aggregate) {
+    private PlayerDungeonBestResponse createSummary(
+            PlayerDungeonAggregate aggregate, Collection<Integer> allowedWeeks) {
         Dungeon dungeon = aggregate.dungeon;
         Map<String, String> names = buildNameMap(dungeon);
         String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon != null ? dungeon.getNameLocalEn() : null));
@@ -260,12 +263,14 @@ public class PlayerProfileService {
         RunTime bestTime = aggregate.bestTime;
         Integer scoreValue = bestScore != null ? bestScore.getScore() : null;
         Integer scoreWeek = bestScore != null ? bestScore.getWeek() : null;
-        Integer scorePosition = bestScore != null ? runScoreRepository.findPositionInDungeon(bestScore) : null;
+        Integer scorePosition =
+                bestScore != null ? runScoreRepository.findPositionInDungeon(bestScore, allowedWeeks) : null;
         Integer minScore = aggregate.minScore;
         Integer maxScore = aggregate.maxScore;
         Integer timeValue = bestTime != null ? bestTime.getTimeInSecond() : null;
         Integer timeWeek = bestTime != null ? bestTime.getWeek() : null;
-        Integer timePosition = bestTime != null ? runTimeRepository.findPositionInDungeon(bestTime) : null;
+        Integer timePosition =
+                bestTime != null ? runTimeRepository.findPositionInDungeon(bestTime, allowedWeeks) : null;
         Integer minTime = aggregate.minTime;
         Integer maxTime = aggregate.maxTime;
         Long dungeonId = dungeon != null ? dungeon.getId() : null;
