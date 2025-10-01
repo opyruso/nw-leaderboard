@@ -33,12 +33,18 @@ function SiteNavButton({ onClick, children }) {
   );
 }
 
+const BRAND_TRANSITION_DURATION_MS = 240;
+
 export default function Header({ authenticated, canContribute = false, onLogout }) {
   const { t } = React.useContext(LangContext);
   const location = useLocation();
   const headerRef = React.useRef(null);
   const [openMenu, setOpenMenu] = React.useState(null);
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const [brandRendered, setBrandRendered] = React.useState(true);
+  const [brandVisible, setBrandVisible] = React.useState(true);
+  const brandTransitionTimeoutRef = React.useRef(null);
+  const brandRevealFrameRef = React.useRef(null);
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
   const contributeActive = location.pathname.startsWith('/contribute');
@@ -86,7 +92,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
 
   React.useLayoutEffect(() => {
     updateHeaderHeight();
-  }, [updateHeaderHeight, isScrolled]);
+  }, [updateHeaderHeight, isScrolled, brandRendered]);
 
   React.useLayoutEffect(() => {
     window.addEventListener('resize', updateHeaderHeight);
@@ -108,6 +114,28 @@ export default function Header({ authenticated, canContribute = false, onLogout 
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  React.useEffect(() => {
+    window.clearTimeout(brandTransitionTimeoutRef.current);
+    window.cancelAnimationFrame(brandRevealFrameRef.current);
+
+    if (!isScrolled) {
+      setBrandRendered(true);
+      brandRevealFrameRef.current = window.requestAnimationFrame(() => {
+        setBrandVisible(true);
+      });
+    } else {
+      setBrandVisible(false);
+      brandTransitionTimeoutRef.current = window.setTimeout(() => {
+        setBrandRendered(false);
+      }, BRAND_TRANSITION_DURATION_MS);
+    }
+
+    return () => {
+      window.clearTimeout(brandTransitionTimeoutRef.current);
+      window.cancelAnimationFrame(brandRevealFrameRef.current);
+    };
+  }, [isScrolled]);
 
   React.useEffect(() => {
     if (!showContribute && openMenu === 'contribute') {
@@ -152,16 +180,24 @@ export default function Header({ authenticated, canContribute = false, onLogout 
       onKeyDown={handleMenuKeyDown}
     >
       <div className="site-header__inner">
-        <div className="site-header__brand">
-          <img
-            className="site-header__logo"
-            src="/images/icons/icon-512.png"
-            alt={t.gameName || 'New World Leaderboard'}
-            width="56"
-            height="56"
-          />
-          <span className="site-header__title">{t.siteTitle || 'NWLeaderboard - PvE By oPy'}</span>
-        </div>
+        {brandRendered ? (
+          <div
+            className={classNames(
+              'site-header__brand',
+              brandVisible ? '' : 'site-header__brand--hidden',
+            )}
+            aria-hidden={!brandVisible}
+          >
+            <img
+              className="site-header__logo"
+              src="/images/icons/icon-512.png"
+              alt={t.gameName || 'New World Leaderboard'}
+              width="56"
+              height="56"
+            />
+            <span className="site-header__title">{t.siteTitle || 'NWLeaderboard - PvE By oPy'}</span>
+          </div>
+        ) : null}
         <nav className="site-nav" aria-label={t.navMenu}>
           <div className="site-nav__sections">
             <ul className="site-nav__group site-nav__group--left">
