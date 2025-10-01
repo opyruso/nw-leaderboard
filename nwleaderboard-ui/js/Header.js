@@ -355,35 +355,15 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   </SiteNavButton>
                 </li>
               ) : (
-                <>
-                  <li className="site-nav__item">
-                    <SiteNavLink
-                      to="/register"
-                      isActiveOverride={location.pathname.startsWith('/register')}
-                      onClick={closeMenus}
-                    >
-                      {t.register}
-                    </SiteNavLink>
-                  </li>
-                  <li className="site-nav__item">
-                    <SiteNavLink
-                      to="/forgot-password"
-                      isActiveOverride={location.pathname.startsWith('/forgot-password')}
-                      onClick={closeMenus}
-                    >
-                      {t.forgotPassword}
-                    </SiteNavLink>
-                  </li>
-                  <li className="site-nav__item">
-                    <SiteNavLink
-                      to="/login"
-                      isActiveOverride={location.pathname.startsWith('/login')}
-                      onClick={closeMenus}
-                    >
-                      {t.login}
-                    </SiteNavLink>
-                  </li>
-                </>
+                <li className="site-nav__item">
+                  <SiteNavLink
+                    to="/login"
+                    isActiveOverride={location.pathname.startsWith('/login')}
+                    onClick={closeMenus}
+                  >
+                    {t.login}
+                  </SiteNavLink>
+                </li>
               )}
             </ul>
           </div>

@@ -34,8 +34,6 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
     <>
       <NavButton to="/preferences">{t.preferences}</NavButton>
       <NavButton to="/login">{t.login}</NavButton>
-      <NavButton to="/register">{t.register}</NavButton>
-      <NavButton to="/forgot-password">{t.forgotPassword}</NavButton>
     </>
   );
 
