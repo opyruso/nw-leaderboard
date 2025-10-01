@@ -2669,6 +2669,46 @@ body[data-theme='light'] .player-dungeon-card {
   padding-top: 3.25rem;
 }
 
+.player-dungeon-card.highlighted-glow .player-dungeon-stat {
+  z-index: 0;
+}
+
+.player-dungeon-card.highlighted-glow .player-dungeon-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0.25rem 0;
+  border-radius: 16px;
+  background: radial-gradient(
+    125% 160% at 50% 0%,
+    rgba(250, 204, 21, 0.38) 0%,
+    rgba(250, 204, 21, 0) 72%
+  );
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.player-dungeon-card.highlighted-glow .player-dungeon-value,
+.player-dungeon-card.highlighted-glow .player-dungeon-week {
+  color: #facc15;
+  text-shadow: 0 0 12px rgba(250, 204, 21, 0.45), 0 0 24px rgba(250, 204, 21, 0.25);
+}
+
+body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-stat::before {
+  background: radial-gradient(
+    125% 160% at 50% 0%,
+    rgba(217, 119, 6, 0.32) 0%,
+    rgba(217, 119, 6, 0) 72%
+  );
+  opacity: 0.5;
+}
+
+body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-value,
+body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-week {
+  color: #b45309;
+  text-shadow: 0 0 10px rgba(217, 119, 6, 0.4), 0 0 18px rgba(217, 119, 6, 0.24);
+}
+
 .player-dungeon-stat dt {
   font-size: 0.9rem;
   letter-spacing: 0.4px;
@@ -3192,7 +3232,7 @@ body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
     rgba(250, 204, 21, 0) 70%
   );
   background-size: 260% 160%;
-  animation: highlighted-glow-shimmer 3s linear infinite;
+  animation: highlighted-glow-shimmer 6.5s linear infinite;
   opacity: 0.45;
   pointer-events: none;
   mix-blend-mode: screen;
