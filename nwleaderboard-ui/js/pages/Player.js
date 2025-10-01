@@ -1531,18 +1531,25 @@ export default function Player({ canContribute = false }) {
                 const scoreWeekLabel = renderWeek(dungeon.bestScoreWeek);
                 const timeWeekLabel = renderWeek(dungeon.bestTimeWeek);
                 return (
-                  <li
-                    key={dungeon.id}
-                    className={
-                      dungeon.highlighted ? 'player-dungeon-card highlighted-glow' : 'player-dungeon-card'
-                    }
-                  >
+                  <li key={dungeon.id} className="player-dungeon-card">
                     <h2 className="player-dungeon-name title-with-icon">
                       <DungeonIcon dungeonId={dungeon.id} />
                       <span>{name}</span>
                     </h2>
-                    <dl className="player-dungeon-stats">
-                      <div className="player-dungeon-stat">
+                    <dl
+                      className={
+                        dungeon.highlighted
+                          ? 'player-dungeon-stats player-dungeon-stats--highlighted'
+                          : 'player-dungeon-stats'
+                      }
+                    >
+                      <div
+                        className={
+                          dungeon.highlighted
+                            ? 'player-dungeon-stat highlighted-glow'
+                            : 'player-dungeon-stat'
+                        }
+                      >
                         {renderRankIndicator(dungeon.bestScorePosition, t.playerBestScore)}
                         <dt>{t.playerBestScore}</dt>
                         <dd>
@@ -1562,7 +1569,13 @@ export default function Player({ canContribute = false }) {
                           )}
                         </dd>
                       </div>
-                      <div className="player-dungeon-stat">
+                      <div
+                        className={
+                          dungeon.highlighted
+                            ? 'player-dungeon-stat highlighted-glow'
+                            : 'player-dungeon-stat'
+                        }
+                      >
                         {renderRankIndicator(dungeon.bestTimePosition, t.playerBestTime)}
                         <dt>{t.playerBestTime}</dt>
                         <dd>
