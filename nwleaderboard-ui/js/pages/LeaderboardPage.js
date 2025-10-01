@@ -1809,7 +1809,13 @@ export default function LeaderboardPage({
                 <p className="leaderboard-status">{t.dungeonSelectorEmpty}</p>
               ) : (
                 <div className="dungeon-selector-panel">
-                  <div className="dungeon-selected-display">
+                  <div
+                    className={
+                      selectedDungeonDetails?.highlighted
+                        ? 'dungeon-selected-display highlighted-glow'
+                        : 'dungeon-selected-display'
+                    }
+                  >
                     <DungeonIcon dungeonId={selectedDungeonIconId} className="dungeon-selected-icon" />
                     <div className="dungeon-selected-text">
                       <span className="dungeon-selected-label">{t.dungeonSelectorCurrent}</span>
@@ -1825,11 +1831,18 @@ export default function LeaderboardPage({
                           : '';
                       const isActive = selectedDungeon === dungeonId;
                       const dungeonTitle = displayName || dungeonId || t.dungeonSelectorTitle;
+                      const dungeonButtonClass = [
+                        'dungeon-grid-button',
+                        isActive ? 'active' : '',
+                        dungeon?.highlighted ? 'highlighted-glow' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ');
                       return (
                         <button
                           key={dungeon.id}
                           type="button"
-                          className={isActive ? 'dungeon-grid-button active' : 'dungeon-grid-button'}
+                          className={dungeonButtonClass}
                           onClick={() => handleSelectDungeon(dungeonId)}
                           aria-pressed={isActive}
                           title={dungeonTitle}

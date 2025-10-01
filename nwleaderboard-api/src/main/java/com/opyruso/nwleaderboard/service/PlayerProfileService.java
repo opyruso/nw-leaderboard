@@ -278,6 +278,7 @@ public class PlayerProfileService {
                 dungeonId,
                 fallbackName,
                 names,
+                dungeon != null && dungeon.isHighlighted(),
                 scoreValue,
                 scoreWeek,
                 scorePosition,
