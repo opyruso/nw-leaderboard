@@ -3244,7 +3244,7 @@ body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
   filter: blur(0.5px);
   opacity: 0;
   transform: translate3d(-120%, 0, 0) skewX(-12deg);
-  animation: highlighted-glow-shimmer 12s cubic-bezier(0.52, 0.01, 0.16, 1) infinite;
+  animation: highlighted-glow-shimmer 7.5s cubic-bezier(0.52, 0.01, 0.16, 1) infinite;
   pointer-events: none;
   mix-blend-mode: screen;
   z-index: 1;

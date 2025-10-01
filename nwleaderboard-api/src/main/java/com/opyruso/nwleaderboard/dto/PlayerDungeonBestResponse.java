@@ -9,6 +9,7 @@ public record PlayerDungeonBestResponse(
         Long dungeonId,
         String fallbackName,
         Map<String, String> names,
+        boolean highlighted,
         Integer bestScore,
         Integer bestScoreWeek,
         Integer bestScorePosition,
