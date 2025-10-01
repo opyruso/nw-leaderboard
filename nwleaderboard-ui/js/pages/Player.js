@@ -1,5 +1,5 @@
 import { LangContext } from '../i18n.js';
-import { getDungeonIconPath, getDungeonNameForLang, sortDungeons } from '../dungeons.js';
+import { getDungeonIconPath, getDungeonNameForLang, parseBoolean, sortDungeons } from '../dungeons.js';
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
@@ -618,6 +618,13 @@ export default function Player({ canContribute = false }) {
       id: entry?.dungeonId !== undefined && entry?.dungeonId !== null ? String(entry.dungeonId) : `dungeon-${index}`,
       names: entry?.names || {},
       fallbackName: entry?.fallbackName || '',
+      highlighted: parseBoolean(
+        entry?.highlighted ??
+          entry?.is_highlighted ??
+          entry?.isHighlighted ??
+          entry?.featured ??
+          entry?.isFeatured,
+      ),
       bestScore: entry?.bestScore ?? null,
       bestScoreWeek: entry?.bestScoreWeek ?? null,
       bestScorePosition: entry?.bestScorePosition ?? entry?.best_score_position ?? null,
@@ -1524,7 +1531,12 @@ export default function Player({ canContribute = false }) {
                 const scoreWeekLabel = renderWeek(dungeon.bestScoreWeek);
                 const timeWeekLabel = renderWeek(dungeon.bestTimeWeek);
                 return (
-                  <li key={dungeon.id} className="player-dungeon-card">
+                  <li
+                    key={dungeon.id}
+                    className={
+                      dungeon.highlighted ? 'player-dungeon-card highlighted-glow' : 'player-dungeon-card'
+                    }
+                  >
                     <h2 className="player-dungeon-name title-with-icon">
                       <DungeonIcon dungeonId={dungeon.id} />
                       <span>{name}</span>

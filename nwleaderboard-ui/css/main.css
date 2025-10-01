@@ -2639,6 +2639,9 @@ body[data-theme='light'] .player-chart-card {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
 }
 
 body[data-theme='light'] .player-dungeon-card {
@@ -3077,6 +3080,9 @@ body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
   border: 1px solid rgba(124, 92, 255, 0.4);
   background: rgba(124, 92, 255, 0.12);
   box-shadow: 0 12px 28px rgba(124, 92, 255, 0.28);
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
 }
 
 .dungeon-selected-icon {
@@ -3125,6 +3131,9 @@ body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease,
     transform 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 0;
 }
 
 .dungeon-grid-button-icon {
@@ -3151,6 +3160,65 @@ body[data-theme='light'] .region-filter-button[aria-pressed='true'] {
 .dungeon-grid-button.active .dungeon-grid-button-icon,
 .dungeon-grid-button[aria-pressed='true'] .dungeon-grid-button-icon {
   filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.35));
+}
+
+.highlighted-glow {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(250, 204, 21, 0.65);
+  z-index: 0;
+}
+
+.highlighted-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgba(250, 204, 21, 0.65);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.4), 0 0 30px rgba(250, 204, 21, 0.25);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.highlighted-glow::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    rgba(250, 204, 21, 0) 0%,
+    rgba(250, 204, 21, 0.55) 45%,
+    rgba(250, 204, 21, 0) 70%
+  );
+  background-size: 260% 160%;
+  animation: highlighted-glow-shimmer 3s linear infinite;
+  opacity: 0.45;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+
+body[data-theme='light'] .highlighted-glow {
+  border-color: rgba(217, 119, 6, 0.55);
+}
+
+body[data-theme='light'] .highlighted-glow::before {
+  border-color: rgba(217, 119, 6, 0.55);
+  box-shadow: 0 0 14px rgba(217, 119, 6, 0.35), 0 0 26px rgba(217, 119, 6, 0.18);
+}
+
+body[data-theme='light'] .highlighted-glow::after {
+  opacity: 0.35;
+}
+
+@keyframes highlighted-glow-shimmer {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
 }
 
 body[data-theme='light'] .dungeon-selected-display {
