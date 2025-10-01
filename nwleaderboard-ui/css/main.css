@@ -125,6 +125,14 @@ body[data-theme='light'] .site-header {
   gap: clamp(0.75rem, 2vw, 1.1rem);
 }
 
+.site-header--compact .site-header__inner {
+  padding: clamp(0.5rem, 2vw, 0.9rem) clamp(1rem, 4vw, 1.75rem);
+}
+
+.site-header--compact .site-header__brand {
+  display: none;
+}
+
 .site-header__brand {
   display: flex;
   align-items: center;

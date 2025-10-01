@@ -38,6 +38,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const location = useLocation();
   const headerRef = React.useRef(null);
   const [openMenu, setOpenMenu] = React.useState(null);
+  const [isScrolled, setIsScrolled] = React.useState(false);
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
   const contributeActive = location.pathname.startsWith('/contribute');
@@ -74,21 +75,37 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     };
   }, [closeMenus]);
 
-  React.useLayoutEffect(() => {
-    function updateHeaderHeight() {
-      if (headerRef.current) {
-        document.documentElement.style.setProperty(
-          '--site-header-height',
-          `${headerRef.current.offsetHeight}px`,
-        );
-      }
+  const updateHeaderHeight = React.useCallback(() => {
+    if (headerRef.current) {
+      document.documentElement.style.setProperty(
+        '--site-header-height',
+        `${headerRef.current.offsetHeight}px`,
+      );
     }
+  }, []);
 
+  React.useLayoutEffect(() => {
     updateHeaderHeight();
+  }, [updateHeaderHeight, isScrolled]);
+
+  React.useLayoutEffect(() => {
     window.addEventListener('resize', updateHeaderHeight);
 
     return () => {
       window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, [updateHeaderHeight]);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -129,7 +146,11 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   };
 
   return (
-    <header ref={headerRef} className="site-header" onKeyDown={handleMenuKeyDown}>
+    <header
+      ref={headerRef}
+      className={classNames('site-header', isScrolled ? 'site-header--compact' : '')}
+      onKeyDown={handleMenuKeyDown}
+    >
       <div className="site-header__inner">
         <div className="site-header__brand">
           <img
