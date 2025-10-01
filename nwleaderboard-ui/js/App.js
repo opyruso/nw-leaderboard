@@ -133,13 +133,7 @@ export default function App() {
               </Route>
               <Route
                 path="/suggestions"
-                element={
-                  authenticated ? (
-                    <Suggestions isAdmin={authState.isAdmin} />
-                  ) : (
-                    <Navigate to="/login" replace />
-                  )
-                }
+                element={<Suggestions isAdmin={authState.isAdmin} />}
               />
               <Route path="/player/:playerId?" element={<Player canContribute={authState.canContribute} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
