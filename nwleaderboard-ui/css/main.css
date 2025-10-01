@@ -123,6 +123,11 @@ body[data-theme='light'] .site-header {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: clamp(0.75rem, 2vw, 1.1rem);
+  transition: padding 220ms ease;
+}
+
+.site-header--compact .site-header__inner {
+  padding: clamp(0.5rem, 2vw, 0.9rem) clamp(1rem, 4vw, 1.75rem);
 }
 
 .site-header__brand {
@@ -131,6 +136,16 @@ body[data-theme='light'] .site-header {
   justify-content: flex-start;
   gap: clamp(0.75rem, 2vw, 1.35rem);
   text-align: left;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 220ms ease, transform 220ms ease;
+  will-change: opacity, transform;
+}
+
+.site-header__brand--hidden {
+  opacity: 0;
+  transform: translateY(-0.4rem);
+  pointer-events: none;
 }
 
 .site-header__logo {
