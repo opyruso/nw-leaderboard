@@ -1,6 +1,8 @@
 import { LangContext } from '../i18n.js';
 import { loginWithPassword } from '../auth.js';
 
+const { Link } = ReactRouterDOM;
+
 const LANGUAGE_ORDER = ['en', 'fr', 'de', 'es', 'esmx', 'it', 'pl', 'pt'];
 
 export default function Login({ onLogin }) {
@@ -96,6 +98,12 @@ export default function Login({ onLogin }) {
           <button type="submit" disabled={status === 'loading'}>
             {status === 'loading' ? '…' : t.loginAction}
           </button>
+          <Link className="form-action-link secondary" to="/register">
+            {t.register}
+          </Link>
+          <Link className="form-action-link secondary" to="/forgot-password">
+            {t.forgotPassword}
+          </Link>
         </div>
       </form>
       <div className="form-footer">
