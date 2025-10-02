@@ -4852,6 +4852,53 @@ body[data-theme='light'] .relationship-instructions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.relationship-layout-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.relationship-layout-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+body[data-theme='light'] .relationship-layout-label {
+  color: rgba(30, 41, 59, 0.68);
+}
+
+.relationship-layout-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.relationship-layout-button {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.85rem;
+}
+
+.relationship-layout-button.is-active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #bfdbfe;
+}
+
+body[data-theme='light'] .relationship-layout-button.is-active {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(37, 99, 235, 0.5);
+  color: #1e3a8a;
+}
+
+.relationship-layout-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .relationship-status {
