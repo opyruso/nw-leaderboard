@@ -4,6 +4,7 @@ import { ThemeContext } from '../theme.js';
 const { Link, useParams } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
+const MINIMUM_RELATION_RUNS = 3;
 
 function createEmptyGraphState() {
   return {
@@ -134,6 +135,9 @@ function mergeGraphData(previous, ownerId, payload, t) {
       ? toNumeric(edgePayload.runCount)
       : null;
     const alternate = Boolean(edgePayload.alternateLink);
+    if (!alternate && runCount !== null && runCount < MINIMUM_RELATION_RUNS) {
+      return;
+    }
     const existing = edges.get(key);
     if (existing) {
       edges.set(key, {
@@ -169,6 +173,25 @@ function mergeGraphData(previous, ownerId, payload, t) {
       payload.edges.forEach(registerEdge);
     }
   }
+
+  const connectedNodeIds = new Set();
+  edges.forEach((edge, key) => {
+    if (!nodes.has(edge.source) || !nodes.has(edge.target)) {
+      edges.delete(key);
+      edgeOwners.delete(key);
+      return;
+    }
+    connectedNodeIds.add(edge.source);
+    connectedNodeIds.add(edge.target);
+  });
+
+  nodes.forEach((node, id) => {
+    if (node.type === 'origin' || connectedNodeIds.has(id)) {
+      return;
+    }
+    nodes.delete(id);
+    nodeOwners.delete(id);
+  });
 
   if (ownerKey) {
     expanded.add(ownerKey);
