@@ -78,14 +78,14 @@ function computeEdgeWidth(edge) {
 
 function computeEdgeLength(edge) {
   if (edge.alternate) {
-    return 560;
+    return 2400;
   }
   const count = toNumeric(edge.runCount);
   if (count <= 0) {
-    return 780;
+    return 3600;
   }
-  const length = 920 - Math.log10(count + 1) * 58;
-  return Math.max(680, Math.min(length, 1160));
+  const length = 4200 - Math.log10(count + 1) * 180;
+  return Math.max(3200, Math.min(length, 4600));
 }
 
 function formatRunCountLabel(t, count) {
@@ -624,7 +624,7 @@ export default function Relationship() {
         maxSimulationTime: 6400,
         edgeLength: (edge) => {
           const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
-          return Number.isFinite(length) ? length : 820;
+          return Number.isFinite(length) ? length : 3600;
         },
       });
     } else if (layoutName === 'fcose') {
@@ -634,24 +634,24 @@ export default function Relationship() {
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
         nodeRepulsion: 260000,
-        nodeSeparation: 320,
-        idealEdgeLength: 820,
-        edgeElasticity: 0.05,
-        gravity: 0.12,
+        nodeSeparation: 520,
+        idealEdgeLength: 2800,
+        edgeElasticity: 0.04,
+        gravity: 0.08,
         gravityRange: 4.2,
         gravityCompound: 0.62,
         gravityRangeCompound: 3.6,
-        tilingPaddingHorizontal: 220,
-        tilingPaddingVertical: 220,
+        tilingPaddingHorizontal: 320,
+        tilingPaddingVertical: 320,
         numIter: 3600,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 190000,
-        idealEdgeLength: 680,
-        edgeElasticity: 0.06,
-        gravity: 0.18,
-        componentSpacing: 560,
+        nodeRepulsion: 210000,
+        idealEdgeLength: 2400,
+        edgeElasticity: 0.05,
+        gravity: 0.12,
+        componentSpacing: 1120,
         nodeOverlap: 2,
       });
     }
