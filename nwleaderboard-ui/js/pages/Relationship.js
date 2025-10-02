@@ -77,15 +77,14 @@ function computeEdgeWidth(edge) {
 }
 
 function computeEdgeLength(edge) {
-  if (edge.alternate) {
-    return 2400;
-  }
   const count = toNumeric(edge.runCount);
+  const maximum = edge.alternate ? 10400 : 13200;
   if (count <= 0) {
-    return 3600;
+    return maximum;
   }
-  const length = 4200 - Math.log10(count + 1) * 180;
-  return Math.max(3200, Math.min(length, 4600));
+  const reduction = Math.log10(count + 1) * (edge.alternate ? 140 : 180);
+  const minimum = edge.alternate ? 9600 : 11800;
+  return Math.max(minimum, Math.min(maximum, maximum - reduction));
 }
 
 function formatRunCountLabel(t, count) {
@@ -602,7 +601,7 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: isCola ? 420 : layoutName === 'fcose' ? 320 : 260,
+      padding: isCola ? 760 : layoutName === 'fcose' ? 520 : 420,
     };
     if (isCola) {
       Object.assign(layoutOptions, {
@@ -611,20 +610,23 @@ export default function Relationship() {
         avoidOverlap: true,
         nodeSpacing: (node) => {
           if (!node || typeof node.data !== 'function') {
-            return 180;
+            return 320;
           }
           const size = Number(node.data('size'));
           if (!Number.isFinite(size)) {
-            return 180;
+            return 320;
           }
-          return Math.max(200, size * 2.4);
+          return Math.max(360, size * 3.6);
         },
-        refresh: 0.5,
+        refresh: 0.35,
         infinite: true,
-        maxSimulationTime: 6400,
+        maxSimulationTime: 15000,
+        handleDisconnected: true,
+        unconstrainedIterations: 2400,
+        userConstIterations: 18,
         edgeLength: (edge) => {
           const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
-          return Number.isFinite(length) ? length : 3600;
+          return Number.isFinite(length) ? length : 11800;
         },
       });
     } else if (layoutName === 'fcose') {
@@ -633,26 +635,26 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 260000,
-        nodeSeparation: 520,
-        idealEdgeLength: 2800,
-        edgeElasticity: 0.04,
-        gravity: 0.08,
-        gravityRange: 4.2,
-        gravityCompound: 0.62,
-        gravityRangeCompound: 3.6,
-        tilingPaddingHorizontal: 320,
-        tilingPaddingVertical: 320,
-        numIter: 3600,
+        nodeRepulsion: 420000,
+        nodeSeparation: 920,
+        idealEdgeLength: 6200,
+        edgeElasticity: 0.008,
+        gravity: 0.035,
+        gravityRange: 5.6,
+        gravityCompound: 0.42,
+        gravityRangeCompound: 4.8,
+        tilingPaddingHorizontal: 520,
+        tilingPaddingVertical: 520,
+        numIter: 6200,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 210000,
-        idealEdgeLength: 2400,
-        edgeElasticity: 0.05,
-        gravity: 0.12,
-        componentSpacing: 1120,
-        nodeOverlap: 2,
+        nodeRepulsion: 360000,
+        idealEdgeLength: 5800,
+        edgeElasticity: 0.008,
+        gravity: 0.05,
+        componentSpacing: 2400,
+        nodeOverlap: 1,
       });
     }
     const layout = cy.layout(layoutOptions);
