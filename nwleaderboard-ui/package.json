@@ -12,10 +12,12 @@
     "@babel/standalone": "^7.28.1",
     "chart.js": "^4.5.0",
     "cytoscape": "^3.27.0",
+    "cytoscape-cola": "^2.5.1",
     "cytoscape-fcose": "^2.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.23.0"
+    "react-router-dom": "^6.23.0",
+    "webcola": "^3.4.0"
   },
   "devDependencies": {
     "@bubblewrap/cli": "^1.23.0"

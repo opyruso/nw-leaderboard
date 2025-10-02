@@ -156,9 +156,44 @@ public class PlayerRelationshipService {
             }
         }
 
+        Map<Long, PlayerRelationshipNodeResponse> nodeMap = new LinkedHashMap<>();
+        mergeNode(nodeMap, originNode);
+        for (PlayerRelationshipNodeResponse node : alternateNodes) {
+            mergeNode(nodeMap, node);
+        }
+        for (PlayerRelationshipNodeResponse node : relatedNodes) {
+            mergeNode(nodeMap, node);
+        }
+
         PlayerRelationshipGraphResponse response =
-                new PlayerRelationshipGraphResponse(originNode, alternateNodes, relatedNodes, edges);
+                new PlayerRelationshipGraphResponse(List.copyOf(nodeMap.values()), edges);
         return Optional.of(response);
+    }
+
+    private void mergeNode(
+            Map<Long, PlayerRelationshipNodeResponse> nodes,
+            PlayerRelationshipNodeResponse candidate) {
+        if (nodes == null || candidate == null || candidate.playerId() == null) {
+            return;
+        }
+        PlayerRelationshipNodeResponse existing = nodes.get(candidate.playerId());
+        if (existing == null) {
+            nodes.put(candidate.playerId(), candidate);
+            return;
+        }
+        boolean origin = existing.origin() || candidate.origin();
+        boolean alternate = existing.alternate() || candidate.alternate();
+        Long runCount = mergeRunCount(existing.runCount(), candidate.runCount());
+        String playerName = existing.playerName() != null ? existing.playerName() : candidate.playerName();
+        nodes.put(
+                candidate.playerId(),
+                new PlayerRelationshipNodeResponse(candidate.playerId(), playerName, origin, alternate, runCount));
+    }
+
+    private Long mergeRunCount(Long left, Long right) {
+        long leftValue = left != null ? Math.max(left.longValue(), 0L) : 0L;
+        long rightValue = right != null ? Math.max(right.longValue(), 0L) : 0L;
+        return Math.max(leftValue, rightValue);
     }
 
     private List<Player> listAlternatePlayers(Player origin) {
