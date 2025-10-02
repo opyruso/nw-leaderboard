@@ -1,5 +1,4 @@
 import { LangContext } from '../i18n.js';
-import { ThemeContext } from '../theme.js';
 
 const { Link, useParams } = ReactRouterDOM;
 
@@ -57,36 +56,6 @@ function toNumeric(value) {
   }
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function computeNodeSize(node) {
-  const base = node.type === 'origin' ? 60 : node.type === 'alternate' ? 46 : 36;
-  const scale = Math.min(Math.log10(toNumeric(node.runCount) + 1) * 18, 28);
-  return base + scale;
-}
-
-function computeEdgeWidth(edge) {
-  if (edge.alternate) {
-    return 2;
-  }
-  const count = toNumeric(edge.runCount);
-  if (count <= 0) {
-    return 2;
-  }
-  return Math.min(2 + Math.log10(count + 1) * 2.6, 9);
-}
-
-function formatRunCountLabel(t, count) {
-  if (!Number.isFinite(count)) {
-    return '';
-  }
-  if (typeof t.relationshipRunCount === 'function') {
-    return t.relationshipRunCount(count);
-  }
-  if (count === 1) {
-    return '1';
-  }
-  return String(count);
 }
 
 function mergeGraphData(previous, ownerId, payload, t) {
@@ -299,100 +268,8 @@ function collapseGraphData(previous, ownerId) {
   return { nodes, edges, nodeOwners, edgeOwners, expanded };
 }
 
-function applyGraphTheme(cy, theme) {
-  if (!cy) {
-    return;
-  }
-  const isLight = theme === 'light';
-  const nodeText = isLight ? '#0f172a' : '#f8fafc';
-  const labelBackground = isLight ? 'rgba(226, 232, 240, 0.85)' : 'rgba(15, 23, 42, 0.75)';
-  const relatedBg = isLight ? '#0ea5e9' : '#0284c7';
-  const relatedBorder = isLight ? '#0284c7' : '#38bdf8';
-  const originBg = isLight ? '#6d28d9' : '#7c3aed';
-  const originBorder = isLight ? '#a855f7' : '#c084fc';
-  const altBg = isLight ? '#fb923c' : '#f97316';
-  const altBorder = isLight ? '#f97316' : '#fb923c';
-  const edgeColor = isLight ? '#0f172a' : '#f8fafc';
-  const edgeLine = isLight ? '#64748b' : '#94a3b8';
-  cy.style()
-    .fromJson([
-      {
-        selector: 'node',
-        style: {
-          'background-color': relatedBg,
-          'border-color': relatedBorder,
-          'border-width': 2,
-          'color': nodeText,
-          'width': 'data(size)',
-          'height': 'data(size)',
-          'label': 'data(label)',
-          'font-size': '12px',
-          'text-wrap': 'wrap',
-          'text-max-width': '108px',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'text-background-color': labelBackground,
-          'text-background-opacity': 1,
-          'text-background-padding': 2,
-        },
-      },
-      {
-        selector: 'node[type = "origin"]',
-        style: {
-          'background-color': originBg,
-          'border-color': originBorder,
-          'font-size': '13px',
-          'font-weight': '600',
-        },
-      },
-      {
-        selector: 'node[type = "alternate"]',
-        style: {
-          'background-color': altBg,
-          'border-color': altBorder,
-        },
-      },
-      {
-        selector: 'edge',
-        style: {
-          'line-color': edgeLine,
-          'width': 'data(width)',
-          'curve-style': 'bezier',
-          'target-arrow-shape': 'none',
-          'control-point-step-size': 60,
-          'label': 'data(label)',
-          'font-size': '11px',
-          'color': edgeColor,
-          'text-background-color': labelBackground,
-          'text-background-opacity': 1,
-          'text-background-padding': 2,
-          'opacity': 0.9,
-        },
-      },
-      {
-        selector: 'edge[alternateLink = 1]',
-        style: {
-          'line-style': 'dashed',
-          'line-color': altBg,
-          'width': 3,
-          'label': '',
-          'opacity': 0.7,
-        },
-      },
-      {
-        selector: 'node:selected',
-        style: {
-          'border-width': 4,
-          'border-color': isLight ? '#2563eb' : '#38bdf8',
-        },
-      },
-    ])
-    .update();
-}
-
 export default function Relationship() {
   const { t } = React.useContext(LangContext);
-  const { theme } = React.useContext(ThemeContext);
   const params = useParams();
   const routePlayerId = params?.playerId;
   const [graphData, setGraphData] = React.useState(() => createEmptyGraphState());
@@ -461,7 +338,6 @@ export default function Relationship() {
     });
     setCyUnavailable(false);
     cyRef.current = cy;
-    applyGraphTheme(cy, theme);
     const handleResize = () => {
       cy.resize();
     };
@@ -478,9 +354,6 @@ export default function Relationship() {
     if (!cy) {
       return;
     }
-    applyGraphTheme(cy, theme);
-  }, [theme]);
-
   function updateLoadingNodes(updater) {
     setLoadingNodes((prev) => {
       const next = new Set(prev);
@@ -613,13 +486,11 @@ export default function Relationship() {
       }
     });
     graphData.nodes.forEach((node, id) => {
-      const size = computeNodeSize(node);
       const existing = cy.getElementById(id);
       const data = {
         id,
         label: node.label,
         type: node.type,
-        size,
         runCount: node.runCount,
       };
       if (existing && existing.nonempty()) {
@@ -629,16 +500,10 @@ export default function Relationship() {
       }
     });
     graphData.edges.forEach((edge, id) => {
-      const width = computeEdgeWidth(edge);
-      const label = edge.alternate
-        ? ''
-        : formatRunCountLabel(t, edge.runCount !== null && edge.runCount !== undefined ? edge.runCount : 0);
       const data = {
         id,
         source: edge.source,
         target: edge.target,
-        width,
-        label,
         alternateLink: edge.alternate ? 1 : 0,
       };
       const existing = cy.getElementById(id);
@@ -740,7 +605,7 @@ export default function Relationship() {
 
     runLayout(layoutOptions);
     cy.resize();
-  }, [graphData, t]);
+  }, [graphData]);
 
   const loadingLabels = React.useMemo(() => {
     const labels = [];
