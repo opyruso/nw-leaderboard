@@ -156,9 +156,26 @@ public class PlayerRelationshipService {
             }
         }
 
+        Map<Long, PlayerRelationshipNodeResponse> uniqueNodes = new LinkedHashMap<>();
+        addNode(uniqueNodes, originNode);
+        for (PlayerRelationshipNodeResponse node : alternateNodes) {
+            addNode(uniqueNodes, node);
+        }
+        for (PlayerRelationshipNodeResponse node : relatedNodes) {
+            addNode(uniqueNodes, node);
+        }
+
         PlayerRelationshipGraphResponse response =
-                new PlayerRelationshipGraphResponse(originNode, alternateNodes, relatedNodes, edges);
+                new PlayerRelationshipGraphResponse(List.copyOf(uniqueNodes.values()), edges);
         return Optional.of(response);
+    }
+
+    private void addNode(
+            Map<Long, PlayerRelationshipNodeResponse> target, PlayerRelationshipNodeResponse node) {
+        if (target == null || node == null || node.playerId() == null) {
+            return;
+        }
+        target.putIfAbsent(node.playerId(), node);
     }
 
     private List<Player> listAlternatePlayers(Player origin) {

@@ -76,6 +76,18 @@ function computeEdgeWidth(edge) {
   return Math.min(2 + Math.log10(count + 1) * 2.6, 9);
 }
 
+function computeEdgeLength(edge) {
+  if (edge.alternate) {
+    return 180;
+  }
+  const count = toNumeric(edge.runCount);
+  if (count <= 0) {
+    return 240;
+  }
+  const length = 260 - Math.log10(count + 1) * 26;
+  return Math.max(150, Math.min(length, 280));
+}
+
 function formatRunCountLabel(t, count) {
   if (!Number.isFinite(count)) {
     return '';
@@ -158,15 +170,24 @@ function mergeGraphData(previous, ownerId, payload, t) {
   }
 
   if (payload && typeof payload === 'object') {
-    registerNode(payload.origin);
-    if (Array.isArray(payload.alternates)) {
-      payload.alternates.forEach(registerNode);
+    if (Array.isArray(payload.nodes)) {
+      payload.nodes.forEach(registerNode);
+    } else {
+      registerNode(payload.origin);
+      if (Array.isArray(payload.alternates)) {
+        payload.alternates.forEach(registerNode);
+      }
+      if (Array.isArray(payload.relatedPlayers)) {
+        payload.relatedPlayers.forEach(registerNode);
+      }
     }
-    if (Array.isArray(payload.relatedPlayers)) {
-      payload.relatedPlayers.forEach(registerNode);
-    }
-    if (Array.isArray(payload.edges)) {
-      payload.edges.forEach(registerEdge);
+    const edgeList = Array.isArray(payload.links)
+      ? payload.links
+      : Array.isArray(payload.edges)
+        ? payload.edges
+        : null;
+    if (edgeList) {
+      edgeList.forEach(registerEdge);
     }
   }
 
@@ -270,7 +291,7 @@ function applyGraphTheme(cy, theme) {
         style: {
           'line-color': edgeLine,
           'width': 'data(width)',
-          'curve-style': 'bezier',
+          'curve-style': 'straight',
           'target-arrow-shape': 'none',
           'control-point-step-size': 60,
           'label': 'data(label)',
@@ -318,7 +339,7 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cose');
+  const layoutNameRef = React.useRef('cola');
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -348,18 +369,29 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
+    let colaAvailable = false;
     let fcoseAvailable = false;
     if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+      colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+      if (!colaAvailable) {
+        const colaExt = window.cytoscapeCola;
+        if (typeof colaExt === 'function') {
+          cytoscapeLib.use(colaExt);
+          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+        }
+      }
+      if (!colaAvailable) {
+        fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+        if (!fcoseAvailable) {
+          const fcose = window.cytoscapeFcose;
+          if (typeof fcose === 'function') {
+            cytoscapeLib.use(fcose);
+            fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+          }
         }
       }
     }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+    layoutNameRef.current = colaAvailable ? 'cola' : fcoseAvailable ? 'fcose' : 'cose';
     if (!containerRef.current) {
       return undefined;
     }
@@ -546,6 +578,7 @@ export default function Relationship() {
       const label = edge.alternate
         ? ''
         : formatRunCountLabel(t, edge.runCount !== null && edge.runCount !== undefined ? edge.runCount : 0);
+      const length = computeEdgeLength(edge);
       const data = {
         id,
         source: edge.source,
@@ -553,6 +586,7 @@ export default function Relationship() {
         width,
         label,
         alternateLink: edge.alternate ? 1 : 0,
+        length,
       };
       const existing = cy.getElementById(id);
       if (existing && existing.nonempty()) {
@@ -563,13 +597,27 @@ export default function Relationship() {
     });
     cy.endBatch();
     const layoutName = layoutNameRef.current;
+    const isCola = layoutName === 'cola';
     const layoutOptions = {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      padding: isCola ? 260 : layoutName === 'fcose' ? 240 : 220,
     };
-    if (layoutName === 'fcose') {
+    if (isCola) {
+      Object.assign(layoutOptions, {
+        nodeDimensionsIncludeLabels: true,
+        randomize: false,
+        avoidOverlap: true,
+        nodeSpacing: 28,
+        refresh: 1,
+        maxSimulationTime: 2500,
+        edgeLength: (edge) => {
+          const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
+          return Number.isFinite(length) ? length : 220;
+        },
+      });
+    } else if (layoutName === 'fcose') {
       Object.assign(layoutOptions, {
         quality: 'proof',
         randomize: false,

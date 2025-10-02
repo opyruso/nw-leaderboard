@@ -47,6 +47,8 @@ cpSync(
 );
 cpSync('node_modules/chart.js/dist/chart.umd.js', 'dist/vendor/chart.umd.js');
 cpSync('node_modules/cytoscape/dist/cytoscape.umd.js', 'dist/vendor/cytoscape.umd.js');
+cpSync('node_modules/webcola/WebCola/cola.min.js', 'dist/vendor/cola.min.js');
+cpSync('node_modules/cytoscape-cola/cytoscape-cola.js', 'dist/vendor/cytoscape-cola.js');
 cpSync('node_modules/layout-base/layout-base.js', 'dist/vendor/layout-base.js');
 cpSync('node_modules/cose-base/cose-base.js', 'dist/vendor/cose-base.js');
 cpSync('node_modules/cytoscape-fcose/cytoscape-fcose.js', 'dist/vendor/cytoscape-fcose.js');
