@@ -553,13 +553,13 @@ export default function Relationship() {
       name: 'cose',
       animate: false,
       fit: true,
-      padding: 96,
-      nodeRepulsion: 36000,
-      idealEdgeLength: 160,
-      edgeElasticity: 0.3,
-      gravity: 0.6,
-      componentSpacing: 200,
-      nodeOverlap: 8,
+      padding: 160,
+      nodeRepulsion: 140000,
+      idealEdgeLength: 240,
+      edgeElasticity: 0.18,
+      gravity: 0.35,
+      componentSpacing: 320,
+      nodeOverlap: 6,
     });
     layout.run();
     cy.resize();
