@@ -78,14 +78,14 @@ function computeEdgeWidth(edge) {
 
 function computeEdgeLength(edge) {
   if (edge.alternate) {
-    return 260;
+    return 560;
   }
   const count = toNumeric(edge.runCount);
   if (count <= 0) {
-    return 360;
+    return 780;
   }
-  const length = 460 - Math.log10(count + 1) * 34;
-  return Math.max(280, Math.min(length, 520));
+  const length = 920 - Math.log10(count + 1) * 58;
+  return Math.max(680, Math.min(length, 1160));
 }
 
 function formatRunCountLabel(t, count) {
@@ -602,20 +602,29 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: isCola ? 320 : layoutName === 'fcose' ? 280 : 240,
+      padding: isCola ? 420 : layoutName === 'fcose' ? 320 : 260,
     };
     if (isCola) {
       Object.assign(layoutOptions, {
         nodeDimensionsIncludeLabels: true,
         randomize: false,
         avoidOverlap: true,
-        nodeSpacing: 52,
-        refresh: 1,
+        nodeSpacing: (node) => {
+          if (!node || typeof node.data !== 'function') {
+            return 180;
+          }
+          const size = Number(node.data('size'));
+          if (!Number.isFinite(size)) {
+            return 180;
+          }
+          return Math.max(200, size * 2.4);
+        },
+        refresh: 0.5,
         infinite: true,
-        maxSimulationTime: 3200,
+        maxSimulationTime: 6400,
         edgeLength: (edge) => {
           const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
-          return Number.isFinite(length) ? length : 380;
+          return Number.isFinite(length) ? length : 820;
         },
       });
     } else if (layoutName === 'fcose') {
@@ -624,26 +633,26 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        nodeRepulsion: 260000,
+        nodeSeparation: 320,
+        idealEdgeLength: 820,
+        edgeElasticity: 0.05,
+        gravity: 0.12,
+        gravityRange: 4.2,
+        gravityCompound: 0.62,
+        gravityRangeCompound: 3.6,
+        tilingPaddingHorizontal: 220,
+        tilingPaddingVertical: 220,
+        numIter: 3600,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
-        idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
+        nodeRepulsion: 190000,
+        idealEdgeLength: 680,
+        edgeElasticity: 0.06,
+        gravity: 0.18,
+        componentSpacing: 560,
+        nodeOverlap: 2,
       });
     }
     const layout = cy.layout(layoutOptions);
