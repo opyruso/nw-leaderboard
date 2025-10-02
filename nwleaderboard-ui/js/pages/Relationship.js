@@ -91,15 +91,19 @@ function ensureColaExtension(cytoscapeLib) {
   if (!cytoscapeLib || typeof cytoscapeLib !== 'function') {
     return false;
   }
+  let colaGlobal;
   try {
     if (typeof window !== 'undefined') {
-      const colaGlobal = window.cola || window.webcola;
+      colaGlobal = window.cola || window.webcola;
       if (colaGlobal && !window.webcola) {
         window.webcola = colaGlobal;
       }
     }
   } catch (error) {
     // no-op if the environment does not expose window
+  }
+  if (!colaGlobal) {
+    return false;
   }
   if (typeof cytoscapeLib.extension === 'function') {
     const existing = cytoscapeLib.extension('layout', 'cola');
@@ -121,6 +125,26 @@ function ensureColaExtension(cytoscapeLib) {
     }
   }
   return false;
+}
+
+function runLayoutWithFallback(cy, options, fallbackFactory) {
+  if (!cy) {
+    return;
+  }
+  try {
+    const layout = cy.layout(options);
+    layout.run();
+  } catch (error) {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('Failed to run relationship layout', options?.name, error);
+    }
+    if (typeof fallbackFactory === 'function') {
+      const fallback = fallbackFactory();
+      if (fallback) {
+        fallback.run();
+      }
+    }
+  }
 }
 
 function formatRunCountLabel(t, count) {
@@ -623,6 +647,18 @@ export default function Relationship() {
     cy.endBatch();
     const layoutName = layoutNameRef.current;
     const isCola = layoutName === 'cola';
+    const coseFallbackOptions = {
+      name: 'cose',
+      animate: false,
+      fit: true,
+      padding: 520,
+      nodeRepulsion: 480000,
+      idealEdgeLength: 13200,
+      edgeElasticity: 0.004,
+      gravity: 0.035,
+      componentSpacing: 3600,
+      nodeOverlap: 1,
+    };
     const layoutOptions = {
       name: layoutName,
       animate: false,
@@ -674,17 +710,15 @@ export default function Relationship() {
         numIter: 8600,
       });
     } else {
-      Object.assign(layoutOptions, {
-        nodeRepulsion: 480000,
-        idealEdgeLength: 13200,
-        edgeElasticity: 0.004,
-        gravity: 0.035,
-        componentSpacing: 3600,
-        nodeOverlap: 1,
-      });
+      Object.assign(layoutOptions, coseFallbackOptions);
     }
-    const layout = cy.layout(layoutOptions);
-    layout.run();
+    runLayoutWithFallback(cy, layoutOptions, () => {
+      if (layoutName === 'cose') {
+        return null;
+      }
+      layoutNameRef.current = 'cose';
+      return cy.layout({ ...coseFallbackOptions });
+    });
     cy.resize();
   }, [graphData, t]);
 
