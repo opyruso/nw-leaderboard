@@ -12,6 +12,7 @@ function createEmptyGraphState() {
     nodeOwners: new Map(),
     edgeOwners: new Map(),
     expanded: new Set(),
+    groups: new Map(),
   };
 }
 
@@ -19,6 +20,14 @@ function cloneOwnerMap(source) {
   const clone = new Map();
   source.forEach((owners, id) => {
     clone.set(id, new Set(owners));
+  });
+  return clone;
+}
+
+function cloneGroupMap(source) {
+  const clone = new Map();
+  source.forEach((members, id) => {
+    clone.set(id, new Set(members));
   });
   return clone;
 }
@@ -49,6 +58,55 @@ function removeOwner(ownerMap, id, ownerId) {
     return true;
   }
   return false;
+}
+
+function addNodeToGroup(groups, groupId, nodeId) {
+  if (!groupId || !nodeId) {
+    return;
+  }
+  const targetGroupId = String(groupId);
+  const memberId = String(nodeId);
+  const groupsToTrim = [];
+  groups.forEach((members, id) => {
+    if (id !== targetGroupId && members.has(memberId)) {
+      groupsToTrim.push(id);
+    }
+  });
+  groupsToTrim.forEach((id) => {
+    const existing = groups.get(id);
+    if (!existing) {
+      return;
+    }
+    const members = new Set(existing);
+    members.delete(memberId);
+    if (members.size > 0) {
+      groups.set(id, members);
+    } else {
+      groups.delete(id);
+    }
+  });
+  let members = groups.get(targetGroupId);
+  if (!members) {
+    members = new Set();
+    groups.set(targetGroupId, members);
+  }
+  members.add(memberId);
+}
+
+function pruneGroups(groups, existingNodeIds) {
+  groups.forEach((members, groupId) => {
+    const filtered = new Set();
+    members.forEach((nodeId) => {
+      if (existingNodeIds.has(nodeId)) {
+        filtered.add(nodeId);
+      }
+    });
+    if (filtered.size > 0) {
+      groups.set(groupId, filtered);
+    } else {
+      groups.delete(groupId);
+    }
+  });
 }
 
 function toNumeric(value) {
@@ -96,6 +154,7 @@ function mergeGraphData(previous, ownerId, payload, t) {
   const nodeOwners = cloneOwnerMap(previous.nodeOwners);
   const edgeOwners = cloneOwnerMap(previous.edgeOwners);
   const expanded = new Set(previous.expanded);
+  const groups = cloneGroupMap(previous.groups);
 
   function registerNode(nodePayload) {
     if (!nodePayload || nodePayload.playerId === null || nodePayload.playerId === undefined) {
@@ -157,6 +216,31 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
   }
 
+  function registerOriginGroup(originPayload, alternateList) {
+    if (!originPayload || originPayload.playerId === null || originPayload.playerId === undefined) {
+      return;
+    }
+    const originId = String(originPayload.playerId);
+    let anchorId = originId;
+    if (Array.isArray(alternateList)) {
+      const mainEntry = alternateList.find(
+        (alt) => alt && alt.playerId !== null && alt.playerId !== undefined && !alt.alternate,
+      );
+      if (mainEntry && mainEntry.playerId !== null && mainEntry.playerId !== undefined) {
+        anchorId = String(mainEntry.playerId);
+      }
+    }
+    const groupId = `group:${anchorId}`;
+    addNodeToGroup(groups, groupId, originId);
+    if (Array.isArray(alternateList)) {
+      alternateList.forEach((alt) => {
+        if (alt && alt.playerId !== null && alt.playerId !== undefined) {
+          addNodeToGroup(groups, groupId, String(alt.playerId));
+        }
+      });
+    }
+  }
+
   if (payload && typeof payload === 'object') {
     registerNode(payload.origin);
     if (Array.isArray(payload.alternates)) {
@@ -168,13 +252,14 @@ function mergeGraphData(previous, ownerId, payload, t) {
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
     }
+    registerOriginGroup(payload.origin, payload.alternates);
   }
 
   if (ownerKey) {
     expanded.add(ownerKey);
   }
 
-  return { nodes, edges, nodeOwners, edgeOwners, expanded };
+  return { nodes, edges, nodeOwners, edgeOwners, expanded, groups };
 }
 
 function collapseGraphData(previous, ownerId) {
@@ -187,6 +272,7 @@ function collapseGraphData(previous, ownerId) {
   const nodeOwners = cloneOwnerMap(previous.nodeOwners);
   const edgeOwners = cloneOwnerMap(previous.edgeOwners);
   const expanded = new Set(previous.expanded);
+  const groups = cloneGroupMap(previous.groups);
 
   expanded.delete(ownerKey);
 
@@ -209,7 +295,10 @@ function collapseGraphData(previous, ownerId) {
     }
   });
 
-  return { nodes, edges, nodeOwners, edgeOwners, expanded };
+  const nodeIds = new Set(nodes.keys());
+  pruneGroups(groups, nodeIds);
+
+  return { nodes, edges, nodeOwners, edgeOwners, expanded, groups };
 }
 
 function applyGraphTheme(cy, theme) {
@@ -318,8 +407,6 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cola');
-
   React.useEffect(() => {
     graphRef.current = graphData;
   }, [graphData]);
@@ -349,7 +436,6 @@ export default function Relationship() {
       return undefined;
     }
     let colaAvailable = false;
-    let fcoseAvailable = false;
     if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
       colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
       if (!colaAvailable) {
@@ -359,21 +445,10 @@ export default function Relationship() {
           colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
         }
       }
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-        }
-      }
     }
-    if (colaAvailable) {
-      layoutNameRef.current = 'cola';
-    } else if (fcoseAvailable) {
-      layoutNameRef.current = 'fcose';
-    } else {
-      layoutNameRef.current = 'cose';
+    if (!colaAvailable) {
+      setCyUnavailable(true);
+      return undefined;
     }
     if (!containerRef.current) {
       return undefined;
@@ -577,55 +652,39 @@ export default function Relationship() {
       }
     });
     cy.endBatch();
-    const layoutName = layoutNameRef.current;
     const layoutOptions = {
-      name: layoutName,
+      name: 'cola',
       animate: false,
       fit: true,
-      padding: layoutName === 'cola' || layoutName === 'fcose' ? 240 : 220,
+      padding: 240,
+      nodeDimensionsIncludeLabels: true,
+      nodeSpacing: (node) => {
+        const size = Number(node.data('size')) || 0;
+        return Math.max(48, Math.ceil(size) + 32);
+      },
+      edgeLength: 380,
+      randomize: false,
+      maxSimulationTime: 3000,
+      avoidOverlap: true,
+      unconstrIter: 18,
+      userConstIter: 18,
+      allConstIter: 18,
+      infinite: false,
     };
-    if (layoutName === 'fcose') {
-      Object.assign(layoutOptions, {
-        quality: 'proof',
-        randomize: false,
-        nodeDimensionsIncludeLabels: true,
-        packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+    const colaGroups = [];
+    graphData.groups.forEach((members) => {
+      const groupMembers = [];
+      members.forEach((memberId) => {
+        if (cy.getElementById(memberId).nonempty()) {
+          groupMembers.push(memberId);
+        }
       });
-    } else if (layoutName === 'cola') {
-      Object.assign(layoutOptions, {
-        nodeDimensionsIncludeLabels: true,
-        nodeSpacing: 32,
-        edgeLength: 380,
-        randomize: false,
-        maxSimulationTime: 2500,
-        fit: true,
-        avoidOverlap: true,
-        nodeSeparation: 150,
-        unconstrIter: 12,
-        userConstIter: 12,
-        allConstIter: 12,
-        infinite: false,
-      });
-    } else {
-      Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
-        idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
-      });
+      if (groupMembers.length > 1) {
+        colaGroups.push({ nodes: groupMembers });
+      }
+    });
+    if (colaGroups.length > 0) {
+      layoutOptions.groups = colaGroups;
     }
     const layout = cy.layout(layoutOptions);
     layout.run();
