@@ -103,7 +103,19 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
     const id = String(nodePayload.playerId);
     const existing = nodes.get(id) || {};
-    const type = existing.type || (nodePayload.origin ? 'origin' : nodePayload.alternate ? 'alternate' : 'related');
+    let type = existing.type;
+    if (!type) {
+      const explicitType = typeof nodePayload.type === 'string' ? nodePayload.type.trim() : '';
+      if (explicitType) {
+        type = explicitType;
+      } else if (nodePayload.origin) {
+        type = 'origin';
+      } else if (nodePayload.alternate) {
+        type = 'alternate';
+      } else {
+        type = 'related';
+      }
+    }
     const runCount = Math.max(toNumeric(nodePayload.runCount), toNumeric(existing.runCount));
     const label = nodePayload.playerName || existing.label || (t.playerIdLabel ? t.playerIdLabel(id) : `ID #${id}`);
     nodes.set(id, {
@@ -158,12 +170,16 @@ function mergeGraphData(previous, ownerId, payload, t) {
   }
 
   if (payload && typeof payload === 'object') {
-    registerNode(payload.origin);
-    if (Array.isArray(payload.alternates)) {
-      payload.alternates.forEach(registerNode);
-    }
-    if (Array.isArray(payload.relatedPlayers)) {
-      payload.relatedPlayers.forEach(registerNode);
+    if (Array.isArray(payload.nodes) && payload.nodes.length > 0) {
+      payload.nodes.forEach(registerNode);
+    } else {
+      registerNode(payload.origin);
+      if (Array.isArray(payload.alternates)) {
+        payload.alternates.forEach(registerNode);
+      }
+      if (Array.isArray(payload.relatedPlayers)) {
+        payload.relatedPlayers.forEach(registerNode);
+      }
     }
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
@@ -318,7 +334,6 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cose');
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -346,20 +361,32 @@ export default function Relationship() {
     const cytoscapeLib = window.cytoscape;
     if (typeof cytoscapeLib !== 'function') {
       setCyUnavailable(true);
+      cyRef.current = null;
       return undefined;
     }
-    let fcoseAvailable = false;
-    if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+    if (typeof cytoscapeLib.extension !== 'function' || typeof cytoscapeLib.use !== 'function') {
+      setCyUnavailable(true);
+      cyRef.current = null;
+      return undefined;
+    }
+    let colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+    if (!colaAvailable) {
+      const colaFactory = window.cytoscapeCola;
+      if (typeof colaFactory === 'function') {
+        try {
+          cytoscapeLib.use(colaFactory);
+          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+        } catch (error) {
+          console.error('Failed to register cytoscape-cola layout', error);
+          colaAvailable = false;
         }
       }
     }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+    if (!colaAvailable) {
+      setCyUnavailable(true);
+      cyRef.current = null;
+      return undefined;
+    }
     if (!containerRef.current) {
       return undefined;
     }
@@ -562,44 +589,24 @@ export default function Relationship() {
       }
     });
     cy.endBatch();
-    const layoutName = layoutNameRef.current;
-    const layoutOptions = {
-      name: layoutName,
+    const layout = cy.layout({
+      name: 'cola',
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
-    };
-    if (layoutName === 'fcose') {
-      Object.assign(layoutOptions, {
-        quality: 'proof',
-        randomize: false,
-        nodeDimensionsIncludeLabels: true,
-        packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
-      });
-    } else {
-      Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
-        idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
-      });
-    }
-    const layout = cy.layout(layoutOptions);
+      padding: 260,
+      nodeDimensionsIncludeLabels: true,
+      refresh: 1,
+      randomize: false,
+      avoidOverlap: true,
+      maxSimulationTime: 4000,
+      edgeLength: (edge) => {
+        return edge.data('alternateLink') ? 140 : 320;
+      },
+    });
+    layout.on('layoutstop', () => {
+      cy.resize();
+    });
     layout.run();
-    cy.resize();
   }, [graphData, t]);
 
   const loadingLabels = React.useMemo(() => {
