@@ -318,7 +318,7 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cose');
+  const layoutNameRef = React.useRef('cola');
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -348,8 +348,17 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
+    let colaAvailable = false;
     let fcoseAvailable = false;
     if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
+      colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+      if (!colaAvailable) {
+        const cola = window.cytoscapeCola;
+        if (typeof cola === 'function') {
+          cytoscapeLib.use(cola);
+          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+        }
+      }
       fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
       if (!fcoseAvailable) {
         const fcose = window.cytoscapeFcose;
@@ -359,7 +368,13 @@ export default function Relationship() {
         }
       }
     }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+    if (colaAvailable) {
+      layoutNameRef.current = 'cola';
+    } else if (fcoseAvailable) {
+      layoutNameRef.current = 'fcose';
+    } else {
+      layoutNameRef.current = 'cose';
+    }
     if (!containerRef.current) {
       return undefined;
     }
@@ -567,7 +582,7 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      padding: layoutName === 'cola' || layoutName === 'fcose' ? 240 : 220,
     };
     if (layoutName === 'fcose') {
       Object.assign(layoutOptions, {
@@ -586,6 +601,21 @@ export default function Relationship() {
         tilingPaddingHorizontal: 112,
         tilingPaddingVertical: 112,
         numIter: 2500,
+      });
+    } else if (layoutName === 'cola') {
+      Object.assign(layoutOptions, {
+        nodeDimensionsIncludeLabels: true,
+        nodeSpacing: 32,
+        edgeLength: 380,
+        randomize: false,
+        maxSimulationTime: 2500,
+        fit: true,
+        avoidOverlap: true,
+        nodeSeparation: 150,
+        unconstrIter: 12,
+        userConstIter: 12,
+        allConstIter: 12,
+        infinite: false,
       });
     } else {
       Object.assign(layoutOptions, {
