@@ -567,7 +567,8 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      // Increase the outer padding so the graph has more room to spread out.
+      padding: layoutName === 'fcose' ? 280 : 260,
     };
     if (layoutName === 'fcose') {
       Object.assign(layoutOptions, {
@@ -575,26 +576,27 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        // Stronger repulsion and separation to avoid overlapping nodes.
+        nodeRepulsion: 260000,
+        nodeSeparation: 240,
+        idealEdgeLength: 520,
+        edgeElasticity: 0.06,
+        gravity: 0.16,
+        gravityRange: 3.8,
+        gravityCompound: 0.6,
+        gravityRangeCompound: 3.2,
+        tilingPaddingHorizontal: 160,
+        tilingPaddingVertical: 160,
+        numIter: 3200,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
-        idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
+        nodeRepulsion: 220000,
+        idealEdgeLength: 460,
+        edgeElasticity: 0.07,
+        gravity: 0.18,
+        componentSpacing: 420,
+        nodeOverlap: 0,
       });
     }
     const layout = cy.layout(layoutOptions);
