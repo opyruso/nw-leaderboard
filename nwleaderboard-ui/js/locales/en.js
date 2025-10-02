@@ -459,20 +459,6 @@ const en = {
   playerTimeRadarAria:
     'Radar chart comparing this player’s best clear times across all dungeons.',
   playerWeekLabel: (week) => `Week ${week}`,
-  playerRelationshipLinkLabel: 'Relationship graph',
-  relationshipTitle: 'Relationship graph',
-  relationshipInstructions: 'Click a player node to expand or collapse their connections.',
-  relationshipLoading: 'Loading relationship data…',
-  relationshipError: 'Unable to load relationship data.',
-  relationshipEmpty: 'No related players were found yet.',
-  relationshipBackToProfile: 'Back to profile',
-  relationshipExpanding: 'Expanding',
-  relationshipFetchFailed: 'Unable to load additional relationships.',
-  relationshipRunCount: (count) =>
-    count === 1 ? '1 shared run' : `${count.toLocaleString()} shared runs`,
-  relationshipUnsupported:
-    'The relationship graph could not be initialised because Cytoscape is unavailable.',
-  relationshipGraphAria: 'Interactive relationship graph',
   cachePreparing: 'Preparing offline cache…',
   cacheComplete: 'Offline cache ready',
   cacheSummary: (success, total) =>

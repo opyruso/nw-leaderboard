@@ -458,23 +458,6 @@ const de = {
   playerTimeRadarAria:
     'Radar-Diagramm, das die besten Zeiten des Spielers über alle Dungeons vergleicht.',
   playerWeekLabel: (week) => `Woche ${week}`,
-  playerRelationshipLinkLabel: 'Beziehungsdiagramm',
-  relationshipTitle: 'Beziehungsdiagramm',
-  relationshipInstructions:
-    'Klicken Sie auf einen Spieler, um seine Verbindungen ein- oder auszublenden.',
-  relationshipLoading: 'Beziehungsdaten werden geladen…',
-  relationshipError: 'Beziehungsdaten konnten nicht geladen werden.',
-  relationshipEmpty: 'Es wurden noch keine verbundenen Spieler gefunden.',
-  relationshipBackToProfile: 'Zurück zum Profil',
-  relationshipExpanding: 'Wird erweitert',
-  relationshipFetchFailed: 'Zusätzliche Beziehungen konnten nicht geladen werden.',
-  relationshipRunCount: (count) =>
-    count === 1
-      ? '1 gemeinsamer Run'
-      : `${count.toLocaleString()} gemeinsame Runs`,
-  relationshipUnsupported:
-    'Das Beziehungsdiagramm konnte nicht initialisiert werden, da Cytoscape nicht verfügbar ist.',
-  relationshipGraphAria: 'Interaktives Beziehungsdiagramm',
   cachePreparing: 'Offline-Cache wird vorbereitet…',
   cacheComplete: 'Offline-Cache bereit',
   cacheSummary: (success, total) => `${success}/${total} Assets für Offline-Nutzung zwischengespeichert`,

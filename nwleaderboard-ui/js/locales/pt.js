@@ -459,22 +459,6 @@ const pt = {
   playerTimeRadarAria:
     'Gráfico radar que compara os melhores tempos do jogador em todas as masmorras.',
   playerWeekLabel: (week) => `Semana ${week}`,
-  playerRelationshipLinkLabel: 'Gráfico de relações',
-  relationshipTitle: 'Gráfico de relações',
-  relationshipInstructions: 'Clique em um jogador para expandir ou recolher suas conexões.',
-  relationshipLoading: 'Carregando dados de relações…',
-  relationshipError: 'Não foi possível carregar os dados de relações.',
-  relationshipEmpty: 'Nenhum jogador relacionado encontrado ainda.',
-  relationshipBackToProfile: 'Voltar ao perfil',
-  relationshipExpanding: 'Expandindo',
-  relationshipFetchFailed: 'Não foi possível carregar relações adicionais.',
-  relationshipRunCount: (count) =>
-    count === 1
-      ? '1 partida compartilhada'
-      : `${count.toLocaleString()} partidas compartilhadas`,
-  relationshipUnsupported:
-    'Não foi possível iniciar o gráfico de relações porque o Cytoscape não está disponível.',
-  relationshipGraphAria: 'Gráfico de relações interativo',
   cachePreparing: 'Preparando cache offline…',
   cacheComplete: 'Cache offline pronta',
   cacheSummary: (success, total) => `${success}/${total} recursos armazenados para uso offline`,
