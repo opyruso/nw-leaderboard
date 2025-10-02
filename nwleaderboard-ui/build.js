@@ -47,6 +47,7 @@ cpSync(
 );
 cpSync('node_modules/chart.js/dist/chart.umd.js', 'dist/vendor/chart.umd.js');
 cpSync('node_modules/cytoscape/dist/cytoscape.umd.js', 'dist/vendor/cytoscape.umd.js');
+cpSync('node_modules/webcola/WebCola/cola.min.js', 'dist/vendor/cola.min.js');
 cpSync('node_modules/cytoscape-cola/cytoscape-cola.js', 'dist/vendor/cytoscape-cola.js');
 
 let version = '';
