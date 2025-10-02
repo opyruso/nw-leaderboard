@@ -157,6 +157,41 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
   }
 
+  function registerAlternateEdge(mainPayload, alternatePayload) {
+    if (!mainPayload || !alternatePayload) {
+      return;
+    }
+    const mainId = mainPayload.playerId;
+    const altId = alternatePayload.playerId;
+    if (
+      mainId === null ||
+      mainId === undefined ||
+      altId === null ||
+      altId === undefined ||
+      mainId === altId
+    ) {
+      return;
+    }
+    const mainKey = String(mainId);
+    const altKey = String(altId);
+    const [first, second] = mainKey <= altKey ? [mainKey, altKey] : [altKey, mainKey];
+    const key = `${first}__${second}`;
+    const existing = edges.get(key);
+    const source = existing?.source || mainKey;
+    const target = existing?.target || (source === mainKey ? altKey : mainKey);
+    const runCount = existing?.runCount ?? null;
+    edges.set(key, {
+      id: key,
+      source,
+      target,
+      runCount,
+      alternate: true,
+    });
+    if (ownerKey) {
+      addOwner(edgeOwners, key, ownerKey);
+    }
+  }
+
   if (payload && typeof payload === 'object') {
     registerNode(payload.origin);
     if (Array.isArray(payload.alternates)) {
@@ -167,6 +202,58 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
+    }
+
+    let primaryNode = null;
+    const alternates = Array.isArray(payload.alternates) ? payload.alternates : [];
+    if (
+      payload.origin &&
+      payload.origin.playerId !== null &&
+      payload.origin.playerId !== undefined &&
+      payload.origin.origin &&
+      !payload.origin.alternate
+    ) {
+      primaryNode = payload.origin;
+    }
+    if (!primaryNode) {
+      primaryNode = alternates.find(
+        (node) =>
+          node &&
+          node.playerId !== null &&
+          node.playerId !== undefined &&
+          node.alternate === false,
+      );
+    }
+    if (!primaryNode && payload.origin && payload.origin.playerId !== null && payload.origin.playerId !== undefined) {
+      primaryNode = payload.origin;
+    }
+    if (primaryNode) {
+      const primaryId = String(primaryNode.playerId);
+      const uniqueAlternates = new Map();
+      if (
+        payload.origin &&
+        payload.origin.playerId !== null &&
+        payload.origin.playerId !== undefined &&
+        String(payload.origin.playerId) !== primaryId &&
+        payload.origin.alternate
+      ) {
+        uniqueAlternates.set(String(payload.origin.playerId), payload.origin);
+      }
+      alternates.forEach((node) => {
+        if (!node || node.playerId === null || node.playerId === undefined) {
+          return;
+        }
+        const id = String(node.playerId);
+        if (id === primaryId) {
+          return;
+        }
+        if (node.alternate) {
+          uniqueAlternates.set(id, node);
+        }
+      });
+      uniqueAlternates.forEach((node) => {
+        registerAlternateEdge(primaryNode, node);
+      });
     }
   }
 
@@ -575,30 +662,83 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
+        nodeRepulsion: 140000,
+        nodeSeparation: 180,
         idealEdgeLength: 380,
         edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        gravity: 0.18,
+        gravityRange: 3.5,
+        gravityCompound: 0.65,
+        gravityRangeCompound: 3.1,
+        tilingPaddingHorizontal: 128,
+        tilingPaddingVertical: 128,
+        uniformNodeDimensions: false,
+        numIter: 2800,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
+        nodeDimensionsIncludeLabels: true,
+        nodeRepulsion: 180000,
         idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
+        edgeElasticity: 0.07,
+        gravity: 0.2,
+        componentSpacing: 400,
+        nodeOverlap: 12,
       });
     }
-    const layout = cy.layout(layoutOptions);
-    layout.run();
+
+    const runLayout = (options, isFallback = false) => {
+      const layoutInstance = cy.layout(options);
+      if (!isFallback) {
+        layoutInstance.one('layoutstop', () => {
+          const nodes = cy.nodes();
+          if (nodes.length <= 1) {
+            return;
+          }
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+          nodes.forEach((node) => {
+            const position = node.position();
+            if (!position) {
+              return;
+            }
+            if (position.x < minX) {
+              minX = position.x;
+            }
+            if (position.x > maxX) {
+              maxX = position.x;
+            }
+            if (position.y < minY) {
+              minY = position.y;
+            }
+            if (position.y > maxY) {
+              maxY = position.y;
+            }
+          });
+          const spreadX = maxX - minX;
+          const spreadY = maxY - minY;
+          if (spreadX < 120 && spreadY < 120) {
+            runLayout(
+              {
+                name: 'breadthfirst',
+                animate: false,
+                fit: true,
+                padding: 260,
+                circle: false,
+                spacingFactor: 1.4,
+                avoidOverlap: true,
+              },
+              true,
+            );
+          }
+        });
+      }
+      layoutInstance.run();
+    };
+
+    runLayout(layoutOptions);
     cy.resize();
   }, [graphData, t]);
 
