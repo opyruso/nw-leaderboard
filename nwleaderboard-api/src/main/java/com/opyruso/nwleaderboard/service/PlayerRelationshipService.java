@@ -49,18 +49,19 @@ public class PlayerRelationshipService {
             return Optional.empty();
         }
 
-        List<Player> alternatePlayers = List.of();
-        boolean originIsMain = origin.getMainCharacter() == null || origin.equals(origin.getMainCharacter());
-        if (originIsMain) {
-            alternatePlayers = listAlternatePlayers(origin);
-        }
+        Player mainCharacter = resolveMainCharacter(origin);
+        List<Player> alternatePlayers = listAlternatePlayers(mainCharacter);
 
         Set<Long> originGroupIds = new LinkedHashSet<>();
         originGroupIds.add(origin.getId());
+        if (mainCharacter != null && mainCharacter.getId() != null) {
+            originGroupIds.add(mainCharacter.getId());
+        }
         for (Player alternate : alternatePlayers) {
-            if (alternate != null && alternate.getId() != null) {
-                originGroupIds.add(alternate.getId());
+            if (alternate == null || alternate.getId() == null) {
+                continue;
             }
+            originGroupIds.add(alternate.getId());
         }
 
         Map<Long, RelationshipAggregate> aggregates = new LinkedHashMap<>();
@@ -82,17 +83,23 @@ public class PlayerRelationshipService {
         }
 
         long originRunCount = runCountsBySource.getOrDefault(origin.getId(), 0L);
-        PlayerRelationshipNodeResponse originNode =
-                new PlayerRelationshipNodeResponse(origin.getId(), origin.getPlayerName(), true, false, originRunCount);
+        PlayerRelationshipNodeResponse originNode = new PlayerRelationshipNodeResponse(
+                origin.getId(), origin.getPlayerName(), true, false, originRunCount);
 
         List<PlayerRelationshipNodeResponse> alternateNodes = new ArrayList<>();
-        for (Player alternate : alternatePlayers) {
-            if (alternate == null || alternate.getId() == null) {
+        List<Player> groupedPlayers = new ArrayList<>();
+        if (mainCharacter != null) {
+            groupedPlayers.add(mainCharacter);
+        }
+        groupedPlayers.addAll(alternatePlayers);
+        for (Player grouped : groupedPlayers) {
+            if (grouped == null || grouped.getId() == null || grouped.getId().equals(origin.getId())) {
                 continue;
             }
-            long runCount = runCountsBySource.getOrDefault(alternate.getId(), 0L);
+            long runCount = runCountsBySource.getOrDefault(grouped.getId(), 0L);
+            boolean isAlternate = mainCharacter == null || !grouped.getId().equals(mainCharacter.getId());
             alternateNodes.add(new PlayerRelationshipNodeResponse(
-                    alternate.getId(), alternate.getPlayerName(), false, true, runCount));
+                    grouped.getId(), grouped.getPlayerName(), false, isAlternate, runCount));
         }
 
         List<PlayerRelationshipNodeResponse> relatedNodes = aggregates.entrySet()
@@ -123,11 +130,14 @@ public class PlayerRelationshipService {
                 .toList();
 
         List<PlayerRelationshipEdgeResponse> edges = new ArrayList<>();
-        for (Player alternate : alternatePlayers) {
-            if (alternate == null || alternate.getId() == null) {
-                continue;
+        if (mainCharacter != null && mainCharacter.getId() != null) {
+            Long mainId = mainCharacter.getId();
+            for (Player alternate : alternatePlayers) {
+                if (alternate == null || alternate.getId() == null) {
+                    continue;
+                }
+                edges.add(new PlayerRelationshipEdgeResponse(mainId, alternate.getId(), null, true));
             }
-            edges.add(new PlayerRelationshipEdgeResponse(origin.getId(), alternate.getId(), null, true));
         }
 
         for (Entry<Long, RelationshipAggregate> entry : aggregates.entrySet()) {
@@ -182,6 +192,24 @@ public class PlayerRelationshipService {
             return collator.compare(leftName, rightName);
         });
         return List.copyOf(alternates);
+    }
+
+    private Player resolveMainCharacter(Player origin) {
+        if (origin == null) {
+            return null;
+        }
+        Player main = origin.getMainCharacter();
+        if (main == null) {
+            return origin;
+        }
+        if (main.getId() == null) {
+            return origin;
+        }
+        if (origin.equals(main)) {
+            return main;
+        }
+        Player persisted = playerRepository.findById(main.getId());
+        return persisted != null ? persisted : main;
     }
 
     private Set<Long> collectRunIds(Set<Long> originGroupIds, boolean scoreRuns) {

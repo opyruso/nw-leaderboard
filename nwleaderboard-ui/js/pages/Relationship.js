@@ -287,6 +287,7 @@ function applyGraphTheme(cy, theme) {
         style: {
           'line-style': 'dashed',
           'line-color': altBg,
+          'width': 3,
           'label': '',
           'opacity': 0.7,
         },
@@ -552,11 +553,13 @@ export default function Relationship() {
       name: 'cose',
       animate: false,
       fit: true,
-      padding: 40,
-      nodeRepulsion: 12000,
-      idealEdgeLength: 110,
-      edgeElasticity: 0.2,
-      gravity: 0.85,
+      padding: 96,
+      nodeRepulsion: 36000,
+      idealEdgeLength: 160,
+      edgeElasticity: 0.3,
+      gravity: 0.6,
+      componentSpacing: 200,
+      nodeOverlap: 8,
     });
     layout.run();
     cy.resize();
