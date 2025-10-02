@@ -310,9 +310,18 @@ export default function Relationship() {
   const [loadingNodes, setLoadingNodes] = React.useState(() => new Set());
   const loadingNodesRef = React.useRef(new Set());
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
+  const [layoutName, setLayoutName] = React.useState('cose');
+  const [layoutAvailability, setLayoutAvailability] = React.useState(() => ({
+    circle: true,
+    concentric: true,
+    cose: true,
+    fcose: false,
+    cola: false,
+    euler: false,
+    spread: false,
+  }));
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cose');
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -342,18 +351,39 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
-    let fcoseAvailable = false;
-    if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+    const ensureLayout = (name, globalKey) => {
+      if (typeof cytoscapeLib.extension !== 'function') {
+        return false;
+      }
+      let available = Boolean(cytoscapeLib.extension('layout', name));
+      if (!available && globalKey && typeof cytoscapeLib.use === 'function') {
+        const extension = window[globalKey];
+        if (typeof extension === 'function') {
+          cytoscapeLib.use(extension);
+          available = Boolean(cytoscapeLib.extension('layout', name));
         }
       }
-    }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+      return available;
+    };
+
+    const availability = {
+      circle: true,
+      concentric: true,
+      cose: true,
+      fcose: ensureLayout('fcose', 'cytoscapeFcose'),
+      cola: ensureLayout('cola', 'cytoscapeCola'),
+      euler: ensureLayout('euler', 'cytoscapeEuler'),
+      spread: ensureLayout('spread', 'cytoscapeSpread'),
+    };
+    setLayoutAvailability(availability);
+    setLayoutName((current) => {
+      if (availability[current]) {
+        return current;
+      }
+      const fallbackOrder = ['fcose', 'cose', 'circle', 'concentric', 'cola', 'euler', 'spread'];
+      const next = fallbackOrder.find((name) => availability[name]);
+      return next || current;
+    });
     if (!containerRef.current) {
       return undefined;
     }
@@ -547,14 +577,17 @@ export default function Relationship() {
       }
     });
     cy.endBatch();
-    const layoutName = layoutNameRef.current;
+    const currentLayout = layoutName;
+    if (!layoutAvailability[currentLayout]) {
+      return;
+    }
     const layoutOptions = {
-      name: layoutName,
+      name: currentLayout,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      padding: currentLayout === 'fcose' ? 240 : 220,
     };
-    if (layoutName === 'fcose') {
+    if (currentLayout === 'fcose') {
       Object.assign(layoutOptions, {
         quality: 'proof',
         randomize: false,
@@ -573,7 +606,7 @@ export default function Relationship() {
         uniformNodeDimensions: false,
         numIter: 2800,
       });
-    } else {
+    } else if (currentLayout === 'cose') {
       Object.assign(layoutOptions, {
         nodeDimensionsIncludeLabels: true,
         nodeRepulsion: 180000,
@@ -638,7 +671,32 @@ export default function Relationship() {
 
     runLayout(layoutOptions);
     cy.resize();
-  }, [graphData, t]);
+  }, [graphData, layoutAvailability, layoutName, t]);
+
+  const handleLayoutChange = React.useCallback(
+    (nextName) => {
+      if (!nextName || !layoutAvailability[nextName]) {
+        return;
+      }
+      setLayoutName((current) => (current === nextName ? current : nextName));
+    },
+    [layoutAvailability],
+  );
+
+  const layoutOptionsList = React.useMemo(
+    () => [
+      { name: 'circle', label: t.relationshipLayoutCircle || 'Circle layout' },
+      { name: 'concentric', label: t.relationshipLayoutConcentric || 'Concentric layout' },
+      { name: 'cose', label: t.relationshipLayoutCose || 'Cose layout' },
+      { name: 'fcose', label: t.relationshipLayoutFcose || 'fCoSE layout' },
+      { name: 'cola', label: t.relationshipLayoutCola || 'Cola layout' },
+      { name: 'euler', label: t.relationshipLayoutEuler || 'Euler layout' },
+      { name: 'spread', label: t.relationshipLayoutSpread || 'Spread layout' },
+    ],
+    [t],
+  );
+
+  const layoutGroupLabel = t.relationshipLayoutSwitcher || 'Graph layout';
 
   const loadingLabels = React.useMemo(() => {
     const labels = [];
@@ -689,6 +747,24 @@ export default function Relationship() {
           <p className="relationship-instructions">{instructions}</p>
         </div>
         <div className="relationship-actions">
+          <div className="relationship-layout-buttons" role="group" aria-label={layoutGroupLabel}>
+            {layoutOptionsList.map((option) => {
+              const isActive = layoutName === option.name;
+              const isAvailable = Boolean(layoutAvailability[option.name]);
+              return (
+                <button
+                  key={option.name}
+                  type="button"
+                  className="button-tertiary relationship-layout-button"
+                  onClick={() => handleLayoutChange(option.name)}
+                  disabled={!isAvailable || isActive}
+                  aria-pressed={isActive ? 'true' : 'false'}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
           <Link
             to={normalisedPlayerId ? `/player/${encodeURIComponent(normalisedPlayerId)}` : '/player'}
             className="button-tertiary relationship-back"
