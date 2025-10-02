@@ -157,6 +157,41 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
   }
 
+  function registerAlternateEdge(mainPayload, alternatePayload) {
+    if (!mainPayload || !alternatePayload) {
+      return;
+    }
+    const mainId = mainPayload.playerId;
+    const altId = alternatePayload.playerId;
+    if (
+      mainId === null ||
+      mainId === undefined ||
+      altId === null ||
+      altId === undefined ||
+      mainId === altId
+    ) {
+      return;
+    }
+    const mainKey = String(mainId);
+    const altKey = String(altId);
+    const [first, second] = mainKey <= altKey ? [mainKey, altKey] : [altKey, mainKey];
+    const key = `${first}__${second}`;
+    const existing = edges.get(key);
+    const source = existing?.source || mainKey;
+    const target = existing?.target || (source === mainKey ? altKey : mainKey);
+    const runCount = existing?.runCount ?? null;
+    edges.set(key, {
+      id: key,
+      source,
+      target,
+      runCount,
+      alternate: true,
+    });
+    if (ownerKey) {
+      addOwner(edgeOwners, key, ownerKey);
+    }
+  }
+
   if (payload && typeof payload === 'object') {
     registerNode(payload.origin);
     if (Array.isArray(payload.alternates)) {
@@ -167,6 +202,58 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
+    }
+
+    let primaryNode = null;
+    const alternates = Array.isArray(payload.alternates) ? payload.alternates : [];
+    if (
+      payload.origin &&
+      payload.origin.playerId !== null &&
+      payload.origin.playerId !== undefined &&
+      payload.origin.origin &&
+      !payload.origin.alternate
+    ) {
+      primaryNode = payload.origin;
+    }
+    if (!primaryNode) {
+      primaryNode = alternates.find(
+        (node) =>
+          node &&
+          node.playerId !== null &&
+          node.playerId !== undefined &&
+          node.alternate === false,
+      );
+    }
+    if (!primaryNode && payload.origin && payload.origin.playerId !== null && payload.origin.playerId !== undefined) {
+      primaryNode = payload.origin;
+    }
+    if (primaryNode) {
+      const primaryId = String(primaryNode.playerId);
+      const uniqueAlternates = new Map();
+      if (
+        payload.origin &&
+        payload.origin.playerId !== null &&
+        payload.origin.playerId !== undefined &&
+        String(payload.origin.playerId) !== primaryId &&
+        payload.origin.alternate
+      ) {
+        uniqueAlternates.set(String(payload.origin.playerId), payload.origin);
+      }
+      alternates.forEach((node) => {
+        if (!node || node.playerId === null || node.playerId === undefined) {
+          return;
+        }
+        const id = String(node.playerId);
+        if (id === primaryId) {
+          return;
+        }
+        if (node.alternate) {
+          uniqueAlternates.set(id, node);
+        }
+      });
+      uniqueAlternates.forEach((node) => {
+        registerAlternateEdge(primaryNode, node);
+      });
     }
   }
 
@@ -567,34 +654,37 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      padding: layoutName === 'fcose' ? 260 : 240,
     };
     if (layoutName === 'fcose') {
       Object.assign(layoutOptions, {
         quality: 'proof',
-        randomize: false,
+        randomize: true,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        nodeRepulsion: 180000,
+        nodeSeparation: 220,
+        idealEdgeLength: 440,
+        edgeElasticity: 0.05,
+        gravity: 0.16,
+        gravityRange: 3.8,
+        gravityCompound: 0.6,
+        gravityRangeCompound: 3.4,
+        tilingPaddingHorizontal: 148,
+        tilingPaddingVertical: 148,
+        uniformNodeDimensions: false,
+        numIter: 3200,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
-        idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
+        randomize: true,
+        nodeDimensionsIncludeLabels: true,
+        nodeRepulsion: 220000,
+        idealEdgeLength: 420,
+        edgeElasticity: 0.06,
+        gravity: 0.18,
+        componentSpacing: 440,
+        nodeOverlap: 0,
       });
     }
     const layout = cy.layout(layoutOptions);
