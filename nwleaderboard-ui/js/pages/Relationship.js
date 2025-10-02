@@ -60,8 +60,8 @@ function toNumeric(value) {
 }
 
 function computeNodeSize(node) {
-  const base = node.type === 'origin' ? 88 : node.type === 'alternate' ? 64 : 44;
-  const scale = Math.min(Math.log10(toNumeric(node.runCount) + 1) * 28, 42);
+  const base = node.type === 'origin' ? 60 : node.type === 'alternate' ? 46 : 36;
+  const scale = Math.min(Math.log10(toNumeric(node.runCount) + 1) * 18, 28);
   return base + scale;
 }
 
@@ -241,7 +241,7 @@ function applyGraphTheme(cy, theme) {
           'label': 'data(label)',
           'font-size': '12px',
           'text-wrap': 'wrap',
-          'text-max-width': '120px',
+          'text-max-width': '108px',
           'text-valign': 'center',
           'text-halign': 'center',
           'text-background-color': labelBackground,
@@ -318,6 +318,7 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
+  const layoutNameRef = React.useRef('cose');
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -347,6 +348,18 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
+    let fcoseAvailable = false;
+    if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
+      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+      if (!fcoseAvailable) {
+        const fcose = window.cytoscapeFcose;
+        if (typeof fcose === 'function') {
+          cytoscapeLib.use(fcose);
+          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+        }
+      }
+    }
+    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
     if (!containerRef.current) {
       return undefined;
     }
@@ -549,18 +562,42 @@ export default function Relationship() {
       }
     });
     cy.endBatch();
-    const layout = cy.layout({
-      name: 'cose',
+    const layoutName = layoutNameRef.current;
+    const layoutOptions = {
+      name: layoutName,
       animate: false,
       fit: true,
-      padding: 160,
-      nodeRepulsion: 140000,
-      idealEdgeLength: 240,
-      edgeElasticity: 0.18,
-      gravity: 0.35,
-      componentSpacing: 320,
-      nodeOverlap: 6,
-    });
+      padding: layoutName === 'fcose' ? 240 : 220,
+    };
+    if (layoutName === 'fcose') {
+      Object.assign(layoutOptions, {
+        quality: 'proof',
+        randomize: false,
+        nodeDimensionsIncludeLabels: true,
+        packComponents: true,
+        nodeRepulsion: 130000,
+        nodeSeparation: 150,
+        idealEdgeLength: 380,
+        edgeElasticity: 0.07,
+        gravity: 0.2,
+        gravityRange: 3.4,
+        gravityCompound: 0.7,
+        gravityRangeCompound: 3,
+        tilingPaddingHorizontal: 112,
+        tilingPaddingVertical: 112,
+        numIter: 2500,
+      });
+    } else {
+      Object.assign(layoutOptions, {
+        nodeRepulsion: 160000,
+        idealEdgeLength: 360,
+        edgeElasticity: 0.08,
+        gravity: 0.22,
+        componentSpacing: 380,
+        nodeOverlap: 4,
+      });
+    }
+    const layout = cy.layout(layoutOptions);
     layout.run();
     cy.resize();
   }, [graphData, t]);
