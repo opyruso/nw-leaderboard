@@ -78,13 +78,49 @@ function computeEdgeWidth(edge) {
 
 function computeEdgeLength(edge) {
   const count = toNumeric(edge.runCount);
-  const maximum = edge.alternate ? 10400 : 13200;
+  const maximum = edge.alternate ? 180000 : 240000;
   if (count <= 0) {
     return maximum;
   }
-  const reduction = Math.log10(count + 1) * (edge.alternate ? 140 : 180);
-  const minimum = edge.alternate ? 9600 : 11800;
+  const reduction = Math.log10(count + 1) * (edge.alternate ? 4600 : 6200);
+  const minimum = edge.alternate ? 148000 : 196000;
   return Math.max(minimum, Math.min(maximum, maximum - reduction));
+}
+
+function ensureColaExtension(cytoscapeLib) {
+  if (!cytoscapeLib || typeof cytoscapeLib !== 'function') {
+    return false;
+  }
+  try {
+    if (typeof window !== 'undefined') {
+      const colaGlobal = window.cola || window.webcola;
+      if (colaGlobal && !window.webcola) {
+        window.webcola = colaGlobal;
+      }
+    }
+  } catch (error) {
+    // no-op if the environment does not expose window
+  }
+  if (typeof cytoscapeLib.extension === 'function') {
+    const existing = cytoscapeLib.extension('layout', 'cola');
+    if (existing) {
+      return true;
+    }
+  }
+  if (typeof cytoscapeLib.use === 'function') {
+    const colaExt = typeof window !== 'undefined' ? window.cytoscapeCola : undefined;
+    if (typeof colaExt === 'function') {
+      try {
+        cytoscapeLib.use(colaExt);
+      } catch (error) {
+        // ignore registration failures and retry below
+      }
+      if (typeof cytoscapeLib.extension === 'function') {
+        return Boolean(cytoscapeLib.extension('layout', 'cola'));
+      }
+    }
+  }
+  return false;
 }
 
 function formatRunCountLabel(t, count) {
@@ -368,25 +404,15 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
-    let colaAvailable = false;
+    const colaAvailable = ensureColaExtension(cytoscapeLib);
     let fcoseAvailable = false;
-    if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
-      if (!colaAvailable) {
-        const colaExt = window.cytoscapeCola;
-        if (typeof colaExt === 'function') {
-          cytoscapeLib.use(colaExt);
-          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
-        }
-      }
-      if (!colaAvailable) {
-        fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-        if (!fcoseAvailable) {
-          const fcose = window.cytoscapeFcose;
-          if (typeof fcose === 'function') {
-            cytoscapeLib.use(fcose);
-            fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-          }
+    if (!colaAvailable && typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
+      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+      if (!fcoseAvailable) {
+        const fcose = window.cytoscapeFcose;
+        if (typeof fcose === 'function') {
+          cytoscapeLib.use(fcose);
+          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
         }
       }
     }
@@ -601,7 +627,7 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: isCola ? 760 : layoutName === 'fcose' ? 520 : 420,
+      padding: isCola ? 960 : layoutName === 'fcose' ? 640 : 520,
     };
     if (isCola) {
       Object.assign(layoutOptions, {
@@ -610,23 +636,23 @@ export default function Relationship() {
         avoidOverlap: true,
         nodeSpacing: (node) => {
           if (!node || typeof node.data !== 'function') {
-            return 320;
+            return 640;
           }
           const size = Number(node.data('size'));
           if (!Number.isFinite(size)) {
-            return 320;
+            return 640;
           }
-          return Math.max(360, size * 3.6);
+          return Math.max(720, size * 5.4);
         },
-        refresh: 0.35,
+        refresh: 0.2,
         infinite: true,
-        maxSimulationTime: 15000,
+        maxSimulationTime: 48000,
         handleDisconnected: true,
-        unconstrainedIterations: 2400,
-        userConstIterations: 18,
+        unconstrainedIterations: 4200,
+        userConstIterations: 28,
         edgeLength: (edge) => {
           const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
-          return Number.isFinite(length) ? length : 11800;
+          return Number.isFinite(length) ? length : 200000;
         },
       });
     } else if (layoutName === 'fcose') {
@@ -635,25 +661,25 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 420000,
-        nodeSeparation: 920,
-        idealEdgeLength: 6200,
-        edgeElasticity: 0.008,
+        nodeRepulsion: 520000,
+        nodeSeparation: 1400,
+        idealEdgeLength: 14800,
+        edgeElasticity: 0.004,
         gravity: 0.035,
         gravityRange: 5.6,
         gravityCompound: 0.42,
         gravityRangeCompound: 4.8,
-        tilingPaddingHorizontal: 520,
-        tilingPaddingVertical: 520,
-        numIter: 6200,
+        tilingPaddingHorizontal: 720,
+        tilingPaddingVertical: 720,
+        numIter: 8600,
       });
     } else {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 360000,
-        idealEdgeLength: 5800,
-        edgeElasticity: 0.008,
-        gravity: 0.05,
-        componentSpacing: 2400,
+        nodeRepulsion: 480000,
+        idealEdgeLength: 13200,
+        edgeElasticity: 0.004,
+        gravity: 0.035,
+        componentSpacing: 3600,
         nodeOverlap: 1,
       });
     }
