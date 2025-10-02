@@ -1318,16 +1318,6 @@ export default function Player({ canContribute = false }) {
                 ))}
               </p>
             ) : null}
-            {targetPlayerId ? (
-              <div className="player-profile-actions">
-                <Link
-                  to={`/player/${encodeURIComponent(targetPlayerId)}/relationship`}
-                  className="button-tertiary player-profile-relationship-button"
-                >
-                  {t.playerRelationshipLinkLabel || 'Relationship graph'}
-                </Link>
-              </div>
-            ) : null}
             {playerPrimaryName && playerIdentifier ? (
               <p className="player-profile-identifier">
                 {typeof t.playerIdLabel === 'function'

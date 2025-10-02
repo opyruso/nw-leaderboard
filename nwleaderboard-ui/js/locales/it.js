@@ -459,23 +459,6 @@ const it = {
   playerTimeRadarAria:
     'Grafico radar che confronta i migliori tempi del giocatore in tutte le spedizioni.',
   playerWeekLabel: (week) => `Settimana ${week}`,
-  playerRelationshipLinkLabel: 'Grafico delle relazioni',
-  relationshipTitle: 'Grafico delle relazioni',
-  relationshipInstructions:
-    'Fai clic su un giocatore per espandere o comprimere le sue connessioni.',
-  relationshipLoading: 'Caricamento dei dati delle relazioni…',
-  relationshipError: 'Impossibile caricare i dati delle relazioni.',
-  relationshipEmpty: 'Non sono ancora stati trovati giocatori collegati.',
-  relationshipBackToProfile: 'Torna al profilo',
-  relationshipExpanding: 'Espansione',
-  relationshipFetchFailed: 'Impossibile caricare ulteriori relazioni.',
-  relationshipRunCount: (count) =>
-    count === 1
-      ? '1 run condivisa'
-      : `${count.toLocaleString()} run condivise`,
-  relationshipUnsupported:
-    'Impossibile inizializzare il grafico delle relazioni perché Cytoscape non è disponibile.',
-  relationshipGraphAria: 'Grafico delle relazioni interattivo',
   cachePreparing: 'Preparazione cache offline…',
   cacheComplete: 'Cache offline pronta',
   cacheSummary: (success, total) => `${success}/${total} risorse in cache per l’uso offline`,
