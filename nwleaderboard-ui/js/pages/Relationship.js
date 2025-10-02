@@ -3,6 +3,71 @@ import { ThemeContext } from '../theme.js';
 
 const { Link, useParams } = ReactRouterDOM;
 
+const scriptLoadCache = new Map();
+
+function loadScriptOnce(src, readinessCheck) {
+  if (typeof readinessCheck === 'function' && readinessCheck()) {
+    return Promise.resolve();
+  }
+  const cached = scriptLoadCache.get(src);
+  if (cached) {
+    return cached;
+  }
+  const promise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-dynamic-script="${src}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', (event) => reject(event?.error || new Error(`Failed to load ${src}`)));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.dataset.dynamicScript = src;
+    script.addEventListener('load', () => resolve());
+    script.addEventListener('error', (event) => {
+      script.remove();
+      reject(event?.error || new Error(`Failed to load ${src}`));
+    });
+    document.head.appendChild(script);
+  }).catch((error) => {
+    scriptLoadCache.delete(src);
+    throw error;
+  });
+  scriptLoadCache.set(src, promise);
+  return promise;
+}
+
+let cytoscapeLoadPromise;
+
+function loadCytoscapeWithCola() {
+  if (!cytoscapeLoadPromise) {
+    cytoscapeLoadPromise = (async () => {
+      await loadScriptOnce('/vendor/cytoscape.umd.js', () => typeof window.cytoscape === 'function');
+      const cytoscapeLib = window.cytoscape;
+      if (typeof cytoscapeLib !== 'function') {
+        throw new Error('Cytoscape failed to load');
+      }
+      await loadScriptOnce('/vendor/cola.min.js', () => typeof window.cola === 'object' || typeof window.cola === 'function');
+      await loadScriptOnce('/vendor/cytoscape-cola.js', () => typeof window.cytoscapeCola === 'function');
+      if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
+        const existingExtension = cytoscapeLib.extension('layout', 'cola');
+        if (!existingExtension && typeof window.cytoscapeCola === 'function') {
+          cytoscapeLib.use(window.cytoscapeCola);
+        }
+      }
+      if (!cytoscapeLib.extension('layout', 'cola')) {
+        throw new Error('COLA layout unavailable');
+      }
+      return cytoscapeLib;
+    })().catch((error) => {
+      cytoscapeLoadPromise = undefined;
+      throw error;
+    });
+  }
+  return cytoscapeLoadPromise;
+}
+
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
 function createEmptyGraphState() {
@@ -395,6 +460,7 @@ function applyGraphTheme(cy, theme) {
 export default function Relationship() {
   const { t } = React.useContext(LangContext);
   const { theme } = React.useContext(ThemeContext);
+  const themeRef = React.useRef(theme);
   const params = useParams();
   const routePlayerId = params?.playerId;
   const [graphData, setGraphData] = React.useState(() => createEmptyGraphState());
@@ -430,48 +496,49 @@ export default function Relationship() {
   }, [graphData.nodes, normalisedPlayerId]);
 
   React.useEffect(() => {
-    const cytoscapeLib = window.cytoscape;
-    if (typeof cytoscapeLib !== 'function') {
-      setCyUnavailable(true);
-      return undefined;
-    }
-    let colaAvailable = false;
-    if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
-      if (!colaAvailable) {
-        const cola = window.cytoscapeCola;
-        if (typeof cola === 'function') {
-          cytoscapeLib.use(cola);
-          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+    themeRef.current = theme;
+  }, [theme]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    let cyInstance = null;
+    let resizeHandler = null;
+    loadCytoscapeWithCola()
+      .then((cytoscapeLib) => {
+        if (cancelled || !containerRef.current) {
+          return;
         }
-      }
-    }
-    if (!colaAvailable) {
-      setCyUnavailable(true);
-      return undefined;
-    }
-    if (!containerRef.current) {
-      return undefined;
-    }
-    const cy = cytoscapeLib({
-      container: containerRef.current,
-      elements: [],
-      userZoomingEnabled: true,
-      wheelSensitivity: 0.2,
-      autoungrabify: false,
-      autounselectify: false,
-      boxSelectionEnabled: false,
-    });
-    setCyUnavailable(false);
-    cyRef.current = cy;
-    applyGraphTheme(cy, theme);
-    const handleResize = () => {
-      cy.resize();
-    };
-    window.addEventListener('resize', handleResize);
+        const cy = cytoscapeLib({
+          container: containerRef.current,
+          elements: [],
+          userZoomingEnabled: true,
+          wheelSensitivity: 0.2,
+          autoungrabify: false,
+          autounselectify: false,
+          boxSelectionEnabled: false,
+        });
+        cyInstance = cy;
+        cyRef.current = cy;
+        setCyUnavailable(false);
+        applyGraphTheme(cy, themeRef.current);
+        resizeHandler = () => {
+          cy.resize();
+        };
+        window.addEventListener('resize', resizeHandler);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCyUnavailable(true);
+        }
+      });
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cy.destroy();
+      cancelled = true;
+      if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+      }
+      if (cyInstance) {
+        cyInstance.destroy();
+      }
       cyRef.current = null;
     };
   }, []);
