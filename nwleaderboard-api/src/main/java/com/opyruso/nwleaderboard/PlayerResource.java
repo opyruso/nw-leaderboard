@@ -3,8 +3,10 @@ package com.opyruso.nwleaderboard;
 import com.opyruso.nwleaderboard.dto.ApiMessageResponse;
 import com.opyruso.nwleaderboard.dto.LeaderboardPlayerResponse;
 import com.opyruso.nwleaderboard.dto.PlayerProfileResponse;
+import com.opyruso.nwleaderboard.dto.PlayerRelationshipGraphResponse;
 import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.service.PlayerProfileService;
+import com.opyruso.nwleaderboard.service.PlayerRelationshipService;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
@@ -33,6 +35,9 @@ public class PlayerResource {
 
     @Inject
     PlayerRepository playerRepository;
+
+    @Inject
+    PlayerRelationshipService playerRelationshipService;
 
     @GET
     public Response searchPlayers(
@@ -76,6 +81,19 @@ public class PlayerResource {
                     .build();
         }
         return Response.ok(profile.get()).build();
+    }
+
+    @GET
+    @Path("/{playerId}/relationships")
+    public Response getRelationships(@PathParam("playerId") Long playerId) {
+        Optional<PlayerRelationshipGraphResponse> relationships =
+                playerRelationshipService.getRelationships(playerId);
+        if (relationships.isEmpty()) {
+            return Response.status(Status.NOT_FOUND)
+                    .entity(new ApiMessageResponse("player not found", null))
+                    .build();
+        }
+        return Response.ok(relationships.get()).build();
     }
 
     private boolean matchesRegion(Player player, String regionFilter) {
