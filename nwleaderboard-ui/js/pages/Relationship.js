@@ -78,14 +78,14 @@ function computeEdgeWidth(edge) {
 
 function computeEdgeLength(edge) {
   if (edge.alternate) {
-    return 180;
+    return 260;
   }
   const count = toNumeric(edge.runCount);
   if (count <= 0) {
-    return 240;
+    return 360;
   }
-  const length = 260 - Math.log10(count + 1) * 26;
-  return Math.max(150, Math.min(length, 280));
+  const length = 460 - Math.log10(count + 1) * 34;
+  return Math.max(280, Math.min(length, 520));
 }
 
 function formatRunCountLabel(t, count) {
@@ -602,19 +602,20 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: isCola ? 260 : layoutName === 'fcose' ? 240 : 220,
+      padding: isCola ? 320 : layoutName === 'fcose' ? 280 : 240,
     };
     if (isCola) {
       Object.assign(layoutOptions, {
         nodeDimensionsIncludeLabels: true,
         randomize: false,
         avoidOverlap: true,
-        nodeSpacing: 28,
+        nodeSpacing: 52,
         refresh: 1,
-        maxSimulationTime: 2500,
+        infinite: true,
+        maxSimulationTime: 3200,
         edgeLength: (edge) => {
           const length = edge && typeof edge.data === 'function' ? edge.data('length') : null;
-          return Number.isFinite(length) ? length : 220;
+          return Number.isFinite(length) ? length : 380;
         },
       });
     } else if (layoutName === 'fcose') {
