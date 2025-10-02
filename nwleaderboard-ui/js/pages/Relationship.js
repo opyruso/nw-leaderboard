@@ -76,6 +76,37 @@ function computeEdgeWidth(edge) {
   return Math.min(2 + Math.log10(count + 1) * 2.6, 9);
 }
 
+function runLayoutWithFallback(cy, primaryOptions, fallbackOptions, minSpread = 140) {
+  if (!cy || !primaryOptions) {
+    return;
+  }
+  let fallbackTriggered = false;
+  const run = (options, allowFallback) => {
+    const layout = cy.layout(options);
+    const handle = () => {
+      cy.off('layoutstop', handle);
+      const nodes = cy.nodes();
+      const bounds = nodes.boundingBox();
+      const tooCompact =
+        allowFallback &&
+        !fallbackTriggered &&
+        fallbackOptions &&
+        nodes.length > 1 &&
+        bounds.w <= minSpread &&
+        bounds.h <= minSpread;
+      if (tooCompact) {
+        fallbackTriggered = true;
+        run(fallbackOptions, false);
+        return;
+      }
+      cy.resize();
+    };
+    cy.on('layoutstop', handle);
+    layout.run();
+  };
+  run(primaryOptions, true);
+}
+
 function formatRunCountLabel(t, count) {
   if (!Number.isFinite(count)) {
     return '';
@@ -654,7 +685,7 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 260 : 240,
+      padding: layoutName === 'fcose' ? 240 : 220,
     };
     if (layoutName === 'fcose') {
       Object.assign(layoutOptions, {
@@ -662,33 +693,42 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 180000,
-        nodeSeparation: 220,
-        idealEdgeLength: 440,
-        edgeElasticity: 0.05,
-        gravity: 0.16,
-        gravityRange: 3.8,
-        gravityCompound: 0.6,
-        gravityRangeCompound: 3.4,
-        tilingPaddingHorizontal: 148,
-        tilingPaddingVertical: 148,
+        nodeRepulsion: 160000,
+        nodeSeparation: 170,
+        idealEdgeLength: 360,
+        edgeElasticity: 0.07,
+        gravity: 0.18,
+        gravityRange: 3.2,
+        gravityCompound: 0.65,
+        gravityRangeCompound: 3,
+        tilingPaddingHorizontal: 120,
+        tilingPaddingVertical: 120,
         uniformNodeDimensions: false,
-        numIter: 3200,
+        numIter: 2600,
       });
     } else {
       Object.assign(layoutOptions, {
         nodeDimensionsIncludeLabels: true,
-        nodeRepulsion: 220000,
-        idealEdgeLength: 420,
-        edgeElasticity: 0.06,
+        nodeRepulsion: 190000,
+        idealEdgeLength: 340,
+        edgeElasticity: 0.08,
         gravity: 0.18,
-        componentSpacing: 440,
-        nodeOverlap: 0,
+        componentSpacing: 360,
+        nodeOverlap: 6,
+        refresh: 30,
       });
     }
-    const layout = cy.layout(layoutOptions);
-    layout.run();
-    cy.resize();
+    const fallbackLayoutOptions = {
+      name: 'concentric',
+      animate: false,
+      fit: true,
+      padding: 240,
+      avoidOverlap: true,
+      equidistant: true,
+      minNodeSpacing: 120,
+      startAngle: (3 / 2) * Math.PI,
+    };
+    runLayoutWithFallback(cy, layoutOptions, fallbackLayoutOptions, 160);
   }, [graphData, t]);
 
   const loadingLabels = React.useMemo(() => {
