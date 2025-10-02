@@ -17,6 +17,7 @@ import ContributePlayers from './pages/ContributePlayers.js';
 import ContributeValidate from './pages/ContributeValidate.js';
 import ContributeRuns from './pages/ContributeRuns.js';
 import Player from './pages/Player.js';
+import Relationship from './pages/Relationship.js';
 import Suggestions from './pages/Suggestions.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
@@ -135,6 +136,7 @@ export default function App() {
                 path="/suggestions"
                 element={<Suggestions isAdmin={authState.isAdmin} />}
               />
+              <Route path="/player/:playerId/relationship" element={<Relationship />} />
               <Route path="/player/:playerId?" element={<Player canContribute={authState.canContribute} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

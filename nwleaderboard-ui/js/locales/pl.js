@@ -458,6 +458,22 @@ const pl = {
   playerTimeRadarAria:
     'Wykres radarowy porównujący najlepsze czasy gracza we wszystkich lochach.',
   playerWeekLabel: (week) => `Tydzień ${week}`,
+  playerRelationshipLinkLabel: 'Wykres relacji',
+  relationshipTitle: 'Wykres relacji',
+  relationshipInstructions: 'Kliknij gracza, aby rozwinąć lub zwinąć jego połączenia.',
+  relationshipLoading: 'Ładowanie danych o relacjach…',
+  relationshipError: 'Nie udało się załadować danych o relacjach.',
+  relationshipEmpty: 'Nie znaleziono jeszcze powiązanych graczy.',
+  relationshipBackToProfile: 'Powrót do profilu',
+  relationshipExpanding: 'Rozwijanie',
+  relationshipFetchFailed: 'Nie udało się załadować dodatkowych relacji.',
+  relationshipRunCount: (count) =>
+    count === 1
+      ? '1 wspólny bieg'
+      : `${count.toLocaleString()} wspólnych biegów`,
+  relationshipUnsupported:
+    'Nie można zainicjować wykresu relacji, ponieważ Cytoscape jest niedostępny.',
+  relationshipGraphAria: 'Interaktywny wykres relacji',
   cachePreparing: 'Przygotowywanie pamięci offline…',
   cacheComplete: 'Pamięć offline gotowa',
   cacheSummary: (success, total) => `${success}/${total} zasobów zapisanych do użycia offline`,

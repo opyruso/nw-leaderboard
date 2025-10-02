@@ -467,6 +467,22 @@ const fr = {
   playerTimeRadarAria:
     'Diagramme radar comparant les meilleurs temps du joueur sur tous les donjons.',
   playerWeekLabel: (week) => `Semaine ${week}`,
+  playerRelationshipLinkLabel: 'Graphe de relations',
+  relationshipTitle: 'Graphe de relations',
+  relationshipInstructions: 'Cliquez sur un joueur pour étendre ou réduire ses connexions.',
+  relationshipLoading: 'Chargement des relations…',
+  relationshipError: 'Impossible de charger les relations.',
+  relationshipEmpty: 'Aucune relation enregistrée pour le moment.',
+  relationshipBackToProfile: 'Retour au profil',
+  relationshipExpanding: 'Extension',
+  relationshipFetchFailed: 'Impossible de charger les relations supplémentaires.',
+  relationshipRunCount: (count) =>
+    count === 1
+      ? '1 partie partagée'
+      : `${count.toLocaleString()} parties partagées`,
+  relationshipUnsupported:
+    'Le graphe de relations ne peut pas être initialisé car Cytoscape est indisponible.',
+  relationshipGraphAria: 'Graphe de relations interactif',
   cachePreparing: 'Préparation du cache hors-ligne…',
   cacheComplete: 'Cache hors-ligne prêt',
   cacheSummary: (success, total) =>
