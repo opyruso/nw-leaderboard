@@ -423,47 +423,95 @@ export default function Relationship() {
   }, [graphData.nodes, normalisedPlayerId]);
 
   React.useEffect(() => {
-    const cytoscapeLib = window.cytoscape;
-    if (typeof cytoscapeLib !== 'function') {
+    if (typeof window === 'undefined') {
       setCyUnavailable(true);
-      return undefined;
+      return () => {};
     }
-    const colaAvailable = ensureColaExtension(cytoscapeLib);
-    let fcoseAvailable = false;
-    if (!colaAvailable && typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+    let cancelled = false;
+    let teardown = null;
+
+    function attemptInitialise() {
+      if (cancelled) {
+        return true;
+      }
+      const cytoscapeLib = typeof window !== 'undefined' ? window.cytoscape : undefined;
+      if (typeof cytoscapeLib !== 'function') {
+        return false;
+      }
+      const colaAvailable = ensureColaExtension(cytoscapeLib);
+      let fcoseAvailable = false;
+      if (!colaAvailable && typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
+        fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+        if (!fcoseAvailable) {
+          const fcose = typeof window !== 'undefined' ? window.cytoscapeFcose : undefined;
+          if (typeof fcose === 'function') {
+            cytoscapeLib.use(fcose);
+            fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+          }
         }
       }
+      layoutNameRef.current = colaAvailable ? 'cola' : fcoseAvailable ? 'fcose' : 'cose';
+      if (!containerRef.current) {
+        return true;
+      }
+      const cy = cytoscapeLib({
+        container: containerRef.current,
+        elements: [],
+        userZoomingEnabled: true,
+        wheelSensitivity: 0.2,
+        autoungrabify: false,
+        autounselectify: false,
+        boxSelectionEnabled: false,
+      });
+      cyRef.current = cy;
+      applyGraphTheme(cy, theme);
+      setCyUnavailable(false);
+      const handleResize = () => {
+        cy.resize();
+      };
+      window.addEventListener('resize', handleResize);
+      teardown = () => {
+        window.removeEventListener('resize', handleResize);
+        cy.destroy();
+        cyRef.current = null;
+      };
+      return true;
     }
-    layoutNameRef.current = colaAvailable ? 'cola' : fcoseAvailable ? 'fcose' : 'cose';
-    if (!containerRef.current) {
-      return undefined;
+
+    if (attemptInitialise()) {
+      return () => {
+        cancelled = true;
+        if (typeof teardown === 'function') {
+          teardown();
+        }
+      };
     }
-    const cy = cytoscapeLib({
-      container: containerRef.current,
-      elements: [],
-      userZoomingEnabled: true,
-      wheelSensitivity: 0.2,
-      autoungrabify: false,
-      autounselectify: false,
-      boxSelectionEnabled: false,
-    });
-    setCyUnavailable(false);
-    cyRef.current = cy;
-    applyGraphTheme(cy, theme);
-    const handleResize = () => {
-      cy.resize();
-    };
-    window.addEventListener('resize', handleResize);
+
+    let availabilityTimer = null;
+    const waitTimer = window.setInterval(() => {
+      if (attemptInitialise()) {
+        window.clearInterval(waitTimer);
+        if (availabilityTimer) {
+          window.clearTimeout(availabilityTimer);
+        }
+      }
+    }, 80);
+
+    availabilityTimer = window.setTimeout(() => {
+      if (!cyRef.current && !cancelled) {
+        setCyUnavailable(true);
+      }
+    }, 3200);
+
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cy.destroy();
-      cyRef.current = null;
+      cancelled = true;
+      window.clearInterval(waitTimer);
+      if (availabilityTimer) {
+        window.clearTimeout(availabilityTimer);
+      }
+      if (typeof teardown === 'function') {
+        teardown();
+      }
     };
   }, []);
 
