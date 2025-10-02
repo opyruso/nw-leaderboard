@@ -1,5 +1,4 @@
 import { LangContext } from '../i18n.js';
-import { ThemeContext } from '../theme.js';
 
 const { Link, useParams } = ReactRouterDOM;
 
@@ -157,6 +156,41 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
   }
 
+  function registerAlternateEdge(mainPayload, alternatePayload) {
+    if (!mainPayload || !alternatePayload) {
+      return;
+    }
+    const mainId = mainPayload.playerId;
+    const altId = alternatePayload.playerId;
+    if (
+      mainId === null ||
+      mainId === undefined ||
+      altId === null ||
+      altId === undefined ||
+      mainId === altId
+    ) {
+      return;
+    }
+    const mainKey = String(mainId);
+    const altKey = String(altId);
+    const [first, second] = mainKey <= altKey ? [mainKey, altKey] : [altKey, mainKey];
+    const key = `${first}__${second}`;
+    const existing = edges.get(key);
+    const source = existing?.source || mainKey;
+    const target = existing?.target || (source === mainKey ? altKey : mainKey);
+    const runCount = existing?.runCount ?? null;
+    edges.set(key, {
+      id: key,
+      source,
+      target,
+      runCount,
+      alternate: true,
+    });
+    if (ownerKey) {
+      addOwner(edgeOwners, key, ownerKey);
+    }
+  }
+
   if (payload && typeof payload === 'object') {
     registerNode(payload.origin);
     if (Array.isArray(payload.alternates)) {
@@ -167,6 +201,58 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
+    }
+
+    let primaryNode = null;
+    const alternates = Array.isArray(payload.alternates) ? payload.alternates : [];
+    if (
+      payload.origin &&
+      payload.origin.playerId !== null &&
+      payload.origin.playerId !== undefined &&
+      payload.origin.origin &&
+      !payload.origin.alternate
+    ) {
+      primaryNode = payload.origin;
+    }
+    if (!primaryNode) {
+      primaryNode = alternates.find(
+        (node) =>
+          node &&
+          node.playerId !== null &&
+          node.playerId !== undefined &&
+          node.alternate === false,
+      );
+    }
+    if (!primaryNode && payload.origin && payload.origin.playerId !== null && payload.origin.playerId !== undefined) {
+      primaryNode = payload.origin;
+    }
+    if (primaryNode) {
+      const primaryId = String(primaryNode.playerId);
+      const uniqueAlternates = new Map();
+      if (
+        payload.origin &&
+        payload.origin.playerId !== null &&
+        payload.origin.playerId !== undefined &&
+        String(payload.origin.playerId) !== primaryId &&
+        payload.origin.alternate
+      ) {
+        uniqueAlternates.set(String(payload.origin.playerId), payload.origin);
+      }
+      alternates.forEach((node) => {
+        if (!node || node.playerId === null || node.playerId === undefined) {
+          return;
+        }
+        const id = String(node.playerId);
+        if (id === primaryId) {
+          return;
+        }
+        if (node.alternate) {
+          uniqueAlternates.set(id, node);
+        }
+      });
+      uniqueAlternates.forEach((node) => {
+        registerAlternateEdge(primaryNode, node);
+      });
     }
   }
 
@@ -212,100 +298,8 @@ function collapseGraphData(previous, ownerId) {
   return { nodes, edges, nodeOwners, edgeOwners, expanded };
 }
 
-function applyGraphTheme(cy, theme) {
-  if (!cy) {
-    return;
-  }
-  const isLight = theme === 'light';
-  const nodeText = isLight ? '#0f172a' : '#f8fafc';
-  const labelBackground = isLight ? 'rgba(226, 232, 240, 0.85)' : 'rgba(15, 23, 42, 0.75)';
-  const relatedBg = isLight ? '#0ea5e9' : '#0284c7';
-  const relatedBorder = isLight ? '#0284c7' : '#38bdf8';
-  const originBg = isLight ? '#6d28d9' : '#7c3aed';
-  const originBorder = isLight ? '#a855f7' : '#c084fc';
-  const altBg = isLight ? '#fb923c' : '#f97316';
-  const altBorder = isLight ? '#f97316' : '#fb923c';
-  const edgeColor = isLight ? '#0f172a' : '#f8fafc';
-  const edgeLine = isLight ? '#64748b' : '#94a3b8';
-  cy.style()
-    .fromJson([
-      {
-        selector: 'node',
-        style: {
-          'background-color': relatedBg,
-          'border-color': relatedBorder,
-          'border-width': 2,
-          'color': nodeText,
-          'width': 'data(size)',
-          'height': 'data(size)',
-          'label': 'data(label)',
-          'font-size': '12px',
-          'text-wrap': 'wrap',
-          'text-max-width': '108px',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'text-background-color': labelBackground,
-          'text-background-opacity': 1,
-          'text-background-padding': 2,
-        },
-      },
-      {
-        selector: 'node[type = "origin"]',
-        style: {
-          'background-color': originBg,
-          'border-color': originBorder,
-          'font-size': '13px',
-          'font-weight': '600',
-        },
-      },
-      {
-        selector: 'node[type = "alternate"]',
-        style: {
-          'background-color': altBg,
-          'border-color': altBorder,
-        },
-      },
-      {
-        selector: 'edge',
-        style: {
-          'line-color': edgeLine,
-          'width': 'data(width)',
-          'curve-style': 'bezier',
-          'target-arrow-shape': 'none',
-          'control-point-step-size': 60,
-          'label': 'data(label)',
-          'font-size': '11px',
-          'color': edgeColor,
-          'text-background-color': labelBackground,
-          'text-background-opacity': 1,
-          'text-background-padding': 2,
-          'opacity': 0.9,
-        },
-      },
-      {
-        selector: 'edge[alternateLink = 1]',
-        style: {
-          'line-style': 'dashed',
-          'line-color': altBg,
-          'width': 3,
-          'label': '',
-          'opacity': 0.7,
-        },
-      },
-      {
-        selector: 'node:selected',
-        style: {
-          'border-width': 4,
-          'border-color': isLight ? '#2563eb' : '#38bdf8',
-        },
-      },
-    ])
-    .update();
-}
-
 export default function Relationship() {
   const { t } = React.useContext(LangContext);
-  const { theme } = React.useContext(ThemeContext);
   const params = useParams();
   const routePlayerId = params?.playerId;
   const [graphData, setGraphData] = React.useState(() => createEmptyGraphState());
@@ -318,7 +312,17 @@ export default function Relationship() {
   const [cyUnavailable, setCyUnavailable] = React.useState(false);
   const containerRef = React.useRef(null);
   const cyRef = React.useRef(null);
-  const layoutNameRef = React.useRef('cose');
+  const [layoutName, setLayoutName] = React.useState('cose');
+  const [layoutAvailability, setLayoutAvailability] = React.useState({
+    circle: true,
+    concentric: true,
+    cose: true,
+    fcose: false,
+    cola: false,
+    euler: false,
+    spread: false,
+  });
+  const initialLayoutResolvedRef = React.useRef(false);
 
   React.useEffect(() => {
     graphRef.current = graphData;
@@ -349,17 +353,65 @@ export default function Relationship() {
       return undefined;
     }
     let fcoseAvailable = false;
+    let colaAvailable = false;
+    let eulerAvailable = false;
+    let spreadAvailable = false;
     if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+      const ensureLayoutExtension = (name, globalName) => {
+        let available = Boolean(cytoscapeLib.extension('layout', name));
+        if (!available && globalName) {
+          const extensionFactory = window[globalName];
+          if (typeof extensionFactory === 'function') {
+            cytoscapeLib.use(extensionFactory);
+            available = Boolean(cytoscapeLib.extension('layout', name));
+          }
         }
-      }
+        return available;
+      };
+      fcoseAvailable = ensureLayoutExtension('fcose', 'cytoscapeFcose');
+      colaAvailable = ensureLayoutExtension('cola', 'cytoscapeCola');
+      eulerAvailable = ensureLayoutExtension('euler', 'cytoscapeEuler');
+      spreadAvailable = ensureLayoutExtension('spread', 'cytoscapeSpread');
     }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+    const nextAvailability = {
+      circle: true,
+      concentric: true,
+      cose: true,
+      fcose: fcoseAvailable,
+      cola: colaAvailable,
+      euler: eulerAvailable,
+      spread: spreadAvailable,
+    };
+    setLayoutAvailability((prev) => {
+      if (
+        prev.circle === nextAvailability.circle &&
+        prev.concentric === nextAvailability.concentric &&
+        prev.cose === nextAvailability.cose &&
+        prev.fcose === nextAvailability.fcose &&
+        prev.cola === nextAvailability.cola &&
+        prev.euler === nextAvailability.euler &&
+        prev.spread === nextAvailability.spread
+      ) {
+        return prev;
+      }
+      return nextAvailability;
+    });
+    setLayoutName((prev) => {
+      if (!initialLayoutResolvedRef.current) {
+        initialLayoutResolvedRef.current = true;
+        return fcoseAvailable ? 'fcose' : 'cose';
+      }
+      if (prev === 'fcose' && !fcoseAvailable) {
+        return 'cose';
+      }
+      if (!nextAvailability[prev]) {
+        if (nextAvailability.fcose) {
+          return 'fcose';
+        }
+        return 'cose';
+      }
+      return prev;
+    });
     if (!containerRef.current) {
       return undefined;
     }
@@ -374,7 +426,6 @@ export default function Relationship() {
     });
     setCyUnavailable(false);
     cyRef.current = cy;
-    applyGraphTheme(cy, theme);
     const handleResize = () => {
       cy.resize();
     };
@@ -385,14 +436,6 @@ export default function Relationship() {
       cyRef.current = null;
     };
   }, []);
-
-  React.useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy) {
-      return;
-    }
-    applyGraphTheme(cy, theme);
-  }, [theme]);
 
   function updateLoadingNodes(updater) {
     setLoadingNodes((prev) => {
@@ -562,7 +605,6 @@ export default function Relationship() {
       }
     });
     cy.endBatch();
-    const layoutName = layoutNameRef.current;
     const layoutOptions = {
       name: layoutName,
       animate: false,
@@ -575,32 +617,167 @@ export default function Relationship() {
         randomize: false,
         nodeDimensionsIncludeLabels: true,
         packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
+        nodeRepulsion: 140000,
+        nodeSeparation: 180,
         idealEdgeLength: 380,
         edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        gravity: 0.18,
+        gravityRange: 3.5,
+        gravityCompound: 0.65,
+        gravityRangeCompound: 3.1,
+        tilingPaddingHorizontal: 128,
+        tilingPaddingVertical: 128,
+        uniformNodeDimensions: false,
+        numIter: 2800,
       });
-    } else {
+    } else if (layoutName === 'cose') {
       Object.assign(layoutOptions, {
-        nodeRepulsion: 160000,
+        nodeDimensionsIncludeLabels: true,
+        nodeRepulsion: 180000,
         idealEdgeLength: 360,
-        edgeElasticity: 0.08,
-        gravity: 0.22,
-        componentSpacing: 380,
-        nodeOverlap: 4,
+        edgeElasticity: 0.07,
+        gravity: 0.2,
+        componentSpacing: 400,
+        nodeOverlap: 12,
+      });
+    } else if (layoutName === 'cola') {
+      Object.assign(layoutOptions, {
+        nodeDimensionsIncludeLabels: true,
+        animate: true,
+        maxSimulationTime: 4000,
+        nodeSpacing: 48,
+        edgeLengthVal: 280,
+        infinite: false,
+      });
+    } else if (layoutName === 'euler') {
+      Object.assign(layoutOptions, {
+        springCoeff: 0.00004,
+        springLength: 200,
+        repulsion: 4200,
+        gravity: -2.0,
+        pull: 0.002,
+        maxIterations: 2800,
+        nodeMass: (node) => (node.data('type') === 'origin' ? 8 : node.data('type') === 'alternate' ? 5 : 3),
+      });
+    } else if (layoutName === 'spread') {
+      Object.assign(layoutOptions, {
+        minDist: 220,
+        fit: true,
+        padding: 260,
+        maxExpandIterations: 4,
+      });
+    } else if (layoutName === 'circle') {
+      Object.assign(layoutOptions, {
+        spacingFactor: 1.4,
+        avoidOverlap: true,
+        startAngle: 1.2,
+      });
+    } else if (layoutName === 'concentric') {
+      Object.assign(layoutOptions, {
+        levelWidth: () => 0.5,
+        spacingFactor: 1.2,
+        startAngle: 1.2,
       });
     }
-    const layout = cy.layout(layoutOptions);
-    layout.run();
+
+    const runLayout = (options, isFallback = false) => {
+      const layoutInstance = cy.layout(options);
+      if (!isFallback) {
+        layoutInstance.one('layoutstop', () => {
+          const nodes = cy.nodes();
+          if (nodes.length <= 1) {
+            return;
+          }
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+          nodes.forEach((node) => {
+            const position = node.position();
+            if (!position) {
+              return;
+            }
+            if (position.x < minX) {
+              minX = position.x;
+            }
+            if (position.x > maxX) {
+              maxX = position.x;
+            }
+            if (position.y < minY) {
+              minY = position.y;
+            }
+            if (position.y > maxY) {
+              maxY = position.y;
+            }
+          });
+          const spreadX = maxX - minX;
+          const spreadY = maxY - minY;
+          const allowFallback =
+            layoutName === 'fcose' ||
+            layoutName === 'cose' ||
+            layoutName === 'cola' ||
+            layoutName === 'euler' ||
+            layoutName === 'spread';
+          if (allowFallback && spreadX < 120 && spreadY < 120) {
+            runLayout(
+              {
+                name: 'breadthfirst',
+                animate: false,
+                fit: true,
+                padding: 260,
+                circle: false,
+                spacingFactor: 1.4,
+                avoidOverlap: true,
+              },
+              true,
+            );
+          }
+        });
+      }
+      layoutInstance.run();
+    };
+
+    runLayout(layoutOptions);
     cy.resize();
-  }, [graphData, t]);
+  }, [graphData, layoutName, t]);
+
+  const layoutButtons = React.useMemo(
+    () => [
+      { name: 'circle', label: 'Circle layout' },
+      { name: 'concentric', label: 'Concentric layout' },
+      { name: 'cose', label: 'Cose' },
+      { name: 'fcose', label: 'fCose' },
+      { name: 'cola', label: 'Cola' },
+      { name: 'euler', label: 'Euler' },
+      { name: 'spread', label: 'Spread' },
+    ],
+    [],
+  );
+
+  const layoutUnavailableMessage = React.useMemo(
+    () => t.relationshipLayoutUnavailable || 'The selected layout is not available in this browser.',
+    [t],
+  );
+
+  const layoutSelectorLabel = React.useMemo(
+    () => t.relationshipLayoutSelector || 'Graph layouts',
+    [t],
+  );
+
+  const handleLayoutSelect = React.useCallback(
+    (name) => {
+      if (!name) {
+        return;
+      }
+      if (!layoutAvailability[name]) {
+        setActionError(layoutUnavailableMessage);
+        return;
+      }
+      setActionError((prev) => (prev === layoutUnavailableMessage ? '' : prev));
+      setLayoutName(name);
+    },
+    [layoutAvailability, layoutUnavailableMessage],
+  );
 
   const loadingLabels = React.useMemo(() => {
     const labels = [];
@@ -657,6 +834,26 @@ export default function Relationship() {
           >
             {t.relationshipBackToProfile || 'Back to profile'}
           </Link>
+          <div
+            className="relationship-layout-selector"
+            role="group"
+            aria-label={layoutSelectorLabel}
+          >
+            {layoutButtons.map((layout) => (
+              <button
+                key={layout.name}
+                type="button"
+                className={`button-tertiary relationship-layout-button${
+                  layoutName === layout.name ? ' relationship-layout-button--active' : ''
+                }`}
+                onClick={() => handleLayoutSelect(layout.name)}
+                disabled={!layoutAvailability[layout.name]}
+                aria-pressed={layoutName === layout.name}
+              >
+                {layout.label}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
       {statusMessage ? <p className="relationship-status">{statusMessage}</p> : null}
