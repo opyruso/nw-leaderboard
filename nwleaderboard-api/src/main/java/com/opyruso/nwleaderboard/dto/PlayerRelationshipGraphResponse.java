@@ -6,14 +6,11 @@ import java.util.List;
  * Response payload describing the relationship graph for a player.
  */
 public record PlayerRelationshipGraphResponse(
-        PlayerRelationshipNodeResponse origin,
-        List<PlayerRelationshipNodeResponse> alternates,
-        List<PlayerRelationshipNodeResponse> relatedPlayers,
+        List<PlayerRelationshipNodeResponse> nodes,
         List<PlayerRelationshipEdgeResponse> edges) {
 
     public PlayerRelationshipGraphResponse {
-        alternates = alternates == null ? List.of() : List.copyOf(alternates);
-        relatedPlayers = relatedPlayers == null ? List.of() : List.copyOf(relatedPlayers);
+        nodes = nodes == null ? List.of() : List.copyOf(nodes);
         edges = edges == null ? List.of() : List.copyOf(edges);
     }
 }

@@ -103,7 +103,12 @@ function mergeGraphData(previous, ownerId, payload, t) {
     }
     const id = String(nodePayload.playerId);
     const existing = nodes.get(id) || {};
-    const type = existing.type || (nodePayload.origin ? 'origin' : nodePayload.alternate ? 'alternate' : 'related');
+    let type = existing.type || 'related';
+    if (nodePayload.origin) {
+      type = 'origin';
+    } else if (nodePayload.alternate && type !== 'origin') {
+      type = 'alternate';
+    }
     const runCount = Math.max(toNumeric(nodePayload.runCount), toNumeric(existing.runCount));
     const label = nodePayload.playerName || existing.label || (t.playerIdLabel ? t.playerIdLabel(id) : `ID #${id}`);
     nodes.set(id, {
@@ -158,12 +163,8 @@ function mergeGraphData(previous, ownerId, payload, t) {
   }
 
   if (payload && typeof payload === 'object') {
-    registerNode(payload.origin);
-    if (Array.isArray(payload.alternates)) {
-      payload.alternates.forEach(registerNode);
-    }
-    if (Array.isArray(payload.relatedPlayers)) {
-      payload.relatedPlayers.forEach(registerNode);
+    if (Array.isArray(payload.nodes)) {
+      payload.nodes.forEach(registerNode);
     }
     if (Array.isArray(payload.edges)) {
       payload.edges.forEach(registerEdge);
@@ -348,18 +349,18 @@ export default function Relationship() {
       setCyUnavailable(true);
       return undefined;
     }
-    let fcoseAvailable = false;
+    let colaAvailable = false;
     if (typeof cytoscapeLib.extension === 'function' && typeof cytoscapeLib.use === 'function') {
-      fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
-      if (!fcoseAvailable) {
-        const fcose = window.cytoscapeFcose;
-        if (typeof fcose === 'function') {
-          cytoscapeLib.use(fcose);
-          fcoseAvailable = Boolean(cytoscapeLib.extension('layout', 'fcose'));
+      colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
+      if (!colaAvailable) {
+        const cola = window.cytoscapeCola;
+        if (typeof cola === 'function') {
+          cytoscapeLib.use(cola);
+          colaAvailable = Boolean(cytoscapeLib.extension('layout', 'cola'));
         }
       }
     }
-    layoutNameRef.current = fcoseAvailable ? 'fcose' : 'cose';
+    layoutNameRef.current = colaAvailable ? 'cola' : 'cose';
     if (!containerRef.current) {
       return undefined;
     }
@@ -567,25 +568,14 @@ export default function Relationship() {
       name: layoutName,
       animate: false,
       fit: true,
-      padding: layoutName === 'fcose' ? 240 : 220,
+      padding: layoutName === 'cola' ? 260 : 220,
     };
-    if (layoutName === 'fcose') {
+    if (layoutName === 'cola') {
       Object.assign(layoutOptions, {
-        quality: 'proof',
-        randomize: false,
-        nodeDimensionsIncludeLabels: true,
-        packComponents: true,
-        nodeRepulsion: 130000,
-        nodeSeparation: 150,
-        idealEdgeLength: 380,
-        edgeElasticity: 0.07,
-        gravity: 0.2,
-        gravityRange: 3.4,
-        gravityCompound: 0.7,
-        gravityRangeCompound: 3,
-        tilingPaddingHorizontal: 112,
-        tilingPaddingVertical: 112,
-        numIter: 2500,
+        avoidOverlap: true,
+        maxSimulationTime: 4000,
+        edgeLength: () => 320,
+        nodeSpacing: () => 24,
       });
     } else {
       Object.assign(layoutOptions, {

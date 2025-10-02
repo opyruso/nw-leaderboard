@@ -156,9 +156,41 @@ public class PlayerRelationshipService {
             }
         }
 
+        Map<Long, PlayerRelationshipNodeResponse> nodeMap = new LinkedHashMap<>();
+        mergeNode(nodeMap, originNode);
+        alternateNodes.forEach(node -> mergeNode(nodeMap, node));
+        relatedNodes.forEach(node -> mergeNode(nodeMap, node));
+
         PlayerRelationshipGraphResponse response =
-                new PlayerRelationshipGraphResponse(originNode, alternateNodes, relatedNodes, edges);
+                new PlayerRelationshipGraphResponse(List.copyOf(nodeMap.values()), edges);
         return Optional.of(response);
+    }
+
+    private static void mergeNode(
+            Map<Long, PlayerRelationshipNodeResponse> nodes,
+            PlayerRelationshipNodeResponse candidate) {
+        if (nodes == null || candidate == null) {
+            return;
+        }
+        Long playerId = candidate.playerId();
+        if (playerId == null) {
+            return;
+        }
+        PlayerRelationshipNodeResponse existing = nodes.get(playerId);
+        if (existing == null) {
+            nodes.put(playerId, candidate);
+            return;
+        }
+        String name = existing.playerName() != null ? existing.playerName() : candidate.playerName();
+        boolean origin = existing.origin() || candidate.origin();
+        boolean alternate = existing.alternate() || candidate.alternate();
+        Long runCount = existing.runCount();
+        Long candidateRunCount = candidate.runCount();
+        if (candidateRunCount != null
+                && (runCount == null || candidateRunCount.compareTo(runCount) > 0)) {
+            runCount = candidateRunCount;
+        }
+        nodes.put(playerId, new PlayerRelationshipNodeResponse(playerId, name, origin, alternate, runCount));
     }
 
     private List<Player> listAlternatePlayers(Player origin) {
