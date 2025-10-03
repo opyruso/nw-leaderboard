@@ -1492,6 +1492,14 @@ export default function Player({ canContribute = false }) {
     }
     return 'Graph layout options';
   }, [t]);
+  const relationshipLayouts = React.useMemo(() => {
+    return RELATIONSHIP_LAYOUTS.map((layout) => {
+      const rawLabel = t[layout.labelKey];
+      const label = typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : layout.defaultLabel;
+      const available = relationshipLayoutAvailability[layout.key] !== false;
+      return { ...layout, label, available };
+    });
+  }, [relationshipLayoutAvailability, t]);
   const handleRelationshipLayoutClick = React.useCallback(
     (layoutKey) => {
       if (relationshipLayoutAvailability[layoutKey] === false) {
@@ -1620,14 +1628,6 @@ export default function Player({ canContribute = false }) {
     }
     return 'Team relationships';
   }, [t]);
-  const relationshipLayouts = React.useMemo(() => {
-    return RELATIONSHIP_LAYOUTS.map((layout) => {
-      const rawLabel = t[layout.labelKey];
-      const label = typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : layout.defaultLabel;
-      const available = relationshipLayoutAvailability[layout.key] !== false;
-      return { ...layout, label, available };
-    });
-  }, [relationshipLayoutAvailability, t]);
   const relationshipExpandLabel = React.useMemo(() => {
     const label = t.playerRelationshipExpandLabel;
     if (typeof label === 'string' && label.trim().length > 0) {
