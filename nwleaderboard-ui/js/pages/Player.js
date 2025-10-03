@@ -343,6 +343,56 @@ function ElkLayoutIcon({ className = '' }) {
   );
 }
 
+const RELATIONSHIP_LAYOUT_PRESETS = {
+  circle: {
+    name: 'circle',
+    fit: true,
+    padding: 48,
+  },
+  concentric: {
+    name: 'concentric',
+    fit: true,
+    padding: 48,
+    minNodeSpacing: 24,
+  },
+  cose: {
+    name: 'cose',
+    fit: true,
+    animate: false,
+    padding: 56,
+  },
+  fcose: {
+    name: 'fcose',
+    fit: true,
+    padding: 56,
+    quality: 'proof',
+    randomize: false,
+    animate: false,
+    tilingPaddingVertical: 40,
+    tilingPaddingHorizontal: 40,
+  },
+  cola: {
+    name: 'cola',
+    fit: true,
+    padding: 60,
+    avoidOverlap: true,
+    edgeLength: 140,
+    maxSimulationTime: 4000,
+    nodeSpacing: 36,
+    randomize: false,
+    flow: undefined,
+    infinite: false,
+    animate: false,
+    handleDisconnected: true,
+    ungrabifyWhileSimulating: true,
+  },
+  elk: {
+    name: 'elk',
+    fit: true,
+    padding: 56,
+  },
+};
+
 const RELATIONSHIP_LAYOUTS = [
   {
     key: 'circle',
@@ -1500,6 +1550,9 @@ export default function Player({ canContribute = false }) {
       return { ...layout, label, available };
     });
   }, [relationshipLayoutAvailability, t]);
+  const showRelationshipLayoutControls = React.useMemo(() => {
+    return relationshipLayouts.some((layout) => layout.available !== false);
+  }, [relationshipLayouts]);
   const handleRelationshipLayoutClick = React.useCallback(
     (layoutKey) => {
       if (relationshipLayoutAvailability[layoutKey] === false) {
@@ -1509,8 +1562,11 @@ export default function Player({ canContribute = false }) {
     },
     [relationshipLayoutAvailability],
   );
-  const relationshipLayoutControlsElement = React.useMemo(
-    () => (
+  const renderRelationshipLayoutControls = React.useCallback(() => {
+    if (!showRelationshipLayoutControls) {
+      return null;
+    }
+    return (
       <div className="player-relationship-layouts" role="group" aria-label={relationshipLayoutGroupLabel}>
         {relationshipLayouts.map((layout) => {
           const IconComponent = layout.icon;
@@ -1532,9 +1588,15 @@ export default function Player({ canContribute = false }) {
           );
         })}
       </div>
-    ),
-    [handleRelationshipLayoutClick, relationshipLayout, relationshipLayoutGroupLabel, relationshipLayouts],
-  );
+    );
+  }, [handleRelationshipLayoutClick, relationshipLayout, relationshipLayoutGroupLabel, relationshipLayouts, showRelationshipLayoutControls]);
+  const relationshipLayoutConfig = React.useMemo(() => {
+    const preset = RELATIONSHIP_LAYOUT_PRESETS[relationshipLayout];
+    if (!preset) {
+      return relationshipLayout;
+    }
+    return { ...preset };
+  }, [relationshipLayout]);
   const relationshipCardClassName = React.useMemo(() => {
     return showRelationshipModal
       ? 'player-chart-card player-relationship-card modal-open'
@@ -2418,41 +2480,45 @@ export default function Player({ canContribute = false }) {
                         <div className="player-relationship-graph-wrapper player-relationship-graph-wrapper--modal">
                           <PlayerRelationshipGraph
                             elements={relationshipElements}
-                            layout={relationshipLayout}
+                            layout={relationshipLayoutConfig}
                             ariaLabel={relationshipAriaLabel}
                             className="player-relationship-graph-canvas"
                           />
-                          <div className="player-relationship-tools player-relationship-tools--modal">
-                            {relationshipLayoutControlsElement}
-                          </div>
                         </div>
-                        {showRelationshipSlider ? (
+                        {showRelationshipSlider || showRelationshipLayoutControls ? (
                           <div className="player-relationship-controls player-relationship-controls--modal">
-                            <label
-                              className="player-relationship-slider-label"
-                              htmlFor={relationshipModalThresholdInputId}
-                            >
-                              {relationshipThresholdLabel}
-                            </label>
-                            <div className="player-relationship-slider-group">
-                              <input
-                                id={relationshipModalThresholdInputId}
-                                type="range"
-                                min="1"
-                                max={relationshipSliderMax}
-                                step="1"
-                                value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                                onChange={handleRelationshipThresholdChange}
-                                className="player-relationship-slider"
-                                aria-valuemin={1}
-                                aria-valuemax={relationshipSliderMax}
-                                aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                                aria-valuetext={relationshipThresholdAria}
-                                disabled={relationshipSliderDisabled}
-                              />
-                              <span className="player-relationship-slider-value">
-                                {relationshipThresholdValue}
-                              </span>
+                            {showRelationshipSlider ? (
+                              <label
+                                className="player-relationship-slider-label"
+                                htmlFor={relationshipModalThresholdInputId}
+                              >
+                                {relationshipThresholdLabel}
+                              </label>
+                            ) : null}
+                            <div className="player-relationship-controls-row">
+                              {showRelationshipSlider ? (
+                                <div className="player-relationship-slider-group">
+                                  <input
+                                    id={relationshipModalThresholdInputId}
+                                    type="range"
+                                    min="1"
+                                    max={relationshipSliderMax}
+                                    step="1"
+                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    onChange={handleRelationshipThresholdChange}
+                                    className="player-relationship-slider"
+                                    aria-valuemin={1}
+                                    aria-valuemax={relationshipSliderMax}
+                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuetext={relationshipThresholdAria}
+                                    disabled={relationshipSliderDisabled}
+                                  />
+                                  <span className="player-relationship-slider-value">
+                                    {relationshipThresholdValue}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {renderRelationshipLayoutControls()}
                             </div>
                           </div>
                         ) : null}
@@ -2474,7 +2540,7 @@ export default function Player({ canContribute = false }) {
                         <div className="player-relationship-graph-wrapper">
                           <PlayerRelationshipGraph
                             elements={relationshipElements}
-                            layout={relationshipLayout}
+                            layout={relationshipLayoutConfig}
                             ariaLabel={relationshipAriaLabel}
                             className="player-relationship-graph-canvas"
                           />
@@ -2488,36 +2554,42 @@ export default function Player({ canContribute = false }) {
                             >
                               <ExpandIcon className="player-relationship-modal-toggle-icon" />
                             </button>
-                            {relationshipLayoutControlsElement}
                           </div>
                         </div>
-                        {!showRelationshipModal && showRelationshipSlider ? (
+                        {!showRelationshipModal && (showRelationshipSlider || showRelationshipLayoutControls) ? (
                           <div className="player-relationship-controls">
-                            <label
-                              className="player-relationship-slider-label"
-                              htmlFor={relationshipThresholdInputId}
-                            >
-                              {relationshipThresholdLabel}
-                            </label>
-                            <div className="player-relationship-slider-group">
-                              <input
-                                id={relationshipThresholdInputId}
-                                type="range"
-                                min="1"
-                                max={relationshipSliderMax}
-                                step="1"
-                                value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                                onChange={handleRelationshipThresholdChange}
-                                className="player-relationship-slider"
-                                aria-valuemin={1}
-                                aria-valuemax={relationshipSliderMax}
-                                aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                                aria-valuetext={relationshipThresholdAria}
-                                disabled={relationshipSliderDisabled}
-                              />
-                              <span className="player-relationship-slider-value">
-                                {relationshipThresholdValue}
-                              </span>
+                            {showRelationshipSlider ? (
+                              <label
+                                className="player-relationship-slider-label"
+                                htmlFor={relationshipThresholdInputId}
+                              >
+                                {relationshipThresholdLabel}
+                              </label>
+                            ) : null}
+                            <div className="player-relationship-controls-row">
+                              {showRelationshipSlider ? (
+                                <div className="player-relationship-slider-group">
+                                  <input
+                                    id={relationshipThresholdInputId}
+                                    type="range"
+                                    min="1"
+                                    max={relationshipSliderMax}
+                                    step="1"
+                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    onChange={handleRelationshipThresholdChange}
+                                    className="player-relationship-slider"
+                                    aria-valuemin={1}
+                                    aria-valuemax={relationshipSliderMax}
+                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuetext={relationshipThresholdAria}
+                                    disabled={relationshipSliderDisabled}
+                                  />
+                                  <span className="player-relationship-slider-value">
+                                    {relationshipThresholdValue}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {renderRelationshipLayoutControls()}
                             </div>
                           </div>
                         ) : null}
