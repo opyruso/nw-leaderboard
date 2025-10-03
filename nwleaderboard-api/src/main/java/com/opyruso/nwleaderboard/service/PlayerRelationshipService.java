@@ -9,6 +9,7 @@ import com.opyruso.nwleaderboard.entity.RunTimePlayer;
 import com.opyruso.nwleaderboard.repository.PlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
+import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -41,8 +42,11 @@ public class PlayerRelationshipService {
     @Inject
     RunTimePlayerRepository runTimePlayerRepository;
 
+    @Inject
+    WeekMutationDungeonRepository weekMutationDungeonRepository;
+
     @Transactional(Transactional.TxType.SUPPORTS)
-    public Optional<PlayerRelationshipGraphResponse> getRelationships(Long playerId) {
+    public Optional<PlayerRelationshipGraphResponse> getRelationships(Long playerId, Integer seasonId) {
         if (playerId == null) {
             return Optional.empty();
         }
@@ -55,6 +59,8 @@ public class PlayerRelationshipService {
         Map<Long, Player> accountPlayers = loadAccountPlayers(origin, accountRoot);
         Map<Long, GroupInfo> nodeGroups = new LinkedHashMap<>();
         Map<Long, PlayerNodeBuilder> nodes = new LinkedHashMap<>();
+
+        Set<Integer> allowedWeeks = resolveAllowedWeeks(seasonId);
 
         Long primaryGroupId = accountRoot != null && accountRoot.getId() != null
                 ? accountRoot.getId()
@@ -89,8 +95,8 @@ public class PlayerRelationshipService {
 
         Map<Long, Set<Long>> runParticipants = new HashMap<>();
         Map<Long, String> playerNames = new HashMap<>();
-        collectScoreRuns(runPlayerIds, runParticipants, playerNames);
-        collectTimeRuns(runPlayerIds, runParticipants, playerNames);
+        collectScoreRuns(runPlayerIds, runParticipants, playerNames, allowedWeeks);
+        collectTimeRuns(runPlayerIds, runParticipants, playerNames, allowedWeeks);
 
         for (Map.Entry<Long, String> entry : playerNames.entrySet()) {
             if (entry == null || entry.getKey() == null) {
@@ -372,9 +378,35 @@ public class PlayerRelationshipService {
                 .collect(Collectors.toList());
     }
 
+    private Set<Integer> resolveAllowedWeeks(Integer seasonId) {
+        if (seasonId == null) {
+            return null;
+        }
+        if (seasonId <= 0) {
+            return Set.of();
+        }
+        List<Integer> result = weekMutationDungeonRepository.findWeekNumbersBySeason(null, seasonId);
+        if (result == null || result.isEmpty()) {
+            return Set.of();
+        }
+        Set<Integer> weeks = new LinkedHashSet<>();
+        for (Integer week : result) {
+            if (week != null) {
+                weeks.add(week);
+            }
+        }
+        return weeks;
+    }
+
     private void collectScoreRuns(
-            Collection<Long> playerIds, Map<Long, Set<Long>> runParticipants, Map<Long, String> playerNames) {
+            Collection<Long> playerIds,
+            Map<Long, Set<Long>> runParticipants,
+            Map<Long, String> playerNames,
+            Set<Integer> allowedWeeks) {
         if (playerIds == null || playerIds.isEmpty()) {
+            return;
+        }
+        if (allowedWeeks != null && allowedWeeks.isEmpty()) {
             return;
         }
         Set<Long> runIds = new LinkedHashSet<>();
@@ -395,7 +427,11 @@ public class PlayerRelationshipService {
             }
             Long runId = association.getRunScore().getId();
             Long participantId = association.getPlayer().getId();
+            Integer runWeek = association.getRunScore().getWeek();
             if (runId == null || participantId == null) {
+                continue;
+            }
+            if (allowedWeeks != null && (runWeek == null || !allowedWeeks.contains(runWeek))) {
                 continue;
             }
             runParticipants.computeIfAbsent(runId, ignored -> new LinkedHashSet<>()).add(participantId);
@@ -404,8 +440,14 @@ public class PlayerRelationshipService {
     }
 
     private void collectTimeRuns(
-            Collection<Long> playerIds, Map<Long, Set<Long>> runParticipants, Map<Long, String> playerNames) {
+            Collection<Long> playerIds,
+            Map<Long, Set<Long>> runParticipants,
+            Map<Long, String> playerNames,
+            Set<Integer> allowedWeeks) {
         if (playerIds == null || playerIds.isEmpty()) {
+            return;
+        }
+        if (allowedWeeks != null && allowedWeeks.isEmpty()) {
             return;
         }
         Set<Long> runIds = new LinkedHashSet<>();
@@ -426,7 +468,11 @@ public class PlayerRelationshipService {
             }
             Long runId = association.getRunTime().getId();
             Long participantId = association.getPlayer().getId();
+            Integer runWeek = association.getRunTime().getWeek();
             if (runId == null || participantId == null) {
+                continue;
+            }
+            if (allowedWeeks != null && (runWeek == null || !allowedWeeks.contains(runWeek))) {
                 continue;
             }
             runParticipants.computeIfAbsent(runId, ignored -> new LinkedHashSet<>()).add(participantId);

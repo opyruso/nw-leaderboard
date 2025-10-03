@@ -502,6 +502,7 @@ export default function Player({ canContribute = false }) {
   const [relationshipLoading, setRelationshipLoading] = React.useState(false);
   const [relationshipError, setRelationshipError] = React.useState(false);
   const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
+  const [relationshipSeasonKey, setRelationshipSeasonKey] = React.useState('');
   const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(1);
   const relationshipLayoutAvailability = React.useMemo(() => {
     const globalWindow = typeof window === 'undefined' ? null : window;
@@ -568,6 +569,7 @@ export default function Player({ canContribute = false }) {
     setRelationshipError(false);
     setRelationshipLoading(false);
     setRelationshipPlayerId('');
+    setRelationshipSeasonKey('');
   }, [normalisedPlayerId]);
 
   React.useEffect(() => {
@@ -979,10 +981,20 @@ export default function Player({ canContribute = false }) {
   }, [hasPlayerId, normalisedPlayerId, seasonInitialised, selectedSeasonId]);
 
   React.useEffect(() => {
-    if (!showRelationshipGraph || !hasPlayerId) {
+    if (!showRelationshipGraph || !hasPlayerId || !seasonInitialised) {
       return undefined;
     }
-    if (relationshipPlayerId === normalisedPlayerId && relationshipData) {
+
+    const seasonKey =
+      selectedSeasonId !== null && selectedSeasonId !== undefined
+        ? String(selectedSeasonId)
+        : '';
+
+    if (
+      relationshipPlayerId === normalisedPlayerId &&
+      relationshipData &&
+      relationshipSeasonKey === seasonKey
+    ) {
       return undefined;
     }
 
@@ -991,7 +1003,15 @@ export default function Player({ canContribute = false }) {
     setRelationshipLoading(true);
     setRelationshipError(false);
 
-    const url = `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}/relationships`;
+    const params = new URLSearchParams();
+    if (seasonKey) {
+      params.set('seasonId', seasonKey);
+    }
+    const query = params.toString();
+    const url = query
+      ? `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}/relationships?${query}`
+      : `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}/relationships`;
+
     fetch(url, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) {
@@ -1005,6 +1025,7 @@ export default function Player({ canContribute = false }) {
         }
         setRelationshipData(data);
         setRelationshipPlayerId(normalisedPlayerId);
+        setRelationshipSeasonKey(seasonKey);
         setRelationshipLoading(false);
       })
       .catch((errorInstance) => {
@@ -1015,6 +1036,7 @@ export default function Player({ canContribute = false }) {
         setRelationshipError(true);
         setRelationshipData(null);
         setRelationshipPlayerId('');
+        setRelationshipSeasonKey('');
         setRelationshipLoading(false);
       });
 
@@ -1028,6 +1050,9 @@ export default function Player({ canContribute = false }) {
     normalisedPlayerId,
     relationshipData,
     relationshipPlayerId,
+    relationshipSeasonKey,
+    seasonInitialised,
+    selectedSeasonId,
   ]);
 
   const preparedDungeons = React.useMemo(() => {
@@ -1350,6 +1375,8 @@ export default function Player({ canContribute = false }) {
       const sharedRunsRaw = Number(edge.sharedRuns);
       const sharedRuns = Number.isFinite(sharedRunsRaw) && sharedRunsRaw > 0 ? Math.round(sharedRunsRaw) : 0;
       maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
+      const showSharedRunsLabel = category !== 'alternate' && category !== 'alt';
+      const sharedRunsLabel = showSharedRunsLabel && sharedRuns > 0 ? String(sharedRuns) : '';
       edges.push({
         data: {
           id,
@@ -1357,7 +1384,7 @@ export default function Player({ canContribute = false }) {
           target,
           category,
           sharedRuns,
-          sharedRunsLabel: sharedRuns > 0 ? String(sharedRuns) : '',
+          sharedRunsLabel,
         },
         classes: `relationship-${category}`,
       });
