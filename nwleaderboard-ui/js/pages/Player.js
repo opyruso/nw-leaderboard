@@ -3,6 +3,7 @@ import { getDungeonIconPath, getDungeonNameForLang, parseBoolean, sortDungeons }
 import ChartCanvas from '../components/ChartCanvas.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
+import PlayerRelationshipGraph from '../components/PlayerRelationshipGraph.js';
 import RankBadge from '../components/RankBadge.js';
 import SeasonCarousel from '../components/SeasonCarousel.js';
 import { capitaliseWords } from '../text.js';
@@ -134,6 +135,59 @@ function calculatePercentage(value, minimum, maximum) {
   return Math.max(0, Math.min(100, percent));
 }
 
+function RelationshipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="6" cy="6" r="3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="18" cy="6" r="3" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="18" r="3" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="8.4" y1="7.6" x2="10.6" y2="14.2" strokeLinecap="round" />
+      <line x1="15.6" y1="7.6" x2="13.4" y2="14.2" strokeLinecap="round" />
+      <line x1="8.8" y1="6" x2="15.2" y2="6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RadarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="5.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+      <line x1="12" y1="3" x2="12" y2="21" strokeLinecap="round" />
+      <line x1="3" y1="12" x2="21" y2="12" strokeLinecap="round" />
+      <path d="M12 12L18 7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="18" cy="7" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function GaugeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="8.5" y="3.5" width="7" height="17" rx="3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 7v7.75" strokeLinecap="round" />
+      <path d="M10 18.5h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrophyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path
+        d="M7 4.5h10v2.75a4.25 4.25 0 0 1-4.25 4.25H11.3A4.3 4.3 0 0 1 7 7.2V4.5Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9.5 11.5v2.5a2.5 2.5 0 0 0 5 0v-2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 18h6" strokeLinecap="round" />
+      <path d="M15 21H9" strokeLinecap="round" />
+      <path d="M7 6H4.75a1.75 1.75 0 0 0 1.75 3.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 6h2.25a1.75 1.75 0 0 1-1.75 3.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -178,6 +232,12 @@ export default function Player({ canContribute = false }) {
   const [individualRank, setIndividualRank] = React.useState(null);
   const [individualRankLoading, setIndividualRankLoading] = React.useState(false);
   const [individualRankError, setIndividualRankError] = React.useState(false);
+  const [showRelationshipGraph, setShowRelationshipGraph] = React.useState(false);
+  const [relationshipData, setRelationshipData] = React.useState(null);
+  const [relationshipLoading, setRelationshipLoading] = React.useState(false);
+  const [relationshipError, setRelationshipError] = React.useState('');
+  const [relationshipReloadIndex, setRelationshipReloadIndex] = React.useState(0);
+  const relationshipRequestRef = React.useRef(0);
 
   const profilePlayerId = React.useMemo(() => {
     if (!profile) {
@@ -201,6 +261,19 @@ export default function Player({ canContribute = false }) {
     }
     return '';
   }, [hasPlayerId, normalisedPlayerId, profilePlayerId]);
+
+  const hasRelationshipTarget = React.useMemo(() => {
+    return typeof profilePlayerId === 'string' && profilePlayerId.trim().length > 0;
+  }, [profilePlayerId]);
+
+  React.useEffect(() => {
+    setShowRelationshipGraph(false);
+    setRelationshipData(null);
+    setRelationshipError('');
+    setRelationshipLoading(false);
+    setRelationshipReloadIndex(0);
+    relationshipRequestRef.current = 0;
+  }, [profilePlayerId]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -368,6 +441,105 @@ export default function Player({ canContribute = false }) {
   }, [seasonInitialised, selectedSeasonId, targetPlayerId]);
 
   React.useEffect(() => {
+    const trimmedId = typeof profilePlayerId === 'string' ? profilePlayerId.trim() : '';
+    if (!showRelationshipGraph || !trimmedId) {
+      return undefined;
+    }
+
+    const dataPlayerId =
+      relationshipData &&
+      relationshipData.playerId !== undefined &&
+      relationshipData.playerId !== null
+        ? String(relationshipData.playerId)
+        : '';
+    if (
+      dataPlayerId === trimmedId &&
+      relationshipData &&
+      Array.isArray(relationshipData.nodes) &&
+      !relationshipLoading
+    ) {
+      return undefined;
+    }
+
+    if (relationshipReloadIndex === 0 || relationshipReloadIndex === relationshipRequestRef.current) {
+      return undefined;
+    }
+
+    if (relationshipLoading) {
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    relationshipRequestRef.current = relationshipReloadIndex;
+    setRelationshipLoading(true);
+    setRelationshipError('');
+
+    const url = `${API_BASE_URL}/player/${encodeURIComponent(trimmedId)}/relationships`;
+
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          return response
+            .json()
+            .catch(() => null)
+            .then((payload) => {
+              const message =
+                payload && typeof payload.message === 'string' && payload.message.trim().length > 0
+                  ? payload.message.trim()
+                  : t.playerRelationshipError;
+              throw new Error(message || `Failed to load relationships: ${response.status}`);
+            });
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
+        const edges = Array.isArray(data?.edges) ? data.edges : [];
+        const payloadPlayerId =
+          data && data.playerId !== undefined && data.playerId !== null
+            ? String(data.playerId)
+            : trimmedId;
+        setRelationshipData({ playerId: payloadPlayerId, nodes, edges });
+        setRelationshipError('');
+      })
+      .catch((fetchError) => {
+        if (!active || fetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load relationship graph', fetchError);
+        const fallback = t.playerRelationshipError || 'Unable to load relationships.';
+        const message =
+          fetchError && typeof fetchError.message === 'string' && fetchError.message.trim().length > 0
+            ? fetchError.message
+            : fallback;
+        setRelationshipError(message);
+        setRelationshipData(null);
+      })
+      .finally(() => {
+        if (active) {
+          setRelationshipLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+      setRelationshipLoading(false);
+    };
+  }, [
+    profilePlayerId,
+    showRelationshipGraph,
+    relationshipReloadIndex,
+    relationshipData,
+    relationshipLoading,
+    t,
+  ]);
+
+  React.useEffect(() => {
     setEditingMainLink(false);
     setMainLinkName('');
     setMainLinkError('');
@@ -386,6 +558,39 @@ export default function Player({ canContribute = false }) {
       return next;
     });
   }, []);
+
+  const handleRelationshipToggle = React.useCallback(() => {
+    setShowRelationshipGraph((previous) => {
+      const next = !previous;
+      if (!next) {
+        return next;
+      }
+      const trimmedId = typeof profilePlayerId === 'string' ? profilePlayerId.trim() : '';
+      if (!trimmedId) {
+        return next;
+      }
+      const hasData =
+        relationshipData &&
+        relationshipData.playerId !== undefined &&
+        relationshipData.playerId !== null &&
+        String(relationshipData.playerId) === trimmedId &&
+        Array.isArray(relationshipData.nodes);
+      if (!hasData && !relationshipLoading) {
+        setRelationshipError('');
+        setRelationshipReloadIndex((value) => value + 1);
+      }
+      return next;
+    });
+  }, [profilePlayerId, relationshipData, relationshipLoading]);
+
+  const handleRelationshipRetry = React.useCallback(() => {
+    const trimmedId = typeof profilePlayerId === 'string' ? profilePlayerId.trim() : '';
+    if (!trimmedId) {
+      return;
+    }
+    setRelationshipError('');
+    setRelationshipReloadIndex((value) => value + 1);
+  }, [profilePlayerId]);
 
   React.useEffect(() => {
     if (!editingMainLink) {
@@ -1189,6 +1394,217 @@ export default function Player({ canContribute = false }) {
     return 'Not ranked';
   }, [t]);
 
+  const relationshipTitle = React.useMemo(() => {
+    const label = t.playerRelationshipTitle;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return capitaliseWords(label);
+    }
+    return capitaliseWords('Relationship graph');
+  }, [t]);
+
+  const relationshipButtonLabel = React.useMemo(() => {
+    const label = showRelationshipGraph ? t.playerRelationshipBackLabel : t.playerRelationshipLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return showRelationshipGraph ? 'Radar charts' : 'Relationship';
+  }, [showRelationshipGraph, t]);
+
+  const relationshipButtonTitle = React.useMemo(() => {
+    const label = showRelationshipGraph ? t.playerRelationshipBackTooltip : t.playerRelationshipTooltip;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return showRelationshipGraph ? 'Show radar charts' : 'Show relationship graph';
+  }, [showRelationshipGraph, t]);
+
+  const relationshipLoadingLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLoading;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Loading relationships…';
+  }, [t]);
+
+  const relationshipEmptyLabel = React.useMemo(() => {
+    const label = t.playerRelationshipEmpty;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'No relationships available.';
+  }, [t]);
+
+  const relationshipRetryLabel = React.useMemo(() => {
+    const label = t.playerRelationshipRetry;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Retry';
+  }, [t]);
+
+  const relationshipDefaultErrorLabel = React.useMemo(() => {
+    const label = t.playerRelationshipError;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Unable to load relationships.';
+  }, [t]);
+
+  const relationshipErrorMessage = React.useMemo(() => {
+    if (typeof relationshipError === 'string' && relationshipError.trim().length > 0) {
+      return relationshipError.trim();
+    }
+    return '';
+  }, [relationshipError]);
+
+  const relationshipElements = React.useMemo(() => {
+    if (!relationshipData || !Array.isArray(relationshipData.nodes)) {
+      return [];
+    }
+
+    const nodes = [];
+    const edges = [];
+    const seenNodes = new Set();
+
+    const fallbackOriginColor = '#1d4ed8';
+    const fallbackAlternateColor = '#60a5fa';
+    const fallbackOtherColor = '#94a3b8';
+
+    relationshipData.nodes.forEach((node) => {
+      if (!node) {
+        return;
+      }
+      const rawId =
+        node.id ?? node.playerId ?? node.player_id ?? node.playerID ?? node.identifier ?? null;
+      if (rawId === undefined || rawId === null) {
+        return;
+      }
+      const id = String(rawId);
+      if (!id || seenNodes.has(id)) {
+        return;
+      }
+      seenNodes.add(id);
+
+      const rawLabel = node.label ?? node.playerName ?? node.player_name ?? '';
+      const label =
+        typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : `#${id}`;
+      const rawType = node.type ?? node.kind ?? '';
+      const type = typeof rawType === 'string' && rawType.trim().length > 0 ? rawType.trim() : '';
+      const rawColor = node.color ?? node.colour ?? '';
+      let color = typeof rawColor === 'string' && rawColor.trim().length > 0 ? rawColor.trim() : '';
+      if (!color) {
+        if (type === 'origin') {
+          color = fallbackOriginColor;
+        } else if (type === 'alternate') {
+          color = fallbackAlternateColor;
+        } else {
+          color = fallbackOtherColor;
+        }
+      }
+      const rawSize = node.size ?? node.radius ?? null;
+      const numericSize = Number(rawSize);
+      const size = Number.isFinite(numericSize) && numericSize > 0
+        ? numericSize
+        : type === 'origin'
+        ? 82
+        : type === 'alternate'
+        ? 68
+        : 56;
+
+      nodes.push({
+        data: {
+          id,
+          label,
+          color,
+          size,
+          type,
+        },
+        classes: type ? `node-${type}` : '',
+      });
+    });
+
+    const seenEdges = new Set();
+    const fallbackStrongEdgeColor = '#22c55e';
+    const fallbackNeutralEdgeColor = '#94a3b8';
+    const fallbackAltEdgeColor = '#f87171';
+
+    const edgeList = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
+    edgeList.forEach((edge, index) => {
+      if (!edge) {
+        return;
+      }
+      const rawSource = edge.source ?? edge.sourceId ?? edge.source_id ?? edge.from ?? null;
+      const rawTarget = edge.target ?? edge.targetId ?? edge.target_id ?? edge.to ?? null;
+      if (rawSource === undefined || rawSource === null || rawTarget === undefined || rawTarget === null) {
+        return;
+      }
+      const source = String(rawSource);
+      const target = String(rawTarget);
+      if (!source || !target || source === target) {
+        return;
+      }
+      const key = source < target ? `${source}|${target}` : `${target}|${source}`;
+      if (seenEdges.has(key)) {
+        return;
+      }
+      seenEdges.add(key);
+
+      const edgeId =
+        edge.id !== undefined && edge.id !== null
+          ? String(edge.id)
+          : `edge-${source}-${target}-${index}`;
+      const rawCategory = edge.category ?? edge.type ?? '';
+      const category =
+        typeof rawCategory === 'string' && rawCategory.trim().length > 0 ? rawCategory.trim() : '';
+      const rawColor = edge.color ?? edge.colour ?? '';
+      let color =
+        typeof rawColor === 'string' && rawColor.trim().length > 0
+          ? rawColor.trim()
+          : category === 'alternate'
+          ? fallbackAltEdgeColor
+          : fallbackNeutralEdgeColor;
+      const rawLineStyle = edge.lineStyle ?? edge.style ?? '';
+      const lineStyle =
+        typeof rawLineStyle === 'string' && rawLineStyle.trim().length > 0
+          ? rawLineStyle.trim()
+          : category === 'alternate'
+          ? 'dashed'
+          : 'solid';
+      const rawWidth = edge.width ?? edge.thickness ?? null;
+      const numericWidth = Number(rawWidth);
+      let width = Number.isFinite(numericWidth) && numericWidth > 0 ? numericWidth : null;
+      const runsValue = Number(edge.runCount ?? edge.runs ?? edge.count ?? 0);
+      if (width === null) {
+        if (Number.isFinite(runsValue) && runsValue >= 10) {
+          width = 4;
+          if (category !== 'alternate' && (!color || color === fallbackNeutralEdgeColor)) {
+            color = fallbackStrongEdgeColor;
+          }
+        } else if (Number.isFinite(runsValue) && runsValue >= 5) {
+          width = 3;
+        } else {
+          width = 2.2;
+        }
+      }
+
+      edges.push({
+        data: {
+          id: edgeId,
+          source,
+          target,
+          color,
+          width,
+          lineStyle,
+          runCount: Number.isFinite(runsValue) ? runsValue : 0,
+          category,
+        },
+        classes: category ? `edge-${category}` : '',
+      });
+    });
+
+    return [...nodes, ...edges];
+  }, [relationshipData]);
+
   const renderWeek = (week) => {
     const numeric = Number(week);
     if (!Number.isFinite(numeric)) {
@@ -1238,8 +1654,28 @@ export default function Player({ canContribute = false }) {
                   ''
                 )}
               </h2>
-              {adaptabilityIndex !== null || hasIndividualRankTarget ? (
+              {adaptabilityIndex !== null || hasIndividualRankTarget || hasRelationshipTarget ? (
                 <div className="player-profile-metrics">
+                  {hasRelationshipTarget ? (
+                    <button
+                      type="button"
+                      className={`player-relationship-toggle${
+                        showRelationshipGraph ? ' active' : ''
+                      }`}
+                      onClick={handleRelationshipToggle}
+                      aria-pressed={showRelationshipGraph}
+                      title={relationshipButtonTitle}
+                      aria-label={relationshipButtonTitle}
+                      disabled={!hasRelationshipTarget}
+                    >
+                      <span className="player-profile-metric-heading">
+                        <span className="player-profile-metric-icon" aria-hidden="true">
+                          {showRelationshipGraph ? <RadarIcon /> : <RelationshipIcon />}
+                        </span>
+                        <span className="player-profile-metric-label">{relationshipButtonLabel}</span>
+                      </span>
+                    </button>
+                  ) : null}
                   {adaptabilityIndex !== null ? (
                     <div
                       className="player-adaptability"
@@ -1247,21 +1683,33 @@ export default function Player({ canContribute = false }) {
                       aria-label={adaptabilityAriaLabel || undefined}
                       title={adaptabilityAriaLabel || undefined}
                     >
-                      <span className="player-adaptability-label">{adaptabilityLabel}</span>
-                      <div className="player-adaptability-gauge" aria-hidden="true">
-                        <div
-                          className="player-adaptability-gauge-mask"
-                          style={{
-                            height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%`,
-                          }}
-                        />
+                      <div className="player-profile-metric-heading">
+                        <span className="player-profile-metric-icon" aria-hidden="true">
+                          <GaugeIcon />
+                        </span>
+                        <span className="player-adaptability-label">{adaptabilityLabel}</span>
                       </div>
-                      <span className="player-adaptability-value">{adaptabilityIndex}%</span>
+                      <div className="player-adaptability-body" aria-hidden="true">
+                        <div className="player-adaptability-gauge">
+                          <div
+                            className="player-adaptability-gauge-mask"
+                            style={{
+                              height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="player-adaptability-value">{adaptabilityIndex}%</span>
+                      </div>
                     </div>
                   ) : null}
                   {hasIndividualRankTarget ? (
                     <div className="player-individual-ranking">
-                      <span className="player-individual-ranking-label">{individualRankLabel}</span>
+                      <div className="player-profile-metric-heading">
+                        <span className="player-profile-metric-icon" aria-hidden="true">
+                          <TrophyIcon />
+                        </span>
+                        <span className="player-individual-ranking-label">{individualRankLabel}</span>
+                      </div>
                       <div className="player-individual-ranking-value">
                         {individualRankLoading ? (
                           <span className="player-individual-ranking-loading">
@@ -1491,7 +1939,33 @@ export default function Player({ canContribute = false }) {
           <p className="leaderboard-status">{t.playerNoRuns}</p>
         ) : (
           <>
-            {scoreChartData || timeChartData ? (
+            {showRelationshipGraph ? (
+              <div className="player-chart-grid">
+                <section className="player-chart-card player-relationship-card">
+                  <h2 className="player-chart-title">{relationshipTitle}</h2>
+                  <div className="player-chart-body player-relationship-body">
+                    {relationshipLoading ? (
+                      <p className="player-relationship-status">{relationshipLoadingLabel}</p>
+                    ) : relationshipErrorMessage ? (
+                      <div className="player-relationship-status player-relationship-status--error">
+                        <p>{relationshipErrorMessage || relationshipDefaultErrorLabel}</p>
+                        <button
+                          type="button"
+                          className="player-relationship-retry"
+                          onClick={handleRelationshipRetry}
+                        >
+                          {relationshipRetryLabel}
+                        </button>
+                      </div>
+                    ) : relationshipElements.length === 0 ? (
+                      <p className="player-relationship-status">{relationshipEmptyLabel}</p>
+                    ) : (
+                      <PlayerRelationshipGraph elements={relationshipElements} />
+                    )}
+                  </div>
+                </section>
+              </div>
+            ) : scoreChartData || timeChartData ? (
               <div className="player-chart-grid">
                 {scoreChartData ? (
                   <section className="player-chart-card">
