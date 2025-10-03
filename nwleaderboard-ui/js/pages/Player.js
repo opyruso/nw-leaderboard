@@ -1701,12 +1701,14 @@ export default function Player({ canContribute = false }) {
                     aria-pressed={showRelationshipGraph}
                     title={relationshipToggleTitle || undefined}
                   >
-                    {showRelationshipGraph ? (
-                      <RadarIcon className="player-relationship-toggle-icon" />
-                    ) : (
-                      <RelationshipIcon className="player-relationship-toggle-icon" />
-                    )}
                     <span className="player-relationship-toggle-label">{relationshipToggleLabel}</span>
+                    <span className="player-relationship-toggle-icon-wrapper" aria-hidden="true">
+                      {showRelationshipGraph ? (
+                        <RadarIcon className="player-relationship-toggle-icon" />
+                      ) : (
+                        <RelationshipIcon className="player-relationship-toggle-icon" />
+                      )}
+                    </span>
                   </button>
                   {adaptabilityIndex !== null ? (
                     <div
@@ -1971,6 +1973,10 @@ export default function Player({ canContribute = false }) {
                     <p className="player-relationship-status">{relationshipEmptyLabel}</p>
                   ) : (
                     <>
+                      <PlayerRelationshipGraph
+                        elements={relationshipElements}
+                        ariaLabel={relationshipAriaLabel}
+                      />
                       {showRelationshipSlider ? (
                         <div className="player-relationship-controls">
                           <label
@@ -2001,10 +2007,6 @@ export default function Player({ canContribute = false }) {
                           </div>
                         </div>
                       ) : null}
-                      <PlayerRelationshipGraph
-                        elements={relationshipElements}
-                        ariaLabel={relationshipAriaLabel}
-                      />
                     </>
                   )}
                 </div>
