@@ -222,6 +222,7 @@ export default function Player({ canContribute = false }) {
   const [relationshipLoading, setRelationshipLoading] = React.useState(false);
   const [relationshipError, setRelationshipError] = React.useState(false);
   const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
+  const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(1);
 
   const profilePlayerId = React.useMemo(() => {
     if (!profile) {
@@ -934,9 +935,9 @@ export default function Player({ canContribute = false }) {
     return { data, options };
   }, [preparedDungeons, lang, t]);
 
-  const relationshipElements = React.useMemo(() => {
+  const relationshipGraphData = React.useMemo(() => {
     if (!relationshipData || typeof relationshipData !== 'object') {
-      return [];
+      return { nodes: [], edges: [], maxSharedRuns: 0 };
     }
 
     const normaliseId = (value) => {
@@ -956,9 +957,12 @@ export default function Player({ canContribute = false }) {
       return fallback;
     };
 
-    const elements = [];
-    const nodes = Array.isArray(relationshipData.nodes) ? relationshipData.nodes : [];
-    nodes.forEach((node) => {
+    const nodes = [];
+    const edges = [];
+    let maxSharedRuns = 0;
+
+    const rawNodes = Array.isArray(relationshipData.nodes) ? relationshipData.nodes : [];
+    rawNodes.forEach((node) => {
       if (!node) {
         return;
       }
@@ -969,7 +973,7 @@ export default function Player({ canContribute = false }) {
       const label =
         typeof node.label === 'string' && node.label.trim().length > 0 ? node.label.trim() : id;
       const category = normaliseCategory(node.category, 'other');
-      elements.push({
+      nodes.push({
         data: {
           id,
           label,
@@ -979,8 +983,8 @@ export default function Player({ canContribute = false }) {
       });
     });
 
-    const edges = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
-    edges.forEach((edge) => {
+    const rawEdges = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
+    rawEdges.forEach((edge) => {
       if (!edge) {
         return;
       }
@@ -996,7 +1000,8 @@ export default function Player({ canContribute = false }) {
       const category = normaliseCategory(edge.category, 'weak');
       const sharedRunsRaw = Number(edge.sharedRuns);
       const sharedRuns = Number.isFinite(sharedRunsRaw) && sharedRunsRaw > 0 ? Math.round(sharedRunsRaw) : 0;
-      elements.push({
+      maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
+      edges.push({
         data: {
           id,
           source,
@@ -1009,8 +1014,91 @@ export default function Player({ canContribute = false }) {
       });
     });
 
-    return elements;
+    return { nodes, edges, maxSharedRuns };
   }, [relationshipData]);
+
+  const {
+    nodes: relationshipGraphNodes,
+    edges: relationshipGraphEdges,
+    maxSharedRuns: relationshipMaxSharedRuns,
+  } = relationshipGraphData;
+
+  React.useEffect(() => {
+    if (!relationshipMaxSharedRuns || relationshipMaxSharedRuns < 1) {
+      setRelationshipMinSharedRuns(1);
+      return;
+    }
+    setRelationshipMinSharedRuns((current) => {
+      const numeric = Number(current);
+      if (!Number.isFinite(numeric) || numeric < 1) {
+        return 1;
+      }
+      if (numeric > relationshipMaxSharedRuns) {
+        return relationshipMaxSharedRuns;
+      }
+      return numeric;
+    });
+  }, [relationshipMaxSharedRuns]);
+
+  const relationshipElements = React.useMemo(() => {
+    if (!Array.isArray(relationshipGraphNodes) || !Array.isArray(relationshipGraphEdges)) {
+      return [];
+    }
+    const minSharedRuns = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const filteredEdges = relationshipGraphEdges.filter((edge) => {
+      const sharedRuns = Number(edge?.data?.sharedRuns);
+      if (!Number.isFinite(sharedRuns)) {
+        return true;
+      }
+      return sharedRuns >= minSharedRuns;
+    });
+    return [...relationshipGraphNodes, ...filteredEdges];
+  }, [relationshipGraphNodes, relationshipGraphEdges, relationshipMinSharedRuns]);
+
+  const relationshipSliderMax = relationshipMaxSharedRuns > 0 ? relationshipMaxSharedRuns : 1;
+  const relationshipSliderDisabled = relationshipSliderMax <= 1;
+  const showRelationshipSlider = relationshipGraphEdges.length > 0;
+
+  const relationshipThresholdLabel = React.useMemo(() => {
+    const label = t.playerRelationshipThresholdLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Minimum shared runs';
+  }, [t]);
+
+  const relationshipThresholdValue = React.useMemo(() => {
+    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const formatter = t.playerRelationshipThresholdValue;
+    if (typeof formatter === 'function') {
+      return formatter(value);
+    }
+    return `≥ ${value}`;
+  }, [relationshipMinSharedRuns, t]);
+
+  const relationshipThresholdAria = React.useMemo(() => {
+    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const formatter = t.playerRelationshipThresholdAria;
+    if (typeof formatter === 'function') {
+      return formatter(value);
+    }
+    return `Minimum shared runs: ${value}`;
+  }, [relationshipMinSharedRuns, t]);
+
+  const relationshipThresholdInputId = React.useMemo(() => {
+    if (normalisedPlayerId) {
+      return `relationship-threshold-${normalisedPlayerId}`;
+    }
+    return 'relationship-threshold';
+  }, [normalisedPlayerId]);
+
+  const handleRelationshipThresholdChange = React.useCallback((event) => {
+    const value = Number(event?.target?.value);
+    if (Number.isFinite(value)) {
+      const rounded = Math.max(1, Math.round(value));
+      setRelationshipMinSharedRuns(rounded);
+    }
+  }, []);
 
   const renderRankIndicator = React.useCallback((position, label) => {
     if (position === undefined || position === null) {
@@ -1799,10 +1887,42 @@ export default function Player({ canContribute = false }) {
                   ) : relationshipElements.length === 0 ? (
                     <p className="player-relationship-status">{relationshipEmptyLabel}</p>
                   ) : (
-                    <PlayerRelationshipGraph
-                      elements={relationshipElements}
-                      ariaLabel={relationshipAriaLabel}
-                    />
+                    <>
+                      {showRelationshipSlider ? (
+                        <div className="player-relationship-controls">
+                          <label
+                            className="player-relationship-slider-label"
+                            htmlFor={relationshipThresholdInputId}
+                          >
+                            {relationshipThresholdLabel}
+                          </label>
+                          <div className="player-relationship-slider-group">
+                            <input
+                              id={relationshipThresholdInputId}
+                              type="range"
+                              min="1"
+                              max={relationshipSliderMax}
+                              step="1"
+                              value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                              onChange={handleRelationshipThresholdChange}
+                              className="player-relationship-slider"
+                              aria-valuemin={1}
+                              aria-valuemax={relationshipSliderMax}
+                              aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                              aria-valuetext={relationshipThresholdAria}
+                              disabled={relationshipSliderDisabled}
+                            />
+                            <span className="player-relationship-slider-value">
+                              {relationshipThresholdValue}
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
+                      <PlayerRelationshipGraph
+                        elements={relationshipElements}
+                        ariaLabel={relationshipAriaLabel}
+                      />
+                    </>
                   )}
                 </div>
               </section>

@@ -448,6 +448,9 @@ const it = {
   playerRelationshipEmpty: 'Nessuna relazione disponibile al momento.',
   playerRelationshipAria: (name) =>
     name ? `Grafico delle relazioni per ${name}` : 'Grafico delle relazioni',
+  playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipThresholdValue: (value) => `≥ ${value}`,
+  playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Classifica individuale',
   playerIndividualRankLoading: 'Caricamento…',
   playerIndividualRankError: 'Non disponibile',
