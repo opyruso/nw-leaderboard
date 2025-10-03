@@ -1485,6 +1485,13 @@ export default function Player({ canContribute = false }) {
     () => `${relationshipThresholdInputId}-modal`,
     [relationshipThresholdInputId],
   );
+  const relationshipLayoutGroupLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLayoutGroupLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Graph layout options';
+  }, [t]);
   const handleRelationshipLayoutClick = React.useCallback(
     (layoutKey) => {
       if (relationshipLayoutAvailability[layoutKey] === false) {
@@ -1612,13 +1619,6 @@ export default function Player({ canContribute = false }) {
       return label.trim();
     }
     return 'Team relationships';
-  }, [t]);
-  const relationshipLayoutGroupLabel = React.useMemo(() => {
-    const label = t.playerRelationshipLayoutGroupLabel;
-    if (typeof label === 'string' && label.trim().length > 0) {
-      return label.trim();
-    }
-    return 'Graph layout options';
   }, [t]);
   const relationshipLayouts = React.useMemo(() => {
     return RELATIONSHIP_LAYOUTS.map((layout) => {
