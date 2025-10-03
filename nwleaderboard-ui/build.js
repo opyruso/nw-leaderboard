@@ -55,6 +55,7 @@ cpSync(
   'dist/vendor/cytoscape-cose-bilkent.js',
 );
 cpSync('node_modules/cytoscape-fcose/cytoscape-fcose.js', 'dist/vendor/cytoscape-fcose.js');
+cpSync('node_modules/webcola/WebCola/cola.min.js', 'dist/vendor/cola.min.js');
 cpSync('node_modules/cytoscape-cola/cytoscape-cola.js', 'dist/vendor/cytoscape-cola.js');
 cpSync('node_modules/cytoscape-elk/dist/cytoscape-elk.js', 'dist/vendor/cytoscape-elk.js');
 
