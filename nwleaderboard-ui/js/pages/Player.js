@@ -1046,6 +1046,10 @@ export default function Player({ canContribute = false }) {
     }
     const minSharedRuns = Math.max(1, Number(relationshipMinSharedRuns) || 1);
     const filteredEdges = relationshipGraphEdges.filter((edge) => {
+      const category = String(edge?.data?.category || '').toLowerCase();
+      if (category === 'alternate' || category === 'alt') {
+        return true;
+      }
       const sharedRuns = Number(edge?.data?.sharedRuns);
       if (!Number.isFinite(sharedRuns)) {
         return true;
