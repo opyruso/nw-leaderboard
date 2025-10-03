@@ -1814,6 +1814,19 @@ export default function Player({ canContribute = false }) {
     return 'No relationship data available yet.';
   }, [t]);
 
+  const canExpandRelationshipGraph = React.useMemo(() => {
+    if (!Array.isArray(relationshipElements)) {
+      return false;
+    }
+    if (relationshipElements.length === 0) {
+      return false;
+    }
+    if (relationshipLoading || relationshipError) {
+      return false;
+    }
+    return true;
+  }, [relationshipElements, relationshipError, relationshipLoading]);
+
   const relationshipAriaLabel = React.useMemo(() => {
     const fallbackName = (() => {
       if (playerPrimaryName) {
@@ -2571,7 +2584,22 @@ export default function Player({ canContribute = false }) {
                   </div>
                 ) : null}
                 <section className={relationshipCardClassName}>
-                  <h2 className="player-chart-title">{relationshipTitle}</h2>
+                  <div className="player-relationship-header">
+                    <h2 className="player-chart-title">{relationshipTitle}</h2>
+                    {canExpandRelationshipGraph ? (
+                      <div className="player-relationship-tools">
+                        <button
+                          type="button"
+                          className="player-relationship-modal-toggle"
+                          onClick={handleRelationshipModalOpen}
+                          aria-label={relationshipExpandLabel}
+                          title={relationshipExpandTitle}
+                        >
+                          <ExpandIcon className="player-relationship-modal-toggle-icon" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="player-chart-body player-relationship-body">
                     {relationshipLoading ? (
                       <p className="player-relationship-status">{relationshipLoadingLabel}</p>
@@ -2588,17 +2616,6 @@ export default function Player({ canContribute = false }) {
                             ariaLabel={relationshipAriaLabel}
                             className="player-relationship-graph-canvas"
                           />
-                          <div className="player-relationship-tools">
-                            <button
-                              type="button"
-                              className="player-relationship-modal-toggle"
-                              onClick={handleRelationshipModalOpen}
-                              aria-label={relationshipExpandLabel}
-                              title={relationshipExpandTitle}
-                            >
-                              <ExpandIcon className="player-relationship-modal-toggle-icon" />
-                            </button>
-                          </div>
                         </div>
                         {!showRelationshipModal && (showRelationshipSlider || showRelationshipLayoutControls) ? (
                           <div className="player-relationship-controls">
