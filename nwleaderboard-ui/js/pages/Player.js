@@ -173,6 +173,218 @@ function RadarIcon({ className = '' }) {
   );
 }
 
+function ExpandIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M5 5h6M5 5v6M19 19h-6M19 19v-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <polyline
+        points="14 5 19 5 19 10"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <polyline
+        points="10 19 5 19 5 14"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CircleLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="12" cy="4" r="1.6" fill="currentColor" />
+      <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="20" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function ConcentricLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.9" />
+      <circle cx="12" cy="5.5" r="1.5" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="18.5" r="1.5" fill="currentColor" />
+      <circle cx="5.5" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CoseLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="6.5" cy="7" r="1.6" fill="currentColor" />
+      <circle cx="16.5" cy="5.5" r="1.6" fill="currentColor" />
+      <circle cx="18" cy="16.5" r="1.6" fill="currentColor" />
+      <circle cx="8" cy="18" r="1.6" fill="currentColor" />
+      <line x1="6.5" y1="7" x2="16.5" y2="5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="16.5" y1="5.5" x2="18" y2="16.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="6.5" y1="7" x2="8" y2="18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="8" y1="18" x2="18" y2="16.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FcoseLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="7" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+      <circle cx="7" cy="17" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="17" r="1.5" fill="currentColor" />
+      <line x1="7" y1="7" x2="12" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="17" y1="7" x2="12" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="7" y1="17" x2="12" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="17" y1="17" x2="12" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="7" y1="7" x2="17" y2="7" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+      <line x1="7" y1="17" x2="17" y2="17" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
+    </svg>
+  );
+}
+
+function ColaLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="4.5" y="4.5" width="5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="14.5" y="4.5" width="5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="9.5" y="14.5" width="5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <line x1="9.5" y1="7" x2="14.5" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="12" y1="9.5" x2="12" y2="14.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ElkLayoutIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="4.5" y="4.5" width="5.5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="14" y="10" width="5.5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <rect x="4.5" y="15" width="5.5" height="5" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <line x1="10" y1="7" x2="14" y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="10" y1="17.5" x2="14" y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const RELATIONSHIP_LAYOUTS = [
+  {
+    key: 'circle',
+    labelKey: 'playerRelationshipLayoutCircle',
+    defaultLabel: 'Circle layout',
+    icon: CircleLayoutIcon,
+  },
+  {
+    key: 'concentric',
+    labelKey: 'playerRelationshipLayoutConcentric',
+    defaultLabel: 'Concentric layout',
+    icon: ConcentricLayoutIcon,
+  },
+  {
+    key: 'cose',
+    labelKey: 'playerRelationshipLayoutCose',
+    defaultLabel: 'CoSE layout',
+    icon: CoseLayoutIcon,
+  },
+  {
+    key: 'fcose',
+    labelKey: 'playerRelationshipLayoutFcose',
+    defaultLabel: 'fCoSE layout',
+    icon: FcoseLayoutIcon,
+    extensionKey: 'cytoscapeFcose',
+  },
+  {
+    key: 'cola',
+    labelKey: 'playerRelationshipLayoutCola',
+    defaultLabel: 'CoLa layout',
+    icon: ColaLayoutIcon,
+    extensionKey: 'cytoscapeCola',
+  },
+  {
+    key: 'elk',
+    labelKey: 'playerRelationshipLayoutElk',
+    defaultLabel: 'ELK layout',
+    icon: ElkLayoutIcon,
+    extensionKey: 'cytoscapeElk',
+  },
+];
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -199,6 +411,7 @@ export default function Player({ canContribute = false }) {
   const searchInputId = React.useId();
   const mainLinkInputId = React.useId();
   const regionFilterId = React.useId();
+  const relationshipModalTitleId = React.useId();
   const [editingMainLink, setEditingMainLink] = React.useState(false);
   const [mainLinkName, setMainLinkName] = React.useState('');
   const [mainLinkError, setMainLinkError] = React.useState('');
@@ -223,6 +436,41 @@ export default function Player({ canContribute = false }) {
   const [relationshipError, setRelationshipError] = React.useState(false);
   const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
   const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(1);
+  const relationshipLayoutAvailability = React.useMemo(() => {
+    const globalWindow = typeof window === 'undefined' ? null : window;
+    return RELATIONSHIP_LAYOUTS.reduce((accumulator, layout) => {
+      const available =
+        !layout.extensionKey || (globalWindow && typeof globalWindow[layout.extensionKey] === 'function');
+      accumulator[layout.key] = available;
+      return accumulator;
+    }, {});
+  }, []);
+  const defaultRelationshipLayout = React.useMemo(() => {
+    if (relationshipLayoutAvailability.elk) {
+      return 'elk';
+    }
+    if (relationshipLayoutAvailability.fcose) {
+      return 'fcose';
+    }
+    if (relationshipLayoutAvailability.cola) {
+      return 'cola';
+    }
+    if (relationshipLayoutAvailability.cose) {
+      return 'cose';
+    }
+    if (relationshipLayoutAvailability.concentric) {
+      return 'concentric';
+    }
+    return 'circle';
+  }, [relationshipLayoutAvailability]);
+  const [relationshipLayout, setRelationshipLayout] = React.useState(defaultRelationshipLayout);
+  const [showRelationshipModal, setShowRelationshipModal] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!relationshipLayoutAvailability[relationshipLayout]) {
+      setRelationshipLayout(defaultRelationshipLayout);
+    }
+  }, [relationshipLayoutAvailability, relationshipLayout, defaultRelationshipLayout]);
 
   const profilePlayerId = React.useMemo(() => {
     if (!profile) {
@@ -1233,12 +1481,67 @@ export default function Player({ canContribute = false }) {
     }
     return 'relationship-threshold';
   }, [normalisedPlayerId]);
+  const relationshipModalThresholdInputId = React.useMemo(
+    () => `${relationshipThresholdInputId}-modal`,
+    [relationshipThresholdInputId],
+  );
+  const relationshipLayoutControlsElement = React.useMemo(
+    () => (
+      <div className="player-relationship-layouts" role="group" aria-label={relationshipLayoutGroupLabel}>
+        {relationshipLayouts.map((layout) => {
+          const IconComponent = layout.icon;
+          const isActive = relationshipLayout === layout.key;
+          const buttonClassName = `player-relationship-layout${isActive ? ' active' : ''}`;
+          return (
+            <button
+              key={layout.key}
+              type="button"
+              className={buttonClassName}
+              onClick={() => handleRelationshipLayoutClick(layout.key)}
+              aria-pressed={isActive}
+              aria-label={layout.label}
+              title={layout.label}
+              disabled={!layout.available}
+            >
+              <IconComponent className="player-relationship-layout-icon" />
+            </button>
+          );
+        })}
+      </div>
+    ),
+    [handleRelationshipLayoutClick, relationshipLayout, relationshipLayoutGroupLabel, relationshipLayouts],
+  );
+  const relationshipCardClassName = React.useMemo(() => {
+    return showRelationshipModal
+      ? 'player-chart-card player-relationship-card modal-open'
+      : 'player-chart-card player-relationship-card';
+  }, [showRelationshipModal]);
 
   const handleRelationshipThresholdChange = React.useCallback((event) => {
     const value = Number(event?.target?.value);
     if (Number.isFinite(value)) {
       const rounded = Math.max(1, Math.round(value));
       setRelationshipMinSharedRuns(rounded);
+    }
+  }, []);
+  const handleRelationshipLayoutClick = React.useCallback(
+    (layoutKey) => {
+      if (relationshipLayoutAvailability[layoutKey] === false) {
+        return;
+      }
+      setRelationshipLayout(layoutKey);
+    },
+    [relationshipLayoutAvailability],
+  );
+  const handleRelationshipModalOpen = React.useCallback(() => {
+    setShowRelationshipModal(true);
+  }, []);
+  const handleRelationshipModalClose = React.useCallback(() => {
+    setShowRelationshipModal(false);
+  }, []);
+  const handleRelationshipModalBackdropClick = React.useCallback((event) => {
+    if (event?.target === event?.currentTarget) {
+      setShowRelationshipModal(false);
     }
   }, []);
 
@@ -1278,6 +1581,21 @@ export default function Player({ canContribute = false }) {
     return playerPrimaryName;
   }, [playerIsAlt, playerMainName, playerPrimaryName]);
 
+  React.useEffect(() => {
+    if (!showRelationshipModal) {
+      return undefined;
+    }
+    const handleKeyDown = (event) => {
+      if (event?.key === 'Escape') {
+        setShowRelationshipModal(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showRelationshipModal]);
+
   const playerIdentifier = React.useMemo(() => {
     if (profile && profile.playerId !== undefined && profile.playerId !== null) {
       return String(profile.playerId);
@@ -1294,6 +1612,56 @@ export default function Player({ canContribute = false }) {
       return label.trim();
     }
     return 'Team relationships';
+  }, [t]);
+  const relationshipLayoutGroupLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLayoutGroupLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Graph layout options';
+  }, [t]);
+  const relationshipLayouts = React.useMemo(() => {
+    return RELATIONSHIP_LAYOUTS.map((layout) => {
+      const rawLabel = t[layout.labelKey];
+      const label = typeof rawLabel === 'string' && rawLabel.trim().length > 0 ? rawLabel.trim() : layout.defaultLabel;
+      const available = relationshipLayoutAvailability[layout.key] !== false;
+      return { ...layout, label, available };
+    });
+  }, [relationshipLayoutAvailability, t]);
+  const relationshipExpandLabel = React.useMemo(() => {
+    const label = t.playerRelationshipExpandLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Open large graph view';
+  }, [t]);
+  const relationshipExpandTitle = React.useMemo(() => {
+    const label = t.playerRelationshipExpandTitle;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Open the relationship graph in a modal window';
+  }, [t]);
+  const relationshipCollapseLabel = React.useMemo(() => {
+    const label = t.playerRelationshipCollapseLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Close large graph view';
+  }, [t]);
+  const relationshipCollapseTitle = React.useMemo(() => {
+    const label = t.playerRelationshipCollapseTitle;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Close the relationship graph modal';
+  }, [t]);
+  const relationshipModalLabel = React.useMemo(() => {
+    const label = t.playerRelationshipModalLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Relationship graph modal';
   }, [t]);
 
   const relationshipToggleLabel = React.useMemo(() => {
@@ -2021,55 +2389,143 @@ export default function Player({ canContribute = false }) {
         ) : (
           <>
             {showRelationshipGraph ? (
-              <section className="player-chart-card player-relationship-card">
-                <h2 className="player-chart-title">{relationshipTitle}</h2>
-                <div className="player-chart-body player-relationship-body">
-                  {relationshipLoading ? (
-                    <p className="player-relationship-status">{relationshipLoadingLabel}</p>
-                  ) : relationshipError ? (
-                    <p className="player-relationship-status error">{relationshipErrorLabel}</p>
-                  ) : relationshipElements.length === 0 ? (
-                    <p className="player-relationship-status">{relationshipEmptyLabel}</p>
-                  ) : (
-                    <>
-                      <PlayerRelationshipGraph
-                        elements={relationshipElements}
-                        ariaLabel={relationshipAriaLabel}
-                      />
-                      {showRelationshipSlider ? (
-                        <div className="player-relationship-controls">
-                          <label
-                            className="player-relationship-slider-label"
-                            htmlFor={relationshipThresholdInputId}
-                          >
-                            {relationshipThresholdLabel}
-                          </label>
-                          <div className="player-relationship-slider-group">
-                            <input
-                              id={relationshipThresholdInputId}
-                              type="range"
-                              min="1"
-                              max={relationshipSliderMax}
-                              step="1"
-                              value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                              onChange={handleRelationshipThresholdChange}
-                              className="player-relationship-slider"
-                              aria-valuemin={1}
-                              aria-valuemax={relationshipSliderMax}
-                              aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
-                              aria-valuetext={relationshipThresholdAria}
-                              disabled={relationshipSliderDisabled}
-                            />
-                            <span className="player-relationship-slider-value">
-                              {relationshipThresholdValue}
-                            </span>
+              <>
+                {showRelationshipModal ? (
+                  <div
+                    className="player-relationship-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={relationshipModalTitleId}
+                    aria-label={relationshipModalLabel}
+                    onClick={handleRelationshipModalBackdropClick}
+                  >
+                    <div className="player-relationship-modal-card" role="document">
+                      <div className="player-relationship-modal-header">
+                        <h2 id={relationshipModalTitleId} className="player-relationship-modal-title">
+                          {relationshipTitle}
+                        </h2>
+                        <button
+                          type="button"
+                          className="player-relationship-modal-close"
+                          onClick={handleRelationshipModalClose}
+                          aria-label={relationshipCollapseLabel}
+                          title={relationshipCollapseTitle}
+                        >
+                          <CloseIcon className="player-relationship-modal-close-icon" />
+                        </button>
+                      </div>
+                      <div className="player-relationship-modal-body">
+                        <div className="player-relationship-graph-wrapper player-relationship-graph-wrapper--modal">
+                          <PlayerRelationshipGraph
+                            elements={relationshipElements}
+                            layout={relationshipLayout}
+                            ariaLabel={relationshipAriaLabel}
+                            className="player-relationship-graph-canvas"
+                          />
+                          <div className="player-relationship-tools player-relationship-tools--modal">
+                            {relationshipLayoutControlsElement}
                           </div>
                         </div>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </section>
+                        {showRelationshipSlider ? (
+                          <div className="player-relationship-controls player-relationship-controls--modal">
+                            <label
+                              className="player-relationship-slider-label"
+                              htmlFor={relationshipModalThresholdInputId}
+                            >
+                              {relationshipThresholdLabel}
+                            </label>
+                            <div className="player-relationship-slider-group">
+                              <input
+                                id={relationshipModalThresholdInputId}
+                                type="range"
+                                min="1"
+                                max={relationshipSliderMax}
+                                step="1"
+                                value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                onChange={handleRelationshipThresholdChange}
+                                className="player-relationship-slider"
+                                aria-valuemin={1}
+                                aria-valuemax={relationshipSliderMax}
+                                aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                aria-valuetext={relationshipThresholdAria}
+                                disabled={relationshipSliderDisabled}
+                              />
+                              <span className="player-relationship-slider-value">
+                                {relationshipThresholdValue}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                <section className={relationshipCardClassName}>
+                  <h2 className="player-chart-title">{relationshipTitle}</h2>
+                  <div className="player-chart-body player-relationship-body">
+                    {relationshipLoading ? (
+                      <p className="player-relationship-status">{relationshipLoadingLabel}</p>
+                    ) : relationshipError ? (
+                      <p className="player-relationship-status error">{relationshipErrorLabel}</p>
+                    ) : relationshipElements.length === 0 ? (
+                      <p className="player-relationship-status">{relationshipEmptyLabel}</p>
+                    ) : (
+                      <>
+                        <div className="player-relationship-graph-wrapper">
+                          <PlayerRelationshipGraph
+                            elements={relationshipElements}
+                            layout={relationshipLayout}
+                            ariaLabel={relationshipAriaLabel}
+                            className="player-relationship-graph-canvas"
+                          />
+                          <div className="player-relationship-tools">
+                            <button
+                              type="button"
+                              className="player-relationship-modal-toggle"
+                              onClick={handleRelationshipModalOpen}
+                              aria-label={relationshipExpandLabel}
+                              title={relationshipExpandTitle}
+                            >
+                              <ExpandIcon className="player-relationship-modal-toggle-icon" />
+                            </button>
+                            {relationshipLayoutControlsElement}
+                          </div>
+                        </div>
+                        {!showRelationshipModal && showRelationshipSlider ? (
+                          <div className="player-relationship-controls">
+                            <label
+                              className="player-relationship-slider-label"
+                              htmlFor={relationshipThresholdInputId}
+                            >
+                              {relationshipThresholdLabel}
+                            </label>
+                            <div className="player-relationship-slider-group">
+                              <input
+                                id={relationshipThresholdInputId}
+                                type="range"
+                                min="1"
+                                max={relationshipSliderMax}
+                                step="1"
+                                value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                onChange={handleRelationshipThresholdChange}
+                                className="player-relationship-slider"
+                                aria-valuemin={1}
+                                aria-valuemax={relationshipSliderMax}
+                                aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                aria-valuetext={relationshipThresholdAria}
+                                disabled={relationshipSliderDisabled}
+                              />
+                              <span className="player-relationship-slider-value">
+                                {relationshipThresholdValue}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                </section>
+              </>
             ) : scoreChartData || timeChartData ? (
               <div className="player-chart-grid">
                 {scoreChartData ? (

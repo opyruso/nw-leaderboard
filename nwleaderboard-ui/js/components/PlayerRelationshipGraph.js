@@ -1,5 +1,9 @@
 let elkRegistered = false;
 let elkAvailable = false;
+let fcoseRegistered = false;
+let fcoseAvailable = false;
+let colaRegistered = false;
+let colaAvailable = false;
 
 function ensureCytoscape() {
   const cytoscapeLib = window?.cytoscape;
@@ -20,6 +24,36 @@ function ensureCytoscape() {
     elkRegistered = true;
   } else if (typeof window?.cytoscapeElk === 'function') {
     elkAvailable = true;
+  }
+  if (!fcoseRegistered) {
+    const fcoseExtension = window?.cytoscapeFcose;
+    if (typeof fcoseExtension === 'function') {
+      try {
+        cytoscapeLib.use(fcoseExtension);
+        fcoseAvailable = true;
+      } catch (error) {
+        console.error('Unable to register Cytoscape fCoSE extension', error);
+        fcoseAvailable = false;
+      }
+    }
+    fcoseRegistered = true;
+  } else if (typeof window?.cytoscapeFcose === 'function') {
+    fcoseAvailable = true;
+  }
+  if (!colaRegistered) {
+    const colaExtension = window?.cytoscapeCola;
+    if (typeof colaExtension === 'function') {
+      try {
+        cytoscapeLib.use(colaExtension);
+        colaAvailable = true;
+      } catch (error) {
+        console.error('Unable to register Cytoscape CoLa extension', error);
+        colaAvailable = false;
+      }
+    }
+    colaRegistered = true;
+  } else if (typeof window?.cytoscapeCola === 'function') {
+    colaAvailable = true;
   }
   return cytoscapeLib;
 }
@@ -172,6 +206,10 @@ export default function PlayerRelationshipGraph({
         : { ...DEFAULT_LAYOUT, ...(layout || {}) };
     if (layoutOptions?.name === 'elk' && !elkAvailable) {
       layoutOptions.name = 'breadthfirst';
+    } else if (layoutOptions?.name === 'fcose' && !fcoseAvailable) {
+      layoutOptions.name = 'cose';
+    } else if (layoutOptions?.name === 'cola' && !colaAvailable) {
+      layoutOptions.name = 'cose';
     }
     const cy = cytoscapeLib({
       container: containerRef.current,
