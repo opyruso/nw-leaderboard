@@ -1,6 +1,7 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonIconPath, getDungeonNameForLang, parseBoolean, sortDungeons } from '../dungeons.js';
 import ChartCanvas from '../components/ChartCanvas.js';
+import PlayerRelationshipGraph from '../components/PlayerRelationshipGraph.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
@@ -134,6 +135,44 @@ function calculatePercentage(value, minimum, maximum) {
   return Math.max(0, Math.min(100, percent));
 }
 
+function RelationshipIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="5" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="19" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="19" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <line x1="5" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="19" y1="5" x2="12" y2="19" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="5" y1="5" x2="19" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RadarIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      role="img"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="5.6" y1="6.2" x2="18.4" y2="17.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="18.4" y1="6.2" x2="5.6" y2="17.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -178,6 +217,11 @@ export default function Player({ canContribute = false }) {
   const [individualRank, setIndividualRank] = React.useState(null);
   const [individualRankLoading, setIndividualRankLoading] = React.useState(false);
   const [individualRankError, setIndividualRankError] = React.useState(false);
+  const [showRelationshipGraph, setShowRelationshipGraph] = React.useState(false);
+  const [relationshipData, setRelationshipData] = React.useState(null);
+  const [relationshipLoading, setRelationshipLoading] = React.useState(false);
+  const [relationshipError, setRelationshipError] = React.useState(false);
+  const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
 
   const profilePlayerId = React.useMemo(() => {
     if (!profile) {
@@ -201,6 +245,14 @@ export default function Player({ canContribute = false }) {
     }
     return '';
   }, [hasPlayerId, normalisedPlayerId, profilePlayerId]);
+
+  React.useEffect(() => {
+    setShowRelationshipGraph(false);
+    setRelationshipData(null);
+    setRelationshipError(false);
+    setRelationshipLoading(false);
+    setRelationshipPlayerId('');
+  }, [normalisedPlayerId]);
 
   React.useEffect(() => {
     if (hasPlayerId) {
@@ -610,6 +662,58 @@ export default function Player({ canContribute = false }) {
     };
   }, [hasPlayerId, normalisedPlayerId, seasonInitialised, selectedSeasonId]);
 
+  React.useEffect(() => {
+    if (!showRelationshipGraph || !hasPlayerId) {
+      return undefined;
+    }
+    if (relationshipPlayerId === normalisedPlayerId && relationshipData) {
+      return undefined;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    setRelationshipLoading(true);
+    setRelationshipError(false);
+
+    const url = `${API_BASE_URL}/player/${encodeURIComponent(normalisedPlayerId)}/relationships`;
+    fetch(url, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load relationship graph: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        setRelationshipData(data);
+        setRelationshipPlayerId(normalisedPlayerId);
+        setRelationshipLoading(false);
+      })
+      .catch((errorInstance) => {
+        if (!active || errorInstance.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load relationship graph', errorInstance);
+        setRelationshipError(true);
+        setRelationshipData(null);
+        setRelationshipPlayerId('');
+        setRelationshipLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    showRelationshipGraph,
+    hasPlayerId,
+    normalisedPlayerId,
+    relationshipData,
+    relationshipPlayerId,
+  ]);
+
   const preparedDungeons = React.useMemo(() => {
     if (!profile || !Array.isArray(profile.dungeons)) {
       return [];
@@ -830,6 +934,84 @@ export default function Player({ canContribute = false }) {
     return { data, options };
   }, [preparedDungeons, lang, t]);
 
+  const relationshipElements = React.useMemo(() => {
+    if (!relationshipData || typeof relationshipData !== 'object') {
+      return [];
+    }
+
+    const normaliseId = (value) => {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      return String(value).trim();
+    };
+
+    const normaliseCategory = (value, fallback) => {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim().toLowerCase();
+      }
+      return fallback;
+    };
+
+    const elements = [];
+    const nodes = Array.isArray(relationshipData.nodes) ? relationshipData.nodes : [];
+    nodes.forEach((node) => {
+      if (!node) {
+        return;
+      }
+      const id = normaliseId(node.id ?? node.playerId);
+      if (!id) {
+        return;
+      }
+      const label =
+        typeof node.label === 'string' && node.label.trim().length > 0 ? node.label.trim() : id;
+      const category = normaliseCategory(node.category, 'other');
+      elements.push({
+        data: {
+          id,
+          label,
+          category,
+        },
+        classes: `node-${category}`,
+      });
+    });
+
+    const edges = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
+    edges.forEach((edge) => {
+      if (!edge) {
+        return;
+      }
+      const source = normaliseId(edge.source);
+      const target = normaliseId(edge.target);
+      if (!source || !target) {
+        return;
+      }
+      let id = normaliseId(edge.id);
+      if (!id) {
+        id = `${source}-${target}`;
+      }
+      const category = normaliseCategory(edge.category, 'weak');
+      const sharedRunsRaw = Number(edge.sharedRuns);
+      const sharedRuns = Number.isFinite(sharedRunsRaw) && sharedRunsRaw > 0 ? Math.round(sharedRunsRaw) : 0;
+      elements.push({
+        data: {
+          id,
+          source,
+          target,
+          category,
+          sharedRuns,
+          sharedRunsLabel: sharedRuns > 0 ? String(sharedRuns) : '',
+        },
+        classes: `relationship-${category}`,
+      });
+    });
+
+    return elements;
+  }, [relationshipData]);
+
   const renderRankIndicator = React.useCallback((position, label) => {
     if (position === undefined || position === null) {
       return null;
@@ -875,6 +1057,100 @@ export default function Player({ canContribute = false }) {
     }
     return '';
   }, [profile, hasPlayerId, normalisedPlayerId]);
+
+  const relationshipTitle = React.useMemo(() => {
+    const label = t.playerRelationshipTitle;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Team relationships';
+  }, [t]);
+
+  const relationshipToggleLabel = React.useMemo(() => {
+    const label = showRelationshipGraph ? t.playerRelationshipBackLabel : t.playerRelationshipToggleLabel;
+    const fallback = showRelationshipGraph ? 'Radar view' : 'Relationship';
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return fallback;
+  }, [showRelationshipGraph, t]);
+
+  const relationshipToggleTitle = React.useMemo(() => {
+    const rawTitle = showRelationshipGraph
+      ? t.playerRelationshipBackTitle
+      : t.playerRelationshipToggleTitle;
+    const fallback = showRelationshipGraph ? 'Show radar charts' : 'Show relationship graph';
+    if (typeof rawTitle === 'string' && rawTitle.trim().length > 0) {
+      return rawTitle.trim();
+    }
+    return fallback;
+  }, [showRelationshipGraph, t]);
+
+  const relationshipLoadingLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLoading;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Loading relationship data…';
+  }, [t]);
+
+  const relationshipErrorLabel = React.useMemo(() => {
+    const label = t.playerRelationshipError;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Unable to load relationship data.';
+  }, [t]);
+
+  const relationshipEmptyLabel = React.useMemo(() => {
+    const label = t.playerRelationshipEmpty;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'No relationship data available yet.';
+  }, [t]);
+
+  const relationshipAriaLabel = React.useMemo(() => {
+    const fallbackName = (() => {
+      if (playerPrimaryName) {
+        return playerPrimaryName;
+      }
+      if (playerIdentifier) {
+        if (typeof t.playerIdLabel === 'function') {
+          try {
+            return t.playerIdLabel(playerIdentifier);
+          } catch (error) {
+            return `ID #${playerIdentifier}`;
+          }
+        }
+        return `ID #${playerIdentifier}`;
+      }
+      if (normalisedPlayerId) {
+        return normalisedPlayerId;
+      }
+      return '';
+    })();
+    const template = t.playerRelationshipAria;
+    if (typeof template === 'function') {
+      return template(fallbackName || '');
+    }
+    if (typeof template === 'string' && template.trim().length > 0) {
+      const trimmed = template.trim();
+      if (fallbackName) {
+        return trimmed.replace('{player}', fallbackName);
+      }
+      return trimmed;
+    }
+    if (fallbackName) {
+      return `Relationship graph for ${fallbackName}`;
+    }
+    return 'Relationship graph';
+  }, [
+    t,
+    playerPrimaryName,
+    playerIdentifier,
+    normalisedPlayerId,
+  ]);
 
   const hasIndividualRankTarget = React.useMemo(() => {
     if (typeof targetPlayerId !== 'string') {
@@ -959,6 +1235,13 @@ export default function Player({ canContribute = false }) {
   const handleRegionFilterChange = React.useCallback((event) => {
     setRegionFilter(event.target.value);
   }, []);
+
+  const handleRelationshipToggle = React.useCallback(() => {
+    if (!hasPlayerId) {
+      return;
+    }
+    setShowRelationshipGraph((previous) => !previous);
+  }, [hasPlayerId]);
 
   const availableRegions = React.useMemo(() => [''].concat(DEFAULT_REGIONS), []);
 
@@ -1238,8 +1521,22 @@ export default function Player({ canContribute = false }) {
                   ''
                 )}
               </h2>
-              {adaptabilityIndex !== null || hasIndividualRankTarget ? (
+              {hasPlayerId ? (
                 <div className="player-profile-metrics">
+                  <button
+                    type="button"
+                    className={`player-relationship-toggle${showRelationshipGraph ? ' active' : ''}`}
+                    onClick={handleRelationshipToggle}
+                    aria-pressed={showRelationshipGraph}
+                    title={relationshipToggleTitle || undefined}
+                  >
+                    {showRelationshipGraph ? (
+                      <RadarIcon className="player-relationship-toggle-icon" />
+                    ) : (
+                      <RelationshipIcon className="player-relationship-toggle-icon" />
+                    )}
+                    <span className="player-relationship-toggle-label">{relationshipToggleLabel}</span>
+                  </button>
                   {adaptabilityIndex !== null ? (
                     <div
                       className="player-adaptability"
@@ -1491,7 +1788,25 @@ export default function Player({ canContribute = false }) {
           <p className="leaderboard-status">{t.playerNoRuns}</p>
         ) : (
           <>
-            {scoreChartData || timeChartData ? (
+            {showRelationshipGraph ? (
+              <section className="player-chart-card player-relationship-card">
+                <h2 className="player-chart-title">{relationshipTitle}</h2>
+                <div className="player-chart-body player-relationship-body">
+                  {relationshipLoading ? (
+                    <p className="player-relationship-status">{relationshipLoadingLabel}</p>
+                  ) : relationshipError ? (
+                    <p className="player-relationship-status error">{relationshipErrorLabel}</p>
+                  ) : relationshipElements.length === 0 ? (
+                    <p className="player-relationship-status">{relationshipEmptyLabel}</p>
+                  ) : (
+                    <PlayerRelationshipGraph
+                      elements={relationshipElements}
+                      ariaLabel={relationshipAriaLabel}
+                    />
+                  )}
+                </div>
+              </section>
+            ) : scoreChartData || timeChartData ? (
               <div className="player-chart-grid">
                 {scoreChartData ? (
                   <section className="player-chart-card">
