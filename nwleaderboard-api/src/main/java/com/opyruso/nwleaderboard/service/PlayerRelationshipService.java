@@ -53,8 +53,21 @@ public class PlayerRelationshipService {
 
         Player accountRoot = resolveAccountRoot(origin);
         Map<Long, Player> accountPlayers = loadAccountPlayers(origin, accountRoot);
+        Map<Long, GroupInfo> nodeGroups = new LinkedHashMap<>();
         Map<Long, PlayerNodeBuilder> nodes = new LinkedHashMap<>();
-        addNode(nodes, origin, "origin");
+
+        Long primaryGroupId = accountRoot != null && accountRoot.getId() != null
+                ? accountRoot.getId()
+                : origin.getId();
+        String primaryGroupLabel = accountRoot != null
+                ? safeName(accountRoot.getPlayerName())
+                : safeName(origin.getPlayerName());
+
+        GroupInfo originGroup = assignGroup(nodeGroups, origin.getId(), primaryGroupId, primaryGroupLabel);
+        PlayerNodeBuilder originBuilder = addNode(nodes, origin, "origin");
+        if (originBuilder != null) {
+            originBuilder.applyGroup(originGroup);
+        }
         for (Player accountPlayer : accountPlayers.values()) {
             if (accountPlayer == null || accountPlayer.getId() == null) {
                 continue;
@@ -62,7 +75,12 @@ public class PlayerRelationshipService {
             if (Objects.equals(accountPlayer.getId(), origin.getId())) {
                 continue;
             }
-            addNode(nodes, accountPlayer, "alternate");
+            GroupInfo groupInfo = assignGroup(
+                    nodeGroups, accountPlayer.getId(), primaryGroupId, primaryGroupLabel);
+            PlayerNodeBuilder builder = addNode(nodes, accountPlayer, "alternate");
+            if (builder != null) {
+                builder.applyGroup(groupInfo);
+            }
         }
 
         Set<Long> runPlayerIds = new LinkedHashSet<>();
@@ -79,21 +97,26 @@ public class PlayerRelationshipService {
                 continue;
             }
             Long playerKey = entry.getKey();
-            if (!nodes.containsKey(playerKey)) {
-                nodes.put(playerKey, new PlayerNodeBuilder(playerKey, entry.getValue(), "other"));
-            }
+            PlayerNodeBuilder builder =
+                    nodes.computeIfAbsent(playerKey, key -> new PlayerNodeBuilder(key, entry.getValue(), "other"));
+            builder.applyGroup(nodeGroups.get(playerKey));
         }
 
         Map<PlayerPair, Integer> sharedRuns = computeSharedRuns(runParticipants);
 
         Map<Long, Set<Long>> externalAccountLinks = mapExternalAccountLinks(
-                accountRoot, accountPlayers.keySet(), playerNames.keySet(), nodes, playerNames);
+                accountRoot,
+                accountPlayers.keySet(),
+                playerNames.keySet(),
+                nodes,
+                playerNames,
+                nodeGroups);
 
         List<PlayerRelationshipEdgeResponse> edges = buildEdges(origin, accountPlayers.keySet(), sharedRuns);
         edges.addAll(buildAccountEdges(origin, accountPlayers.keySet(), sharedRuns));
         edges.addAll(buildExternalAccountEdges(externalAccountLinks, sharedRuns));
 
-        List<PlayerRelationshipNodeResponse> nodeResponses = buildNodeResponses(nodes, playerNames);
+        List<PlayerRelationshipNodeResponse> nodeResponses = buildNodeResponses(nodes, playerNames, nodeGroups);
         edges = mergeAndSortEdges(edges);
 
         return Optional.of(new PlayerRelationshipGraphResponse(nodeResponses, edges));
@@ -189,7 +212,8 @@ public class PlayerRelationshipService {
             Set<Long> accountPlayerIds,
             Set<Long> graphPlayerIds,
             Map<Long, PlayerNodeBuilder> nodes,
-            Map<Long, String> playerNames) {
+            Map<Long, String> playerNames,
+            Map<Long, GroupInfo> nodeGroups) {
         Map<Long, Set<Long>> accountLinks = new LinkedHashMap<>();
         if (nodes == null || playerNames == null) {
             return accountLinks;
@@ -220,8 +244,23 @@ public class PlayerRelationshipService {
                 continue;
             }
 
-            addNode(nodes, accountMain, "other");
+            String accountMainLabel = safeName(accountMain.getPlayerName());
+            if (accountMainLabel.isEmpty()) {
+                accountMainLabel = playerNames.getOrDefault(accountMainId, "");
+            }
+            GroupInfo mainGroup = assignGroup(nodeGroups, accountMainId, accountMainId, accountMainLabel);
+            PlayerNodeBuilder mainBuilder = addNode(nodes, accountMain, "other");
+            if (mainBuilder != null) {
+                mainBuilder.applyGroup(mainGroup);
+            }
             playerNames.putIfAbsent(accountMainId, safeName(accountMain.getPlayerName()));
+
+            GroupInfo participantGroup = assignGroup(
+                    nodeGroups, participant.getId(), accountMainId, accountMainLabel);
+            PlayerNodeBuilder participantBuilder = nodes.get(participant.getId());
+            if (participantBuilder != null) {
+                participantBuilder.applyGroup(participantGroup);
+            }
 
             accountLinks
                     .computeIfAbsent(accountMainId, ignored -> new LinkedHashSet<>())
@@ -292,7 +331,9 @@ public class PlayerRelationshipService {
     }
 
     private List<PlayerRelationshipNodeResponse> buildNodeResponses(
-            Map<Long, PlayerNodeBuilder> nodes, Map<Long, String> playerNames) {
+            Map<Long, PlayerNodeBuilder> nodes,
+            Map<Long, String> playerNames,
+            Map<Long, GroupInfo> nodeGroups) {
         List<PlayerRelationshipNodeResponse> responses = new ArrayList<>(nodes.size());
         List<PlayerNodeBuilder> builders = new ArrayList<>(nodes.values());
         builders.sort(Comparator
@@ -302,11 +343,13 @@ public class PlayerRelationshipService {
             if (builder == null || builder.id == null) {
                 continue;
             }
+            builder.applyGroup(nodeGroups.get(builder.id));
             String name = builder.name;
             if ((name == null || name.isBlank()) && playerNames.containsKey(builder.id)) {
                 name = playerNames.get(builder.id);
             }
-            responses.add(new PlayerRelationshipNodeResponse(builder.id.toString(), name, builder.category));
+            responses.add(new PlayerRelationshipNodeResponse(
+                    builder.id.toString(), name, builder.category, builder.groupIdAsString(), builder.groupLabel()));
         }
         return responses;
     }
@@ -430,12 +473,27 @@ public class PlayerRelationshipService {
         return current;
     }
 
-    private void addNode(Map<Long, PlayerNodeBuilder> nodes, Player player, String category) {
+    private PlayerNodeBuilder addNode(Map<Long, PlayerNodeBuilder> nodes, Player player, String category) {
         if (player == null || player.getId() == null) {
-            return;
+            return null;
         }
-        nodes.putIfAbsent(
-                player.getId(), new PlayerNodeBuilder(player.getId(), safeName(player.getPlayerName()), category));
+        return nodes.computeIfAbsent(
+                player.getId(),
+                ignored -> new PlayerNodeBuilder(player.getId(), safeName(player.getPlayerName()), category));
+    }
+
+    private GroupInfo assignGroup(
+            Map<Long, GroupInfo> nodeGroups, Long nodeId, Long groupId, String groupLabel) {
+        if (nodeGroups == null || nodeId == null || groupId == null) {
+            return null;
+        }
+        String label = safeName(groupLabel);
+        if (label.isEmpty()) {
+            label = groupId.toString();
+        }
+        GroupInfo info = new GroupInfo(groupId, label);
+        nodeGroups.put(nodeId, info);
+        return info;
     }
 
     private String safeName(String name) {
@@ -445,6 +503,8 @@ public class PlayerRelationshipService {
         String trimmed = name.strip();
         return trimmed.isEmpty() ? "" : trimmed;
     }
+
+    private record GroupInfo(Long id, String label) {}
 
     private record PlayerPair(Long left, Long right) {
 
@@ -489,11 +549,36 @@ public class PlayerRelationshipService {
         private final Long id;
         private final String name;
         private final String category;
+        private Long groupId;
+        private String groupLabel;
 
         private PlayerNodeBuilder(Long id, String name, String category) {
             this.id = id;
             this.name = name != null ? name : "";
             this.category = category != null ? category : "other";
+        }
+
+        private void applyGroup(GroupInfo groupInfo) {
+            if (groupInfo == null) {
+                return;
+            }
+            if (groupInfo.id() != null) {
+                this.groupId = groupInfo.id();
+            }
+            String infoLabel = groupInfo.label();
+            if (infoLabel != null && !infoLabel.isBlank()) {
+                this.groupLabel = infoLabel;
+            } else if (this.groupId != null && (this.groupLabel == null || this.groupLabel.isBlank())) {
+                this.groupLabel = this.groupId.toString();
+            }
+        }
+
+        private String groupIdAsString() {
+            return groupId != null ? groupId.toString() : null;
+        }
+
+        private String groupLabel() {
+            return groupLabel;
         }
 
         private int priority() {
