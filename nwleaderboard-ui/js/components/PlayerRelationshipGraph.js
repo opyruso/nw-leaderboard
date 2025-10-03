@@ -93,8 +93,6 @@ const BASE_STYLE = [
       'border-color': '#1e293b',
       'border-width': 2,
       'shape': 'round-rectangle',
-      width: 'auto',
-      height: 'auto',
       padding: 18,
       label: 'data(label)',
       'compound-sizing-wrt-labels': 'exclude',
@@ -216,7 +214,6 @@ export default function PlayerRelationshipGraph({
       elements: resolvedElements,
       layout: layoutOptions,
       style: BASE_STYLE,
-      wheelSensitivity: 0.25,
       pixelRatio: 1,
     });
 
