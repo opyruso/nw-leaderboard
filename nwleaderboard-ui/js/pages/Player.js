@@ -1052,7 +1052,86 @@ export default function Player({ canContribute = false }) {
       }
       return sharedRuns >= minSharedRuns;
     });
-    return [...relationshipGraphNodes, ...filteredEdges];
+
+    if (filteredEdges.length === 0) {
+      const anchorNodes = relationshipGraphNodes.filter((node) => {
+        const category = String(node?.data?.category || '').toLowerCase();
+        return category === 'origin' || category === 'alternate' || category === 'alt';
+      });
+      return anchorNodes.length > 0 ? anchorNodes : relationshipGraphNodes;
+    }
+
+    const adjacency = new Map();
+    filteredEdges.forEach((edge) => {
+      const source = edge?.data?.source;
+      const target = edge?.data?.target;
+      if (!source || !target) {
+        return;
+      }
+      if (!adjacency.has(source)) {
+        adjacency.set(source, new Set());
+      }
+      if (!adjacency.has(target)) {
+        adjacency.set(target, new Set());
+      }
+      adjacency.get(source).add(target);
+      adjacency.get(target).add(source);
+    });
+
+    const anchorIds = new Set();
+    relationshipGraphNodes.forEach((node) => {
+      const id = node?.data?.id;
+      if (!id) {
+        return;
+      }
+      const category = String(node?.data?.category || '').toLowerCase();
+      if (category === 'origin' || category === 'alternate' || category === 'alt') {
+        anchorIds.add(id);
+      }
+    });
+
+    if (anchorIds.size === 0 && relationshipGraphNodes.length > 0) {
+      const fallbackId = relationshipGraphNodes[0]?.data?.id;
+      if (fallbackId) {
+        anchorIds.add(fallbackId);
+      }
+    }
+
+    if (anchorIds.size === 0) {
+      return [...relationshipGraphNodes, ...filteredEdges];
+    }
+
+    const visibleIds = new Set(anchorIds);
+    const queue = [...anchorIds];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      const neighbours = adjacency.get(current);
+      if (!neighbours) {
+        continue;
+      }
+      neighbours.forEach((next) => {
+        if (!visibleIds.has(next)) {
+          visibleIds.add(next);
+          queue.push(next);
+        }
+      });
+    }
+
+    const visibleNodes = relationshipGraphNodes.filter((node) => {
+      const id = node?.data?.id;
+      return id && visibleIds.has(id);
+    });
+
+    const visibleEdges = filteredEdges.filter((edge) => {
+      const source = edge?.data?.source;
+      const target = edge?.data?.target;
+      if (!source || !target) {
+        return false;
+      }
+      return visibleIds.has(source) && visibleIds.has(target);
+    });
+
+    return [...visibleNodes, ...visibleEdges];
   }, [relationshipGraphNodes, relationshipGraphEdges, relationshipMinSharedRuns]);
 
   const relationshipSliderMax = relationshipMaxSharedRuns > 0 ? relationshipMaxSharedRuns : 1;
