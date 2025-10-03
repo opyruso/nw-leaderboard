@@ -2794,8 +2794,8 @@ body[data-theme='light'] .player-chart-card {
 
 .player-relationship-tools {
   position: absolute;
-  top: 0.85rem;
-  right: 0.85rem;
+  top: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
