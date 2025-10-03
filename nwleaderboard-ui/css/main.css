@@ -2781,13 +2781,200 @@ body[data-theme='light'] .player-chart-card {
   flex-direction: column;
 }
 
+.player-relationship-graph-wrapper {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.player-relationship-graph.player-relationship-graph-canvas {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.player-relationship-tools {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+  z-index: 2;
+}
+
+.player-relationship-modal-toggle,
+.player-relationship-modal-close {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.player-relationship-modal-toggle:hover,
+.player-relationship-modal-toggle:focus-visible,
+.player-relationship-modal-close:hover,
+.player-relationship-modal-close:focus-visible {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: rgba(191, 219, 254, 0.85);
+  box-shadow: 0 12px 25px rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+.player-relationship-modal-toggle:focus-visible,
+.player-relationship-modal-close:focus-visible {
+  outline: 2px solid rgba(191, 219, 254, 0.7);
+  outline-offset: 2px;
+}
+
+.player-relationship-modal-toggle-icon,
+.player-relationship-modal-close-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.player-relationship-layouts {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(15, 23, 42, 0.78);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.player-relationship-layout {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.player-relationship-layout:hover,
+.player-relationship-layout:focus-visible {
+  background: rgba(226, 232, 240, 0.16);
+  border-color: rgba(148, 163, 184, 0.6);
+  color: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.player-relationship-layout:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.55);
+  outline-offset: 2px;
+}
+
+.player-relationship-layout.active {
+  background: rgba(37, 99, 235, 0.85);
+  border-color: rgba(191, 219, 254, 0.9);
+  color: #f8fafc;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.45);
+}
+
+.player-relationship-layout:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.player-relationship-layout-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.player-relationship-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem clamp(1rem, 5vw, 3rem);
+  z-index: 1200;
+  backdrop-filter: blur(6px);
+}
+
+.player-relationship-modal-card {
+  width: min(90vw, 1200px);
+  height: min(90vh, 720px);
+  background: var(--surface-dark);
+  border-radius: 22px;
+  border: 1px solid var(--border-dark);
+  box-shadow: 0 28px 56px rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.player-relationship-modal-header {
+  padding: 1.35rem 1.75rem 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.player-relationship-modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.player-relationship-modal-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0 1.75rem 1.75rem;
+}
+
+.player-relationship-graph-wrapper--modal {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.player-relationship-controls--modal {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.65);
+  padding: 1rem 1.25rem 1.1rem;
+}
+
+.player-relationship-card.modal-open {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .player-relationship-controls {
   padding: 0.85rem 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.7rem;
   background: rgba(15, 23, 42, 0.55);
   border-top: 1px solid rgba(15, 23, 42, 0.65);
+}
+
+.player-relationship-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .player-relationship-slider-label {
@@ -2801,6 +2988,8 @@ body[data-theme='light'] .player-chart-card {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  flex: 1 1 260px;
+  min-width: 220px;
 }
 
 .player-relationship-slider {
@@ -2823,14 +3012,76 @@ body[data-theme='light'] .player-chart-card {
   flex: 1 1 auto;
 }
 
+.player-relationship-controls-row .player-relationship-layouts {
+  margin-left: auto;
+}
+
 body[data-theme='light'] .player-relationship-controls {
   background: rgba(248, 250, 252, 0.78);
   border-top-color: rgba(148, 163, 184, 0.4);
 }
 
+body[data-theme='light'] .player-relationship-controls-row .player-relationship-layouts {
+  margin-left: auto;
+}
+
 body[data-theme='light'] .player-relationship-slider-label,
 body[data-theme='light'] .player-relationship-slider-value {
   color: rgba(15, 23, 42, 0.7);
+}
+
+body[data-theme='light'] .player-relationship-modal-toggle,
+body[data-theme='light'] .player-relationship-modal-close {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: rgba(30, 41, 59, 0.78);
+}
+
+body[data-theme='light'] .player-relationship-modal-toggle:hover,
+body[data-theme='light'] .player-relationship-modal-toggle:focus-visible,
+body[data-theme='light'] .player-relationship-modal-close:hover,
+body[data-theme='light'] .player-relationship-modal-close:focus-visible {
+  background: rgba(37, 99, 235, 0.9);
+  border-color: rgba(191, 219, 254, 0.85);
+  color: #f8fafc;
+}
+
+body[data-theme='light'] .player-relationship-layouts {
+  background: rgba(248, 250, 252, 0.94);
+  border-color: rgba(148, 163, 184, 0.45);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+}
+
+body[data-theme='light'] .player-relationship-layout {
+  color: rgba(30, 41, 59, 0.72);
+}
+
+body[data-theme='light'] .player-relationship-layout:hover,
+body[data-theme='light'] .player-relationship-layout:focus-visible {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(96, 165, 250, 0.55);
+  color: rgba(30, 41, 59, 0.86);
+}
+
+body[data-theme='light'] .player-relationship-layout.active {
+  background: rgba(37, 99, 235, 0.92);
+  border-color: rgba(191, 219, 254, 0.85);
+  color: #f8fafc;
+}
+
+body[data-theme='light'] .player-relationship-modal {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+body[data-theme='light'] .player-relationship-modal-card {
+  background: var(--surface-light);
+  border-color: var(--border-light);
+  box-shadow: 0 32px 60px rgba(15, 23, 42, 0.18);
+}
+
+body[data-theme='light'] .player-relationship-controls--modal {
+  background: rgba(248, 250, 252, 0.92);
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 .player-relationship-status {
