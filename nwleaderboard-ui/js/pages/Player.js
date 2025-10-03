@@ -1485,6 +1485,15 @@ export default function Player({ canContribute = false }) {
     () => `${relationshipThresholdInputId}-modal`,
     [relationshipThresholdInputId],
   );
+  const handleRelationshipLayoutClick = React.useCallback(
+    (layoutKey) => {
+      if (relationshipLayoutAvailability[layoutKey] === false) {
+        return;
+      }
+      setRelationshipLayout(layoutKey);
+    },
+    [relationshipLayoutAvailability],
+  );
   const relationshipLayoutControlsElement = React.useMemo(
     () => (
       <div className="player-relationship-layouts" role="group" aria-label={relationshipLayoutGroupLabel}>
@@ -1524,15 +1533,6 @@ export default function Player({ canContribute = false }) {
       setRelationshipMinSharedRuns(rounded);
     }
   }, []);
-  const handleRelationshipLayoutClick = React.useCallback(
-    (layoutKey) => {
-      if (relationshipLayoutAvailability[layoutKey] === false) {
-        return;
-      }
-      setRelationshipLayout(layoutKey);
-    },
-    [relationshipLayoutAvailability],
-  );
   const handleRelationshipModalOpen = React.useCallback(() => {
     setShowRelationshipModal(true);
   }, []);

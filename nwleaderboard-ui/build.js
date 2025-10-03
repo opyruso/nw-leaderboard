@@ -48,6 +48,12 @@ cpSync(
 cpSync('node_modules/chart.js/dist/chart.umd.js', 'dist/vendor/chart.umd.js');
 cpSync('node_modules/elkjs/lib/elk.bundled.js', 'dist/vendor/elk.bundled.js');
 cpSync('node_modules/cytoscape/dist/cytoscape.umd.js', 'dist/vendor/cytoscape.umd.js');
+cpSync('node_modules/layout-base/layout-base.js', 'dist/vendor/layout-base.js');
+cpSync('node_modules/cose-base/cose-base.js', 'dist/vendor/cose-base.js');
+cpSync(
+  'node_modules/cytoscape-cose-bilkent/cytoscape-cose-bilkent.js',
+  'dist/vendor/cytoscape-cose-bilkent.js',
+);
 cpSync('node_modules/cytoscape-fcose/cytoscape-fcose.js', 'dist/vendor/cytoscape-fcose.js');
 cpSync('node_modules/cytoscape-cola/cytoscape-cola.js', 'dist/vendor/cytoscape-cola.js');
 cpSync('node_modules/cytoscape-elk/dist/cytoscape-elk.js', 'dist/vendor/cytoscape-elk.js');
