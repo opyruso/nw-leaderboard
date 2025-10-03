@@ -85,8 +85,10 @@ public class PlayerResource {
 
     @GET
     @Path("/{playerId}/relationships")
-    public Response getRelationships(@PathParam("playerId") Long playerId) {
-        Optional<PlayerRelationshipGraphResponse> graph = playerRelationshipService.getRelationships(playerId);
+    public Response getRelationships(
+            @PathParam("playerId") Long playerId, @QueryParam("seasonId") Integer seasonId) {
+        Optional<PlayerRelationshipGraphResponse> graph =
+                playerRelationshipService.getRelationships(playerId, seasonId);
         if (graph.isEmpty()) {
             return Response.status(Status.NOT_FOUND)
                     .entity(new ApiMessageResponse("player not found", null))
