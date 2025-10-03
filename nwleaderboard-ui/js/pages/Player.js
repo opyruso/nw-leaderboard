@@ -376,15 +376,32 @@ const RELATIONSHIP_LAYOUT_PRESETS = {
     fit: true,
     padding: 60,
     avoidOverlap: true,
-    edgeLength: 140,
-    maxSimulationTime: 4000,
-    nodeSpacing: 36,
-    randomize: false,
-    flow: undefined,
-    infinite: false,
     animate: false,
+    randomize: true,
+    maxSimulationTime: 5000,
+    convergenceThreshold: 0.0001,
+    componentSpacing: 120,
+    infinite: false,
     handleDisconnected: true,
     ungrabifyWhileSimulating: true,
+    nodeSpacing: (node) => {
+      if (node?.isParent && node.isParent()) {
+        return 160;
+      }
+      return 60;
+    },
+    edgeLength: (edge) => {
+      if (edge?.hasClass && edge.hasClass('relationship-strong')) {
+        return 240;
+      }
+      if (edge?.hasClass && edge.hasClass('relationship-medium')) {
+        return 200;
+      }
+      if (edge?.hasClass && edge.hasClass('relationship-weak')) {
+        return 170;
+      }
+      return 150;
+    },
   },
   elk: {
     name: 'elk',
