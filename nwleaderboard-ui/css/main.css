@@ -2215,50 +2215,66 @@ body[data-theme='light'] .individual-table tbody tr:hover {
 
 .player-profile-title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 1.25rem;
-}
-
-.player-adaptability {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.65rem;
-  text-align: right;
-  color: rgba(148, 163, 184, 0.88);
-}
-
-body[data-theme='light'] .player-adaptability {
-  color: rgba(30, 41, 59, 0.7);
+  gap: 1.5rem;
 }
 
 .player-profile-metrics {
   margin-left: auto;
   display: flex;
-  align-items: flex-end;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 1rem;
 }
 
-.player-individual-ranking {
+.player-profile-metric {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  text-align: right;
+  align-items: center;
+  gap: 0.55rem;
+  text-align: center;
   color: rgba(148, 163, 184, 0.88);
 }
 
-body[data-theme='light'] .player-individual-ranking {
+body[data-theme='light'] .player-profile-metric {
   color: rgba(30, 41, 59, 0.7);
 }
 
+.player-profile-metric-label,
+.player-adaptability-label,
 .player-individual-ranking-label {
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.35px;
 }
 
+.player-profile-metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  width: 100%;
+}
+
+.player-adaptability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.player-individual-ranking {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .player-individual-ranking-value {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0.5rem;
   color: var(--color-foreground-dark);
@@ -2277,12 +2293,6 @@ body[data-theme='light'] .player-individual-ranking-value {
 .player-individual-ranking-error {
   font-weight: 600;
   color: #fda4af;
-}
-
-.player-adaptability-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.35px;
 }
 
 .player-adaptability-gauge {
@@ -2325,6 +2335,63 @@ body[data-theme='light'] .player-adaptability-gauge-mask {
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.3px;
+}
+
+body[data-theme='light'] .player-adaptability-value {
+  color: var(--color-foreground-light);
+}
+
+.player-adaptability .player-profile-metric-icon {
+  padding: 0.25rem 0;
+}
+
+.player-relationship-toggle {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.45);
+  border-radius: 16px;
+  padding: 0.85rem 1.15rem;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.player-relationship-toggle svg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.player-relationship-toggle:hover,
+.player-relationship-toggle:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.3);
+  border-color: rgba(56, 189, 248, 0.35);
+  outline: none;
+}
+
+.player-relationship-toggle.active {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(8, 145, 178, 0.25);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+body[data-theme='light'] .player-relationship-toggle {
+  background: rgba(226, 232, 240, 0.65);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: rgba(30, 41, 59, 0.75);
+}
+
+body[data-theme='light'] .player-relationship-toggle:hover,
+body[data-theme='light'] .player-relationship-toggle:focus-visible {
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+body[data-theme='light'] .player-relationship-toggle.active {
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(14, 165, 233, 0.45);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
 }
 
 .player-profile-header.editing-main-link {
@@ -2674,6 +2741,59 @@ body[data-theme='light'] .player-chart-card {
 .player-chart-canvas {
   width: 100% !important;
   height: 100% !important;
+}
+
+.player-relationship-card .player-chart-body {
+  height: clamp(300px, 45vw, 420px);
+}
+
+.player-relationship-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1px solid var(--border-dark);
+  background: radial-gradient(circle at top, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.85));
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  box-shadow: inset 0 0 24px rgba(15, 23, 42, 0.5);
+}
+
+body[data-theme='light'] .player-relationship-surface {
+  border-color: var(--border-light);
+  background: radial-gradient(circle at top, rgba(226, 232, 240, 0.9), rgba(148, 163, 184, 0.4));
+  box-shadow: inset 0 0 18px rgba(148, 163, 184, 0.4);
+}
+
+.player-relationship-placeholder {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: rgba(148, 163, 184, 0.88);
+}
+
+body[data-theme='light'] .player-relationship-placeholder {
+  color: rgba(30, 41, 59, 0.7);
+}
+
+.player-relationship-placeholder.error {
+  color: #fca5a5;
+}
+
+body[data-theme='light'] .player-relationship-placeholder.error {
+  color: #dc2626;
+}
+
+.player-relationship-graph {
+  width: 100%;
+  height: 100%;
 }
 
 .player-dungeon-list {

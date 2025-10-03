@@ -1,6 +1,7 @@
 import { LangContext } from '../i18n.js';
 import { getDungeonIconPath, getDungeonNameForLang, parseBoolean, sortDungeons } from '../dungeons.js';
 import ChartCanvas from '../components/ChartCanvas.js';
+import PlayerRelationshipGraph from '../components/PlayerRelationshipGraph.js';
 import DungeonIcon from '../components/DungeonIcon.js';
 import MutationIconList from '../components/MutationIconList.js';
 import RankBadge from '../components/RankBadge.js';
@@ -134,6 +135,51 @@ function calculatePercentage(value, minimum, maximum) {
   return Math.max(0, Math.min(100, percent));
 }
 
+function RelationshipIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="6" cy="6" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="18" cy="6" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="18" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8.5 7.5L10.75 9.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M15.5 7.5L13.25 9.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 10.5V14.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RadarIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      width="32"
+      height="32"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9.25" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      <path d="M12 2.5V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 18.5V21.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M2.5 12H5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M18.5 12H21.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M7 7L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M15 15L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -157,6 +203,7 @@ export default function Player({ canContribute = false }) {
   const [searchResults, setSearchResults] = React.useState([]);
   const [searchLoading, setSearchLoading] = React.useState(false);
   const [searchError, setSearchError] = React.useState(false);
+  const [relationshipView, setRelationshipView] = React.useState(false);
   const searchInputId = React.useId();
   const mainLinkInputId = React.useId();
   const regionFilterId = React.useId();
@@ -210,6 +257,10 @@ export default function Player({ canContribute = false }) {
       setSearchError(false);
     }
   }, [hasPlayerId]);
+
+  React.useEffect(() => {
+    setRelationshipView(false);
+  }, [normalisedPlayerId, selectedSeasonId]);
 
   React.useEffect(() => {
     let active = true;
@@ -1157,6 +1208,62 @@ export default function Player({ canContribute = false }) {
     return `${adaptabilityLabel}: ${adaptabilityIndex}%`;
   }, [adaptabilityIndex, adaptabilityLabel, t]);
 
+  const relationshipLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLabel;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Relationship';
+  }, [t]);
+
+  const relationshipGraphTitle = React.useMemo(() => {
+    const label = t.playerRelationshipGraphTitle;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Relationship graph';
+  }, [t]);
+
+  const relationshipLoadingLabel = React.useMemo(() => {
+    const label = t.playerRelationshipLoading;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Loading relationships…';
+  }, [t]);
+
+  const relationshipErrorLabel = React.useMemo(() => {
+    const label = t.playerRelationshipError;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Unable to load relationships.';
+  }, [t]);
+
+  const relationshipEmptyLabel = React.useMemo(() => {
+    const label = t.playerRelationshipEmpty;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Not enough relationship data yet.';
+  }, [t]);
+
+  const relationshipShowLabel = React.useMemo(() => {
+    const label = t.playerRelationshipShowAria;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Show relationship graph';
+  }, [t]);
+
+  const relationshipHideLabel = React.useMemo(() => {
+    const label = t.playerRelationshipHideAria;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label;
+    }
+    return 'Show radar charts';
+  }, [t]);
+
   const individualRankLabel = React.useMemo(() => {
     const label = t.playerIndividualRankLabel;
     if (typeof label === 'string' && label.trim().length > 0) {
@@ -1238,30 +1345,48 @@ export default function Player({ canContribute = false }) {
                   ''
                 )}
               </h2>
-              {adaptabilityIndex !== null || hasIndividualRankTarget ? (
+              {adaptabilityIndex !== null || hasIndividualRankTarget || hasPlayerId ? (
                 <div className="player-profile-metrics">
+                  {hasPlayerId ? (
+                    <button
+                      type="button"
+                      className={`player-profile-metric player-relationship-toggle${
+                        relationshipView ? ' active' : ''
+                      }`}
+                      onClick={() => setRelationshipView((previous) => !previous)}
+                      aria-pressed={relationshipView}
+                      aria-label={relationshipView ? relationshipHideLabel : relationshipShowLabel}
+                    >
+                      <span className="player-profile-metric-label">{relationshipLabel}</span>
+                      <span className="player-profile-metric-icon" aria-hidden="true">
+                        {relationshipView ? <RadarIcon /> : <RelationshipIcon />}
+                      </span>
+                    </button>
+                  ) : null}
                   {adaptabilityIndex !== null ? (
                     <div
-                      className="player-adaptability"
+                      className="player-profile-metric player-adaptability"
                       role="group"
                       aria-label={adaptabilityAriaLabel || undefined}
                       title={adaptabilityAriaLabel || undefined}
                     >
-                      <span className="player-adaptability-label">{adaptabilityLabel}</span>
-                      <div className="player-adaptability-gauge" aria-hidden="true">
-                        <div
-                          className="player-adaptability-gauge-mask"
-                          style={{
-                            height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%`,
-                          }}
-                        />
-                      </div>
+                      <span className="player-profile-metric-label player-adaptability-label">{adaptabilityLabel}</span>
+                      <span className="player-profile-metric-icon" aria-hidden="true">
+                        <div className="player-adaptability-gauge">
+                          <div
+                            className="player-adaptability-gauge-mask"
+                            style={{
+                              height: `${Math.max(0, Math.min(100, 100 - adaptabilityIndex))}%`,
+                            }}
+                          />
+                        </div>
+                      </span>
                       <span className="player-adaptability-value">{adaptabilityIndex}%</span>
                     </div>
                   ) : null}
                   {hasIndividualRankTarget ? (
-                    <div className="player-individual-ranking">
-                      <span className="player-individual-ranking-label">{individualRankLabel}</span>
+                    <div className="player-profile-metric player-individual-ranking">
+                      <span className="player-profile-metric-label player-individual-ranking-label">{individualRankLabel}</span>
                       <div className="player-individual-ranking-value">
                         {individualRankLoading ? (
                           <span className="player-individual-ranking-loading">
@@ -1491,7 +1616,24 @@ export default function Player({ canContribute = false }) {
           <p className="leaderboard-status">{t.playerNoRuns}</p>
         ) : (
           <>
-            {scoreChartData || timeChartData ? (
+            {relationshipView ? (
+              <section className="player-chart-card player-relationship-card">
+                <h2 className="player-chart-title">{relationshipGraphTitle}</h2>
+                <div className="player-chart-body">
+                  <div className="player-relationship-surface">
+                    <PlayerRelationshipGraph
+                      apiBaseUrl={API_BASE_URL}
+                      playerId={targetPlayerId}
+                      seasonId={selectedSeasonId}
+                      active={relationshipView}
+                      loadingLabel={relationshipLoadingLabel}
+                      errorLabel={relationshipErrorLabel}
+                      emptyLabel={relationshipEmptyLabel}
+                    />
+                  </div>
+                </div>
+              </section>
+            ) : scoreChartData || timeChartData ? (
               <div className="player-chart-grid">
                 {scoreChartData ? (
                   <section className="player-chart-card">
