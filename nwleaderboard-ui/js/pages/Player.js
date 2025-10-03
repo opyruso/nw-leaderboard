@@ -958,6 +958,7 @@ export default function Player({ canContribute = false }) {
     };
 
     const nodes = [];
+    const groupNodes = new Map();
     const edges = [];
     let maxSharedRuns = 0;
 
@@ -973,12 +974,45 @@ export default function Player({ canContribute = false }) {
       const label =
         typeof node.label === 'string' && node.label.trim().length > 0 ? node.label.trim() : id;
       const category = normaliseCategory(node.category, 'other');
+      const groupId = normaliseId(node.groupId);
+      const groupLabel =
+        typeof node.groupLabel === 'string' && node.groupLabel.trim().length > 0
+          ? node.groupLabel.trim()
+          : '';
+
+      let parentId = '';
+      if (groupId) {
+        parentId = `group:${groupId}`;
+        if (!groupNodes.has(parentId)) {
+          const resolvedGroupLabel = groupLabel || label || groupId;
+          groupNodes.set(parentId, {
+            data: {
+              id: parentId,
+              label: resolvedGroupLabel,
+              category: 'group',
+              isGroup: true,
+              groupId,
+              groupLabel: resolvedGroupLabel,
+            },
+            classes: 'node-group',
+          });
+        }
+      }
+
+      const nodeData = {
+        id,
+        label,
+        category,
+      };
+      if (parentId) {
+        const parentNode = groupNodes.get(parentId);
+        nodeData.parent = parentId;
+        nodeData.groupId = groupId;
+        nodeData.groupLabel = parentNode?.data?.groupLabel || groupLabel || label || groupId;
+      }
+
       nodes.push({
-        data: {
-          id,
-          label,
-          category,
-        },
+        data: nodeData,
         classes: `node-${category}`,
       });
     });
@@ -1014,7 +1048,9 @@ export default function Player({ canContribute = false }) {
       });
     });
 
-    return { nodes, edges, maxSharedRuns };
+    const combinedNodes = [...groupNodes.values(), ...nodes];
+
+    return { nodes: combinedNodes, edges, maxSharedRuns };
   }, [relationshipData]);
 
   const {
@@ -1044,6 +1080,8 @@ export default function Player({ canContribute = false }) {
     if (!Array.isArray(relationshipGraphNodes) || !Array.isArray(relationshipGraphEdges)) {
       return [];
     }
+    const groupNodes = relationshipGraphNodes.filter((node) => Boolean(node?.data?.isGroup));
+    const playerNodes = relationshipGraphNodes.filter((node) => !node?.data?.isGroup);
     const minSharedRuns = Math.max(1, Number(relationshipMinSharedRuns) || 1);
     const filteredEdges = relationshipGraphEdges.filter((edge) => {
       const category = String(edge?.data?.category || '').toLowerCase();
@@ -1058,11 +1096,23 @@ export default function Player({ canContribute = false }) {
     });
 
     if (filteredEdges.length === 0) {
-      const anchorNodes = relationshipGraphNodes.filter((node) => {
+      const anchorNodes = playerNodes.filter((node) => {
         const category = String(node?.data?.category || '').toLowerCase();
         return category === 'origin' || category === 'alternate' || category === 'alt';
       });
-      return anchorNodes.length > 0 ? anchorNodes : relationshipGraphNodes;
+      const baseNodes = anchorNodes.length > 0 ? anchorNodes : playerNodes;
+      if (baseNodes.length === 0) {
+        return groupNodes;
+      }
+      const parentIds = new Set();
+      baseNodes.forEach((node) => {
+        const parent = node?.data?.parent;
+        if (parent) {
+          parentIds.add(parent);
+        }
+      });
+      const visibleGroups = groupNodes.filter((node) => parentIds.has(node?.data?.id));
+      return [...visibleGroups, ...baseNodes];
     }
 
     const adjacency = new Map();
@@ -1083,7 +1133,7 @@ export default function Player({ canContribute = false }) {
     });
 
     const anchorIds = new Set();
-    relationshipGraphNodes.forEach((node) => {
+    playerNodes.forEach((node) => {
       const id = node?.data?.id;
       if (!id) {
         return;
@@ -1094,15 +1144,15 @@ export default function Player({ canContribute = false }) {
       }
     });
 
-    if (anchorIds.size === 0 && relationshipGraphNodes.length > 0) {
-      const fallbackId = relationshipGraphNodes[0]?.data?.id;
+    if (anchorIds.size === 0 && playerNodes.length > 0) {
+      const fallbackId = playerNodes[0]?.data?.id;
       if (fallbackId) {
         anchorIds.add(fallbackId);
       }
     }
 
     if (anchorIds.size === 0) {
-      return [...relationshipGraphNodes, ...filteredEdges];
+      return [...groupNodes, ...playerNodes, ...filteredEdges];
     }
 
     const visibleIds = new Set(anchorIds);
@@ -1121,7 +1171,7 @@ export default function Player({ canContribute = false }) {
       });
     }
 
-    const visibleNodes = relationshipGraphNodes.filter((node) => {
+    const visiblePlayerNodes = playerNodes.filter((node) => {
       const id = node?.data?.id;
       return id && visibleIds.has(id);
     });
@@ -1135,7 +1185,16 @@ export default function Player({ canContribute = false }) {
       return visibleIds.has(source) && visibleIds.has(target);
     });
 
-    return [...visibleNodes, ...visibleEdges];
+    const parentIds = new Set();
+    visiblePlayerNodes.forEach((node) => {
+      const parent = node?.data?.parent;
+      if (parent) {
+        parentIds.add(parent);
+      }
+    });
+    const visibleGroups = groupNodes.filter((node) => parentIds.has(node?.data?.id));
+
+    return [...visibleGroups, ...visiblePlayerNodes, ...visibleEdges];
   }, [relationshipGraphNodes, relationshipGraphEdges, relationshipMinSharedRuns]);
 
   const relationshipSliderMax = relationshipMaxSharedRuns > 0 ? relationshipMaxSharedRuns : 1;
