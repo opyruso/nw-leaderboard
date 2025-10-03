@@ -2771,6 +2771,17 @@ body[data-theme='light'] .player-chart-card {
   margin: 2rem 0 1.5rem;
 }
 
+.player-relationship-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.player-relationship-header .player-chart-title {
+  flex: 1 1 auto;
+}
+
 .player-relationship-body {
   height: clamp(320px, 48vw, 460px);
   min-height: 320px;
@@ -2793,14 +2804,11 @@ body[data-theme='light'] .player-chart-card {
 }
 
 .player-relationship-tools {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: flex-end;
   gap: 0.6rem;
-  z-index: 2;
+  margin-left: auto;
 }
 
 .player-relationship-modal-toggle,
