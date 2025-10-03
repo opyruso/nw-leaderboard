@@ -447,6 +447,9 @@ const pl = {
   playerRelationshipEmpty: 'Brak dostępnych relacji.',
   playerRelationshipAria: (name) =>
     name ? `Wykres relacji dla ${name}` : 'Wykres relacji',
+  playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipThresholdValue: (value) => `≥ ${value}`,
+  playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Ranking indywidualny',
   playerIndividualRankLoading: 'Ładowanie…',
   playerIndividualRankError: 'Niedostępne',

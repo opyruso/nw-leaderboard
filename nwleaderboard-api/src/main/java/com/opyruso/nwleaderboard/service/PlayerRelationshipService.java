@@ -85,8 +85,13 @@ public class PlayerRelationshipService {
         }
 
         Map<PlayerPair, Integer> sharedRuns = computeSharedRuns(runParticipants);
+
+        Map<Long, Set<Long>> externalAccountLinks = mapExternalAccountLinks(
+                accountRoot, accountPlayers.keySet(), playerNames.keySet(), nodes, playerNames);
+
         List<PlayerRelationshipEdgeResponse> edges = buildEdges(origin, accountPlayers.keySet(), sharedRuns);
         edges.addAll(buildAccountEdges(origin, accountPlayers.keySet(), sharedRuns));
+        edges.addAll(buildExternalAccountEdges(externalAccountLinks, sharedRuns));
 
         List<PlayerRelationshipNodeResponse> nodeResponses = buildNodeResponses(nodes, playerNames);
         edges = mergeAndSortEdges(edges);
@@ -176,6 +181,88 @@ public class PlayerRelationshipService {
                             "alternate",
                             count));
         }
+        return edges;
+    }
+
+    private Map<Long, Set<Long>> mapExternalAccountLinks(
+            Player accountRoot,
+            Set<Long> accountPlayerIds,
+            Set<Long> graphPlayerIds,
+            Map<Long, PlayerNodeBuilder> nodes,
+            Map<Long, String> playerNames) {
+        Map<Long, Set<Long>> accountLinks = new LinkedHashMap<>();
+        if (nodes == null || playerNames == null) {
+            return accountLinks;
+        }
+        if (graphPlayerIds == null || graphPlayerIds.isEmpty()) {
+            return accountLinks;
+        }
+
+        Long rootId = accountRoot != null ? accountRoot.getId() : null;
+
+        List<Player> relatedPlayers = playerRepository.listByIds(graphPlayerIds);
+        for (Player participant : relatedPlayers) {
+            if (participant == null || participant.getId() == null) {
+                continue;
+            }
+            Player accountMain = resolveAccountRoot(participant);
+            if (accountMain == null || accountMain.getId() == null) {
+                continue;
+            }
+            Long accountMainId = accountMain.getId();
+            if (accountMainId.equals(participant.getId())) {
+                continue;
+            }
+            if (rootId != null && rootId.equals(accountMainId)) {
+                continue;
+            }
+            if (accountPlayerIds != null && accountPlayerIds.contains(accountMainId)) {
+                continue;
+            }
+
+            addNode(nodes, accountMain, "other");
+            playerNames.putIfAbsent(accountMainId, safeName(accountMain.getPlayerName()));
+
+            accountLinks
+                    .computeIfAbsent(accountMainId, ignored -> new LinkedHashSet<>())
+                    .add(participant.getId());
+        }
+
+        return accountLinks;
+    }
+
+    private List<PlayerRelationshipEdgeResponse> buildExternalAccountEdges(
+            Map<Long, Set<Long>> externalAccountLinks, Map<PlayerPair, Integer> sharedRuns) {
+        if (externalAccountLinks == null || externalAccountLinks.isEmpty()) {
+            return List.of();
+        }
+
+        List<PlayerRelationshipEdgeResponse> edges = new ArrayList<>();
+        for (Map.Entry<Long, Set<Long>> entry : externalAccountLinks.entrySet()) {
+            if (entry == null || entry.getKey() == null) {
+                continue;
+            }
+            Long mainId = entry.getKey();
+            Set<Long> alternates = entry.getValue();
+            if (alternates == null || alternates.isEmpty()) {
+                continue;
+            }
+            for (Long alternateId : alternates) {
+                PlayerPair pair = PlayerPair.of(mainId, alternateId);
+                if (pair == null) {
+                    continue;
+                }
+                Integer count = sharedRuns.getOrDefault(pair, 0);
+                edges.add(
+                        new PlayerRelationshipEdgeResponse(
+                                pair.edgeId(),
+                                pair.left().toString(),
+                                pair.right().toString(),
+                                "alternate",
+                                count));
+            }
+        }
+
         return edges;
     }
 

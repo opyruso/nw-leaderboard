@@ -447,6 +447,9 @@ const de = {
   playerRelationshipEmpty: 'Noch keine Beziehungsdaten vorhanden.',
   playerRelationshipAria: (name) =>
     name ? `Beziehungsdiagramm für ${name}` : 'Beziehungsdiagramm',
+  playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipThresholdValue: (value) => `≥ ${value}`,
+  playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Einzelwertung',
   playerIndividualRankLoading: 'Wird geladen…',
   playerIndividualRankError: 'Nicht verfügbar',
