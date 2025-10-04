@@ -1,6 +1,6 @@
 import { LangContext } from './i18n.js';
 
-const { NavLink } = ReactRouterDOM;
+const { NavLink, useLocation } = ReactRouterDOM;
 
 function HomeIcon() {
   return (
@@ -47,6 +47,36 @@ function PreferencesIcon() {
   );
 }
 
+function LeaderboardIcon() {
+  return (
+    <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 20V10m6 10V4m6 16v-7"
+      />
+    </svg>
+  );
+}
+
+function PlayersIcon() {
+  return (
+    <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7.5 8a7.5 7.5 0 0 1 15 0"
+      />
+    </svg>
+  );
+}
+
 function LoginIcon() {
   return (
     <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -77,16 +107,17 @@ function LogoutIcon() {
   );
 }
 
-function NavButton({ to, label, icon, onClick }) {
+function NavButton({ to, label, icon, onClick, isActive = false, className = '', ...rest }) {
   if (to) {
     return (
       <NavLink
         className={({ isActive }) =>
-          `bottom-nav-link${isActive ? ' active' : ''}`
+          `bottom-nav-link${isActive ? ' active' : ''}${className ? ` ${className}` : ''}`
         }
         to={to}
         end
         aria-label={label}
+        {...rest}
       >
         {icon}
         <span className="bottom-nav-label">{label}</span>
@@ -96,13 +127,65 @@ function NavButton({ to, label, icon, onClick }) {
   return (
     <button
       type="button"
-      className="bottom-nav-button"
+      className={`bottom-nav-button${isActive ? ' active' : ''}${className ? ` ${className}` : ''}`}
       onClick={onClick}
       aria-label={label}
+      {...rest}
     >
       {icon}
       <span className="bottom-nav-label">{label}</span>
     </button>
+  );
+}
+
+function BottomNavMenu({
+  menuKey,
+  icon,
+  label,
+  isOpen,
+  onToggle,
+  isHighlighted = false,
+  children,
+}) {
+  const panelId = `bottom-nav-menu-${menuKey}`;
+  const buttonId = `${panelId}-button`;
+  return (
+    <div className={`bottom-nav-menu${isOpen ? ' bottom-nav-menu--open' : ''}`}>
+      <NavButton
+        id={buttonId}
+        label={label}
+        icon={icon}
+        onClick={() => onToggle(menuKey)}
+        isActive={isOpen || isHighlighted}
+        aria-expanded={isOpen ? 'true' : 'false'}
+        aria-haspopup="true"
+        aria-controls={panelId}
+      />
+      <div
+        id={panelId}
+        className="bottom-nav-menu__panel"
+        role="menu"
+        aria-labelledby={buttonId}
+        aria-hidden={isOpen ? undefined : 'true'}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function BottomNavMenuLink({ to, label, onClick }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `bottom-nav-menu__link${isActive ? ' active' : ''}`
+      }
+      onClick={onClick}
+      role="menuitem"
+    >
+      {label}
+    </NavLink>
   );
 }
 
@@ -111,6 +194,13 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
   const navRef = React.useRef(null);
+  const location = useLocation();
+  const [openMenu, setOpenMenu] = React.useState(null);
+  const contributeActive = location.pathname.startsWith('/contribute');
+  const leaderboardActive =
+    location.pathname.startsWith('/score') ||
+    location.pathname.startsWith('/time') ||
+    location.pathname.startsWith('/individual');
 
   React.useLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -146,13 +236,113 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
     };
   }, [authenticated, canContribute]);
 
+  const closeMenus = React.useCallback(() => {
+    setOpenMenu(null);
+  }, []);
+
+  const toggleMenu = React.useCallback((menuKey) => {
+    setOpenMenu((current) => (current === menuKey ? null : menuKey));
+  }, []);
+
+  React.useEffect(() => {
+    closeMenus();
+  }, [location.pathname, closeMenus]);
+
+  React.useEffect(() => {
+    if (!openMenu) {
+      return () => {};
+    }
+
+    const handlePointerDown = (event) => {
+      if (!navRef.current || navRef.current.contains(event.target)) {
+        return;
+      }
+      closeMenus();
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeMenus();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenu, closeMenus]);
+
   const accountNavigation = isAuthenticated ? (
     <>
       {showContribute ? (
-        <NavButton to="/contribute" label={t.contribute} icon={<ContributeIcon />} />
+      <BottomNavMenu
+        menuKey="contribute"
+        label={t.contribute}
+        icon={<ContributeIcon />}
+        isOpen={openMenu === 'contribute'}
+        onToggle={toggleMenu}
+        isHighlighted={contributeActive}
+      >
+          <div className="bottom-nav-menu__section">
+            <p className="bottom-nav-menu__title">{t.contributeMenuOrganisation}</p>
+            <div className="bottom-nav-menu__links" role="none">
+              <BottomNavMenuLink to="/contribute" label={t.contributeMenuDungeons} onClick={closeMenus} />
+              <BottomNavMenuLink
+                to="/contribute/mutations"
+                label={t.contributeMenuMutations}
+                onClick={closeMenus}
+              />
+              <BottomNavMenuLink
+                to="/contribute/seasons"
+                label={t.contributeMenuSeasons}
+                onClick={closeMenus}
+              />
+            </div>
+          </div>
+          <div className="bottom-nav-menu__section">
+            <p className="bottom-nav-menu__title">{t.contributeMenuData}</p>
+            <div className="bottom-nav-menu__links" role="none">
+              <BottomNavMenuLink
+                to="/contribute/import"
+                label={t.contributeMenuImport}
+                onClick={closeMenus}
+              />
+              <BottomNavMenuLink
+                to="/contribute/validate"
+                label={t.contributeMenuValidate}
+                onClick={closeMenus}
+              />
+              <BottomNavMenuLink
+                to="/contribute/stats"
+                label={t.contributeMenuStats}
+                onClick={closeMenus}
+              />
+              <BottomNavMenuLink
+                to="/contribute/runs"
+                label={t.contributeMenuRuns}
+                onClick={closeMenus}
+              />
+              <BottomNavMenuLink
+                to="/contribute/players"
+                label={t.contributeMenuPlayers}
+                onClick={closeMenus}
+              />
+            </div>
+          </div>
+        </BottomNavMenu>
       ) : null}
       <NavButton to="/preferences" label={t.preferences} icon={<PreferencesIcon />} />
-      <NavButton onClick={onLogout} label={t.logout} icon={<LogoutIcon />} />
+      <NavButton
+        onClick={() => {
+          closeMenus();
+          onLogout();
+        }}
+        label={t.logout}
+        icon={<LogoutIcon />}
+      />
     </>
   ) : (
     <>
@@ -162,9 +352,33 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   );
 
   return (
-    <nav ref={navRef} className="bottom-nav" aria-label={t.navMenu}>
-      <NavButton to="/" label={t.home} icon={<HomeIcon />} />
-      {accountNavigation}
-    </nav>
+    <>
+      {openMenu ? (
+        <div className="bottom-nav-backdrop" onClick={closeMenus} aria-hidden="true" />
+      ) : null}
+      <nav ref={navRef} className="bottom-nav" aria-label={t.navMenu}>
+        <NavButton to="/" label={t.home} icon={<HomeIcon />} />
+        <BottomNavMenu
+          menuKey="leaderboard"
+          label={t.leaderboardMenuTitle}
+          icon={<LeaderboardIcon />}
+          isOpen={openMenu === 'leaderboard'}
+          onToggle={toggleMenu}
+          isHighlighted={leaderboardActive}
+        >
+          <div className="bottom-nav-menu__links" role="none">
+            <BottomNavMenuLink to="/score" label={t.score} onClick={closeMenus} />
+            <BottomNavMenuLink to="/time" label={t.time} onClick={closeMenus} />
+            <BottomNavMenuLink to="/individual" label={t.individual} onClick={closeMenus} />
+          </div>
+        </BottomNavMenu>
+        <NavButton
+          to="/player"
+          label={t.players || t.player}
+          icon={<PlayersIcon />}
+        />
+        {accountNavigation}
+      </nav>
+    </>
   );
 }
