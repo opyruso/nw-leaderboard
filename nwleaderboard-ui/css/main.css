@@ -53,6 +53,12 @@ body {
   overflow-x: hidden;
 }
 
+@media (max-width: 640px) {
+  body {
+    font-size: clamp(15px, 4.4vw, 16.5px);
+  }
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1892,24 +1898,49 @@ body[data-theme='light'] .bottom-nav {
 
 .bottom-nav-link,
 .bottom-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   text-decoration: none;
   color: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.9rem;
   border-radius: 999px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.bottom-nav-link span.active,
-.bottom-nav-button:hover {
+.bottom-nav-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+  flex: 0 0 auto;
+}
+
+.bottom-nav-label {
+  white-space: nowrap;
+}
+
+.bottom-nav-link.active,
+.bottom-nav-link:focus-visible,
+.bottom-nav-button:hover,
+.bottom-nav-button:focus-visible {
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  padding: 0.5rem 0.75rem;
-  border-radius: 999px;
   box-shadow: 0 12px 24px rgba(124, 92, 255, 0.35);
+}
+
+@media (max-width: 640px) {
+  .bottom-nav-link,
+  .bottom-nav-button {
+    padding: 0.5rem;
+  }
+
+  .bottom-nav-label {
+    display: none;
+  }
 }
 
 .leaderboard-layout {
