@@ -708,6 +708,10 @@ body[data-theme='light'] .site-footer__link:focus-visible {
   .page {
     padding: 1.25rem 1rem calc(4.75rem + var(--bottom-nav-height, 0px));
   }
+
+  .leaderboard-pagination[data-simple='true'] {
+    gap: 0.5rem;
+  }
 }
 
 .contribute-page--wide {
@@ -1955,7 +1959,9 @@ body[data-theme='light'] .bottom-nav {
   padding: 0.9rem 1.1rem;
   box-shadow: 0 24px 50px rgba(5, 8, 20, 0.55);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  min-width: min(320px, calc(100vw - 2rem));
+  min-width: 280px;
+  max-width: calc(100vw - 2rem);
+  width: max-content;
   display: none;
   flex-direction: column;
   gap: 0.85rem;
@@ -2046,8 +2052,19 @@ body[data-theme='light'] .bottom-nav-menu__link {
     display: none;
   }
 
+  .bottom-nav-menu {
+    flex: 1 1 auto;
+  }
+
   .bottom-nav-menu__panel {
-    min-width: min(280px, calc(100vw - 1.5rem));
+    position: fixed;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    bottom: calc(var(--bottom-nav-height, 0px) + 0.85rem);
+    width: min(100vw - 1.5rem, 420px);
+    max-width: calc(100vw - 1.5rem);
+    min-width: 0;
   }
 }
 
@@ -2128,6 +2145,10 @@ body[data-theme='light'] .leaderboard-chart {
   box-shadow: 0 -12px 28px rgba(5, 8, 20, 0.45);
   border-radius: 0 0 18px 18px;
   z-index: 910;
+}
+
+.leaderboard-pagination[data-simple='true'] {
+  justify-content: center;
 }
 
 .leaderboard-page-size {
@@ -3720,6 +3741,9 @@ body[data-theme='light'] .leaderboard-status.error {
   padding: 1.5rem;
   box-shadow: var(--shadow-elevated);
   border: 1px solid var(--border-dark);
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body[data-theme='light'] .leaderboard-sidebar {
@@ -5472,6 +5496,43 @@ body[data-theme='light'] .version-banner {
     padding: 1.25rem;
   }
 
+  .player-profile-title-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .player-profile-metrics {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .player-profile-metrics > * {
+    width: 100%;
+  }
+
+  .player-relationship-toggle,
+  .player-adaptability,
+  .player-individual-ranking {
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .player-relationship-toggle {
+    justify-content: center;
+  }
+
+  .leaderboard-sidebar {
+    width: min(100%, calc(100vw - 2rem));
+    margin: 0 auto;
+    padding: 1.25rem;
+  }
+
   .page-submenu {
     flex-direction: column;
     align-items: stretch;
@@ -5561,6 +5622,11 @@ body[data-theme='light'] .version-banner {
 
   .player-profile-header,
   .player-search-container {
+    padding: 1rem;
+  }
+
+  .leaderboard-sidebar {
+    width: min(100%, calc(100vw - 1.5rem));
     padding: 1rem;
   }
 

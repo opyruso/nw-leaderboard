@@ -1544,6 +1544,7 @@ export default function LeaderboardPage({
     mutationOptions.curse.length > 0;
   const mutationPanelId = React.useMemo(() => `${mode}-mutation-filter`, [mode]);
   const dungeonPanelId = React.useMemo(() => `${mode}-dungeon-list`, [mode]);
+  const simplePagination = mode === 'score' || mode === 'time';
 
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
@@ -1961,24 +1962,27 @@ export default function LeaderboardPage({
               <nav
                 className="leaderboard-pagination"
                 aria-label={t.leaderboardPaginationLabel}
+                data-simple={simplePagination ? 'true' : undefined}
               >
-                <div className="leaderboard-page-size">
-                  <label className="leaderboard-page-size-label" htmlFor={`${mode}-page-size`}>
-                    {t.leaderboardPageSizeLabel}
-                  </label>
-                  <select
-                    id={`${mode}-page-size`}
-                    className="leaderboard-page-size-select"
-                    value={pageSize}
-                    onChange={handlePageSizeChange}
-                  >
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {simplePagination ? null : (
+                  <div className="leaderboard-page-size">
+                    <label className="leaderboard-page-size-label" htmlFor={`${mode}-page-size`}>
+                      {t.leaderboardPageSizeLabel}
+                    </label>
+                    <select
+                      id={`${mode}-page-size`}
+                      className="leaderboard-page-size-select"
+                      value={pageSize}
+                      onChange={handlePageSizeChange}
+                    >
+                      {PAGE_SIZE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="leaderboard-pagination-button"
@@ -1999,26 +2003,28 @@ export default function LeaderboardPage({
                 >
                   <span aria-hidden="true">{'<'}</span>
                 </button>
-                <div className="leaderboard-pagination-status">
-                <span className="leaderboard-pagination-page-label">
-                  {t.leaderboardPaginationPageLabel}
-                </span>
-                  <label className="leaderboard-pagination-input" htmlFor={`${mode}-page-input`}>
-                    <span className="visually-hidden">{t.leaderboardPaginationInputLabel}</span>
-                    <input
-                      id={`${mode}-page-input`}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={pageInputValue}
-                      onChange={handlePageInputChange}
-                      onBlur={handlePageInputBlur}
-                      onKeyDown={handlePageInputKeyDown}
-                    />
-                  </label>
-                <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
-                <span className="leaderboard-pagination-total">{Math.max(totalPages, 1)}</span>
-                </div>
+                {simplePagination ? null : (
+                  <div className="leaderboard-pagination-status">
+                    <span className="leaderboard-pagination-page-label">
+                      {t.leaderboardPaginationPageLabel}
+                    </span>
+                    <label className="leaderboard-pagination-input" htmlFor={`${mode}-page-input`}>
+                      <span className="visually-hidden">{t.leaderboardPaginationInputLabel}</span>
+                      <input
+                        id={`${mode}-page-input`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={pageInputValue}
+                        onChange={handlePageInputChange}
+                        onBlur={handlePageInputBlur}
+                        onKeyDown={handlePageInputKeyDown}
+                      />
+                    </label>
+                    <span className="leaderboard-pagination-separator">{t.leaderboardPaginationSeparator}</span>
+                    <span className="leaderboard-pagination-total">{Math.max(totalPages, 1)}</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="leaderboard-pagination-button"
