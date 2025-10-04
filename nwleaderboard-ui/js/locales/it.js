@@ -7,6 +7,8 @@ const it = {
   individual: 'Individuale',
   player: 'Giocatore',
   players: 'Giocatori',
+  openMenu: 'Apri menu',
+  closeMenu: 'Chiudi menu',
   seasonSelectorLabel: 'Stagione',
   seasonSelectorAll: 'Tutte le stagioni',
   seasonSelectorLoading: 'Caricamento stagioni…',

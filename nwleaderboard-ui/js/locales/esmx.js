@@ -7,6 +7,8 @@ const esmx = {
   individual: 'Individual',
   player: 'Jugador',
   players: 'Jugadores',
+  openMenu: 'Abrir menú',
+  closeMenu: 'Cerrar menú',
   seasonSelectorLabel: 'Temporada',
   seasonSelectorAll: 'Todas las temporadas',
   seasonSelectorLoading: 'Cargando temporadas…',

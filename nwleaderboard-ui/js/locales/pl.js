@@ -7,6 +7,8 @@ const pl = {
   individual: 'Indywidualnie',
   player: 'Gracz',
   players: 'Gracze',
+  openMenu: 'Otwórz menu',
+  closeMenu: 'Zamknij menu',
   seasonSelectorLabel: 'Sezon',
   seasonSelectorAll: 'Wszystkie sezony',
   seasonSelectorLoading: 'Wczytywanie sezonów…',
