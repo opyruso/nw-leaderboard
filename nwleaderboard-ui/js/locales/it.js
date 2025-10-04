@@ -344,6 +344,8 @@ const it = {
   leaderboardMenuTitle: 'Leaderboard',
   leaderboardEmpty: 'Ancora nessun punteggio. Torna presto!',
   navMenu: 'Menu',
+  openMenu: 'Apri menu',
+  closeMenu: 'Chiudi menu',
   scoreTitle: 'Migliori punteggi',
   timeTitle: 'Migliori tempi',
   leaderboardScoreChartTitle: 'Andamento punteggio settimanale',

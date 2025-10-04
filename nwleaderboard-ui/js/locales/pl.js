@@ -344,6 +344,8 @@ const pl = {
   leaderboardMenuTitle: 'Leaderboardy',
   leaderboardEmpty: 'Brak wyników. Wróć później!',
   navMenu: 'Menu',
+  openMenu: 'Otwórz menu',
+  closeMenu: 'Zamknij menu',
   scoreTitle: 'Najlepsze wyniki',
   timeTitle: 'Najlepsze czasy',
   leaderboardScoreChartTitle: 'Postęp wyników tygodniowych',

@@ -346,6 +346,8 @@ const en = {
   leaderboardMenuTitle: 'Leaderboards',
   leaderboardEmpty: 'No scores available yet. Stay tuned!',
   navMenu: 'Menu',
+  openMenu: 'Open menu',
+  closeMenu: 'Close menu',
   scoreTitle: 'Best scores',
   timeTitle: 'Best times',
   leaderboardScoreChartTitle: 'Score progression by week',

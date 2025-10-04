@@ -344,6 +344,8 @@ const esmx = {
   leaderboardMenuTitle: 'Rankings',
   leaderboardEmpty: 'Aún no hay scores disponibles. ¡Vuelve pronto!',
   navMenu: 'Menú',
+  openMenu: 'Abrir menú',
+  closeMenu: 'Cerrar menú',
   scoreTitle: 'Mejores scores',
   timeTitle: 'Mejores tiempos',
   leaderboardScoreChartTitle: 'Progreso del score por semana',

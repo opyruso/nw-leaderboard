@@ -344,6 +344,8 @@ const de = {
   leaderboardMenuTitle: 'Leaderboards',
   leaderboardEmpty: 'Es sind noch keine Scores verfügbar. Schau bald wieder vorbei!',
   navMenu: 'Menü',
+  openMenu: 'Menü öffnen',
+  closeMenu: 'Menü schließen',
   scoreTitle: 'Beste Scores',
   timeTitle: 'Beste Zeiten',
   leaderboardScoreChartTitle: 'Score-Entwicklung pro Woche',
