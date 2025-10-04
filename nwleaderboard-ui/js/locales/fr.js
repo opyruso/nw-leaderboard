@@ -351,6 +351,8 @@ const fr = {
   leaderboardMenuTitle: 'Classements',
   leaderboardEmpty: 'Aucun score pour le moment. Revenez vite !',
   navMenu: 'Menu',
+  openMenu: 'Ouvrir le menu',
+  closeMenu: 'Fermer le menu',
   scoreTitle: 'Meilleurs scores',
   timeTitle: 'Meilleurs temps',
   leaderboardScoreChartTitle: 'Progression des scores par semaine',

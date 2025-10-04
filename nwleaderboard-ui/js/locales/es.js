@@ -346,6 +346,8 @@ const es = {
   leaderboardMenuTitle: 'Rankings',
   leaderboardEmpty: 'Todavía no hay puntuaciones. ¡Vuelve pronto!',
   navMenu: 'Menú',
+  openMenu: 'Abrir menú',
+  closeMenu: 'Cerrar menú',
   scoreTitle: 'Mejores puntuaciones',
   timeTitle: 'Mejores tiempos',
   leaderboardScoreChartTitle: 'Evolución de la puntuación por semana',

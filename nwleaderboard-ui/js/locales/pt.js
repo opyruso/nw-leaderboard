@@ -344,6 +344,8 @@ const pt = {
   leaderboardMenuTitle: 'Leaderboards',
   leaderboardEmpty: 'Ainda não há pontuações disponíveis. Volte em breve!',
   navMenu: 'Menu',
+  openMenu: 'Abrir menu',
+  closeMenu: 'Fechar menu',
   scoreTitle: 'Melhores pontuações',
   timeTitle: 'Melhores tempos',
   leaderboardScoreChartTitle: 'Evolução do score semanal',

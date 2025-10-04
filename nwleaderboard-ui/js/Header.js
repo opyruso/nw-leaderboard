@@ -40,11 +40,23 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const location = useLocation();
   const headerRef = React.useRef(null);
   const [openMenu, setOpenMenu] = React.useState(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false);
+  const [isMobileLayout, setIsMobileLayout] = React.useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(max-width: 960px)').matches;
+  });
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [brandRendered, setBrandRendered] = React.useState(true);
   const [brandVisible, setBrandVisible] = React.useState(true);
   const brandTransitionTimeoutRef = React.useRef(null);
   const brandRevealFrameRef = React.useRef(null);
+  const fallbackNavIdRef = React.useRef(null);
+  if (fallbackNavIdRef.current === null) {
+    fallbackNavIdRef.current = `site-nav-${Math.random().toString(36).slice(2)}`;
+  }
+  const navId = typeof React.useId === 'function' ? React.useId() : fallbackNavIdRef.current;
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
   const contributeActive = location.pathname.startsWith('/contribute');
@@ -55,6 +67,12 @@ export default function Header({ authenticated, canContribute = false, onLogout 
 
   const closeMenus = React.useCallback(() => {
     setOpenMenu(null);
+    setIsMobileNavOpen(false);
+  }, []);
+
+  const toggleMobileNav = React.useCallback(() => {
+    setOpenMenu(null);
+    setIsMobileNavOpen((current) => !current);
   }, []);
 
   React.useEffect(() => {
@@ -80,6 +98,31 @@ export default function Header({ authenticated, canContribute = false, onLogout 
       document.removeEventListener('focusin', handleFocusIn);
     };
   }, [closeMenus]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 960px)');
+    const handleChange = (event) => {
+      setIsMobileLayout(event.matches);
+    };
+
+    handleChange(mediaQuery);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    if (typeof mediaQuery.addListener === 'function') {
+      mediaQuery.addListener(handleChange);
+      return () => mediaQuery.removeListener(handleChange);
+    }
+
+    return undefined;
+  }, []);
 
   const updateHeaderHeight = React.useCallback(() => {
     if (headerRef.current) {
@@ -147,6 +190,33 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     closeMenus();
   }, [location.pathname, closeMenus]);
 
+  React.useEffect(() => {
+    if (!isMobileLayout) {
+      setIsMobileNavOpen(false);
+    }
+  }, [isMobileLayout]);
+
+  React.useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    if (!isMobileLayout) {
+      document.body.classList.remove('site-nav-open');
+      return undefined;
+    }
+
+    if (isMobileNavOpen) {
+      document.body.classList.add('site-nav-open');
+    } else {
+      document.body.classList.remove('site-nav-open');
+    }
+
+    return () => {
+      document.body.classList.remove('site-nav-open');
+    };
+  }, [isMobileNavOpen, isMobileLayout]);
+
   const createMenuHandlers = (menuKey) => ({
     onMouseEnter: () => setOpenMenu(menuKey),
     onMouseLeave: (event) => {
@@ -173,6 +243,10 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     }
   };
 
+  const navLabel = t.navMenu || 'Menu';
+  const toggleLabel = isMobileNavOpen ? t.closeMenu || 'Close menu' : t.openMenu || 'Open menu';
+  const navAriaHidden = isMobileLayout && !isMobileNavOpen ? 'true' : undefined;
+
   return (
     <header
       ref={headerRef}
@@ -198,13 +272,34 @@ export default function Header({ authenticated, canContribute = false, onLogout 
             <span className="site-header__title">{t.siteTitle || 'NWLeaderboard - PvE By oPy'}</span>
           </div>
         ) : null}
-        <nav className="site-nav" aria-label={t.navMenu}>
-          <div className="site-nav__sections">
-            <ul className="site-nav__group site-nav__group--left">
-              <li className="site-nav__item">
-                <SiteNavLink to="/" end onClick={closeMenus}>
-                  {homeLabel}
-                </SiteNavLink>
+        <button
+          type="button"
+          className={classNames(
+            'site-nav-toggle',
+            isMobileNavOpen ? 'site-nav-toggle--open' : '',
+            brandRendered ? '' : 'site-nav-toggle--alone',
+          )}
+          aria-label={toggleLabel}
+          aria-expanded={isMobileLayout ? (isMobileNavOpen ? 'true' : 'false') : undefined}
+          aria-controls={navId}
+          onClick={toggleMobileNav}
+        >
+          <span className="site-nav-toggle__bars" aria-hidden="true" />
+        </button>
+        <nav
+          id={navId}
+          className={classNames('site-nav', isMobileNavOpen ? 'site-nav--open' : '')}
+          aria-label={navLabel}
+          aria-hidden={navAriaHidden}
+        >
+          <div className="site-nav__overlay" aria-hidden="true" onClick={closeMenus} />
+          <div className="site-nav__panel">
+            <div className="site-nav__sections">
+              <ul className="site-nav__group site-nav__group--left">
+                <li className="site-nav__item">
+                  <SiteNavLink to="/" end onClick={closeMenus}>
+                    {homeLabel}
+                  </SiteNavLink>
               </li>
               {showContribute ? (
                 <li
@@ -423,6 +518,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                 </li>
               )}
             </ul>
+            </div>
           </div>
         </nav>
       </div>
