@@ -23,6 +23,41 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   const { t } = React.useContext(LangContext);
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
+  const navRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return () => {};
+    }
+
+    const updateHeight = () => {
+      if (!navRef.current) {
+        return;
+      }
+      const computed = window.getComputedStyle(navRef.current);
+      const isHidden = computed.display === 'none' || computed.visibility === 'hidden';
+      const height = isHidden ? 0 : navRef.current.offsetHeight;
+      document.documentElement.style.setProperty('--bottom-nav-height', `${height}px`);
+    };
+
+    updateHeight();
+
+    window.addEventListener('resize', updateHeight);
+
+    let resizeObserver;
+    if (navRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(updateHeight);
+      resizeObserver.observe(navRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      document.documentElement.style.setProperty('--bottom-nav-height', '0px');
+    };
+  }, [authenticated, canContribute]);
 
   const accountNavigation = isAuthenticated ? (
     <>
@@ -38,7 +73,7 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   );
 
   return (
-    <nav className="bottom-nav" aria-label={t.navMenu}>
+    <nav ref={navRef} className="bottom-nav" aria-label={t.navMenu}>
       <NavButton to="/">{t.home}</NavButton>
       {accountNavigation}
     </nav>

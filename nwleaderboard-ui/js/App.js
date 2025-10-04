@@ -21,6 +21,7 @@ import Suggestions from './pages/Suggestions.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
 import Footer from './Footer.js';
+import BottomNav from './BottomNav.js';
 import {
   storeTokens,
   clearTokens,
@@ -145,6 +146,11 @@ export default function App() {
             </Routes>
           </main>
           <Footer />
+          <BottomNav
+            authenticated={authenticated}
+            canContribute={authState.canContribute}
+            onLogout={handleLogout}
+          />
         </div>
       </BrowserRouter>
       <VersionChecker />

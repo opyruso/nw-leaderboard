@@ -40,6 +40,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const location = useLocation();
   const headerRef = React.useRef(null);
   const [openMenu, setOpenMenu] = React.useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [brandRendered, setBrandRendered] = React.useState(true);
   const [brandVisible, setBrandVisible] = React.useState(true);
@@ -55,6 +56,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
 
   const closeMenus = React.useCallback(() => {
     setOpenMenu(null);
+    setMobileMenuOpen(false);
   }, []);
 
   React.useEffect(() => {
@@ -80,6 +82,26 @@ export default function Header({ authenticated, canContribute = false, onLogout 
       document.removeEventListener('focusin', handleFocusIn);
     };
   }, [closeMenus]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return () => {};
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 960px)');
+    const handleChange = () => {
+      if (!mediaQuery.matches) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   const updateHeaderHeight = React.useCallback(() => {
     if (headerRef.current) {
@@ -147,6 +169,35 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     closeMenus();
   }, [location.pathname, closeMenus]);
 
+  React.useEffect(() => {
+    if (typeof document === 'undefined') {
+      return () => {};
+    }
+
+    document.body.classList.toggle('has-mobile-nav-open', mobileMenuOpen);
+
+    return () => {
+      document.body.classList.remove('has-mobile-nav-open');
+    };
+  }, [mobileMenuOpen]);
+
+  React.useEffect(() => {
+    if (!mobileMenuOpen) {
+      return () => {};
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeMenus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen, closeMenus]);
+
   const createMenuHandlers = (menuKey) => ({
     onMouseEnter: () => setOpenMenu(menuKey),
     onMouseLeave: (event) => {
@@ -165,12 +216,21 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const homeLabel = t.highlights ? `${t.home} (${t.highlights})` : t.home;
   const contributeMenuOpen = openMenu === 'contribute';
   const leaderboardMenuOpen = openMenu === 'leaderboard';
+  const navMenuLabel = t.navMenu || 'Navigation menu';
+  const toggleLabel = mobileMenuOpen
+    ? t.closeMenu || t.closeNavigation || `Close ${navMenuLabel}`
+    : t.openMenu || t.openNavigation || `Open ${navMenuLabel}`;
 
   const handleMenuKeyDown = (event) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
       closeMenus();
     }
+  };
+
+  const handleToggleClick = () => {
+    setOpenMenu(null);
+    setMobileMenuOpen((current) => !current);
   };
 
   return (
@@ -198,7 +258,24 @@ export default function Header({ authenticated, canContribute = false, onLogout 
             <span className="site-header__title">{t.siteTitle || 'NWLeaderboard - PvE By oPy'}</span>
           </div>
         ) : null}
-        <nav className="site-nav" aria-label={t.navMenu}>
+        <button
+          type="button"
+          className={classNames(
+            'site-header__toggle',
+            mobileMenuOpen ? 'site-header__toggle--open' : '',
+          )}
+          aria-expanded={mobileMenuOpen ? 'true' : 'false'}
+          aria-controls="site-navigation"
+          onClick={handleToggleClick}
+        >
+          <span className="visually-hidden">{toggleLabel}</span>
+          <span aria-hidden="true" />
+        </button>
+        <nav
+          id="site-navigation"
+          className={classNames('site-nav', mobileMenuOpen ? 'site-nav--mobile-open' : '')}
+          aria-label={navMenuLabel}
+        >
           <div className="site-nav__sections">
             <ul className="site-nav__group site-nav__group--left">
               <li className="site-nav__item">
@@ -426,6 +503,14 @@ export default function Header({ authenticated, canContribute = false, onLogout 
           </div>
         </nav>
       </div>
+      <div
+        className={classNames(
+          'site-nav__backdrop',
+          mobileMenuOpen ? 'site-nav__backdrop--visible' : '',
+        )}
+        onClick={closeMenus}
+        aria-hidden="true"
+      />
     </header>
   );
 }
