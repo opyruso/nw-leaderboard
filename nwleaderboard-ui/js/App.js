@@ -21,6 +21,7 @@ import Suggestions from './pages/Suggestions.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
 import Footer from './Footer.js';
+import BottomNav from './BottomNav.js';
 import {
   storeTokens,
   clearTokens,
@@ -144,6 +145,11 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
+          <BottomNav
+            authenticated={authenticated}
+            canContribute={authState.canContribute}
+            onLogout={handleLogout}
+          />
           <Footer />
         </div>
       </BrowserRouter>

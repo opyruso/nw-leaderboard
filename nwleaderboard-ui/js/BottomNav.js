@@ -2,10 +2,10 @@ import { LangContext } from './i18n.js';
 
 const { NavLink } = ReactRouterDOM;
 
-function NavButton({ to, children, onClick }) {
+function NavButton({ to, children, onClick, end = true }) {
   if (to) {
     return (
-      <NavLink className="bottom-nav-link" to={to} end>
+      <NavLink className="bottom-nav-link" to={to} end={end}>
         {({ isActive }) => (
           <span className={isActive ? 'active' : undefined}>{children}</span>
         )}
@@ -24,6 +24,17 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   const isAuthenticated = Boolean(authenticated);
   const showContribute = isAuthenticated && Boolean(canContribute);
 
+  const primaryNavigation = React.useMemo(
+    () => [
+      { to: '/', label: t.home, end: true },
+      { to: '/score', label: t.score, end: true },
+      { to: '/time', label: t.time, end: true },
+      { to: '/individual', label: t.individual, end: true },
+      { to: '/player', label: t.players || t.player, end: false },
+    ],
+    [t],
+  );
+
   const accountNavigation = isAuthenticated ? (
     <>
       {showContribute ? <NavButton to="/contribute">{t.contribute}</NavButton> : null}
@@ -39,7 +50,13 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
 
   return (
     <nav className="bottom-nav" aria-label={t.navMenu}>
-      <NavButton to="/">{t.home}</NavButton>
+      <div className="bottom-nav__scroll">
+        {primaryNavigation.map((item) => (
+          <NavButton key={item.to} to={item.to} end={item.end}>
+            {item.label}
+          </NavButton>
+        ))}
+      </div>
       {accountNavigation}
     </nav>
   );

@@ -43,6 +43,12 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [brandRendered, setBrandRendered] = React.useState(true);
   const [brandVisible, setBrandVisible] = React.useState(true);
+  const [isMobileNavigation, setIsMobileNavigation] = React.useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(max-width: 960px)').matches;
+  });
   const brandTransitionTimeoutRef = React.useRef(null);
   const brandRevealFrameRef = React.useRef(null);
   const isAuthenticated = Boolean(authenticated);
@@ -92,7 +98,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
 
   React.useLayoutEffect(() => {
     updateHeaderHeight();
-  }, [updateHeaderHeight, isScrolled, brandRendered]);
+  }, [updateHeaderHeight, isScrolled, brandRendered, isMobileNavigation]);
 
   React.useLayoutEffect(() => {
     window.addEventListener('resize', updateHeaderHeight);
@@ -116,10 +122,33 @@ export default function Header({ authenticated, canContribute = false, onLogout 
   }, []);
 
   React.useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return undefined;
+    }
+    const mediaQuery = window.matchMedia('(max-width: 960px)');
+    const handleMediaChange = (event) => {
+      setIsMobileNavigation(event.matches);
+    };
+
+    handleMediaChange(mediaQuery);
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleMediaChange);
+      return () => {
+        mediaQuery.removeEventListener('change', handleMediaChange);
+      };
+    }
+
+    mediaQuery.addListener(handleMediaChange);
+    return () => {
+      mediaQuery.removeListener(handleMediaChange);
+    };
+  }, []);
+
+  React.useEffect(() => {
     window.clearTimeout(brandTransitionTimeoutRef.current);
     window.cancelAnimationFrame(brandRevealFrameRef.current);
 
-    if (!isScrolled) {
+    if (isMobileNavigation || !isScrolled) {
       setBrandRendered(true);
       brandRevealFrameRef.current = window.requestAnimationFrame(() => {
         setBrandVisible(true);
@@ -135,7 +164,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
       window.clearTimeout(brandTransitionTimeoutRef.current);
       window.cancelAnimationFrame(brandRevealFrameRef.current);
     };
-  }, [isScrolled]);
+  }, [isScrolled, isMobileNavigation]);
 
   React.useEffect(() => {
     if (!showContribute && openMenu === 'contribute') {
