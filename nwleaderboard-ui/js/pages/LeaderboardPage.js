@@ -365,8 +365,14 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (storedFilters?.mutation) {
-      mutationFiltersInitialisedRef.current = true;
-      hasUserAdjustedMutationFiltersRef.current = true;
+      const hasStoredMutationSelection = MUTATION_FILTER_KEYS.some((key) => {
+        const values = storedFilters.mutation[key];
+        return Array.isArray(values) && values.length > 0;
+      });
+      if (hasStoredMutationSelection) {
+        mutationFiltersInitialisedRef.current = true;
+        hasUserAdjustedMutationFiltersRef.current = true;
+      }
     }
     if (Array.isArray(storedFilters?.regions) && storedFilters.regions.length > 0) {
       regionFiltersInitialisedRef.current = true;
@@ -550,6 +556,13 @@ export default function LeaderboardPage({
       const sanitisedWeeks = uniqueWeeks.filter((value) => availableWeeks.includes(value));
       if (sanitisedWeeks.length > 0) {
         sanitisedWeeks.forEach((value) => params.append('week', value));
+      } else if (
+        hasUserAdjustedWeekFiltersRef.current &&
+        selectedWeekValues.length === 0 &&
+        availableWeeks.length > 0
+      ) {
+        const uniqueAvailableWeeks = Array.from(new Set(availableWeeks));
+        uniqueAvailableWeeks.forEach((value) => params.append('week', value));
       }
     }
 
@@ -1250,14 +1263,26 @@ export default function LeaderboardPage({
       ? mutationFilters.promotion
       : [];
     const curseFilters = Array.isArray(mutationFilters?.curse) ? mutationFilters.curse : [];
+    const availableTypeFilters = Array.isArray(mutationOptions?.type) ? mutationOptions.type : [];
+    const availablePromotionFilters = Array.isArray(mutationOptions?.promotion)
+      ? mutationOptions.promotion
+      : [];
+    const availableCurseFilters = Array.isArray(mutationOptions?.curse) ? mutationOptions.curse : [];
     const regionFilterValues = Array.isArray(regionFilters) ? regionFilters : [];
     const weekFilterValues = Array.isArray(selectedWeeks)
       ? selectedWeeks.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
       : [];
 
-    const hasTypeFilter = typeFilters.length > 0;
-    const hasPromotionFilter = promotionFilters.length > 0;
-    const hasCurseFilter = curseFilters.length > 0;
+    const hasTypeFilter =
+      typeFilters.length > 0 &&
+      (availableTypeFilters.length === 0 || typeFilters.length < availableTypeFilters.length);
+    const hasPromotionFilter =
+      promotionFilters.length > 0 &&
+      (availablePromotionFilters.length === 0 ||
+        promotionFilters.length < availablePromotionFilters.length);
+    const hasCurseFilter =
+      curseFilters.length > 0 &&
+      (availableCurseFilters.length === 0 || curseFilters.length < availableCurseFilters.length);
     const hasRegionFilter = regionFilterValues.length > 0;
     const hasWeekFilter = weekFilterValues.length > 0;
 
@@ -1301,7 +1326,7 @@ export default function LeaderboardPage({
       }
       return true;
     });
-  }, [entries, mutationFilters, regionFilters, selectedWeeks]);
+  }, [entries, mutationFilters, mutationOptions, regionFilters, selectedWeeks]);
 
   const formatWeekLabel = React.useCallback(
     (week) => {
