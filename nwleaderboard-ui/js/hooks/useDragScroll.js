@@ -11,12 +11,38 @@ export default function useDragScroll(ref, options = {}) {
     let dragging = false;
     let suppressClick = false;
     let startX = 0;
-    let lastX = 0;
+    let startScrollLeft = 0;
+    let pendingScrollLeft = null;
+    let animationFrame = null;
+
+    const cancelScheduledFrame = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+    };
+
+    const flushScroll = () => {
+      animationFrame = null;
+      if (pendingScrollLeft !== null) {
+        target.scrollLeft = pendingScrollLeft;
+        pendingScrollLeft = null;
+      }
+    };
+
+    const scheduleScroll = (value) => {
+      pendingScrollLeft = value;
+      if (animationFrame === null) {
+        animationFrame = window.requestAnimationFrame(flushScroll);
+      }
+    };
 
     const clearDragState = () => {
       pointerActive = false;
       dragging = false;
       target.classList.remove('is-dragging');
+      cancelScheduledFrame();
+      pendingScrollLeft = null;
     };
 
     const handlePointerDown = (event) => {
@@ -27,14 +53,7 @@ export default function useDragScroll(ref, options = {}) {
       dragging = false;
       suppressClick = false;
       startX = event.clientX;
-      lastX = event.clientX;
-      if (typeof event.pointerId === 'number' && target.setPointerCapture) {
-        try {
-          target.setPointerCapture(event.pointerId);
-        } catch (error) {
-          // Ignore capture errors
-        }
-      }
+      startScrollLeft = target.scrollLeft;
     };
 
     const handlePointerMove = (event) => {
@@ -49,36 +68,25 @@ export default function useDragScroll(ref, options = {}) {
       if (!dragging) {
         return;
       }
-      const movementX = lastX - event.clientX;
-      lastX = event.clientX;
-      if (movementX !== 0) {
-        event.preventDefault();
-        target.scrollLeft += movementX;
-      }
+      event.preventDefault();
+      scheduleScroll(startScrollLeft - deltaFromStart);
     };
 
-    const handlePointerEnd = (event) => {
+    const handlePointerEnd = () => {
       if (!pointerActive) {
         return;
       }
       if (dragging) {
         suppressClick = true;
-        window.setTimeout(() => {
+        window.requestAnimationFrame(() => {
           suppressClick = false;
-        }, 0);
-      }
-      if (event && typeof event.pointerId === 'number' && target.releasePointerCapture) {
-        try {
-          target.releasePointerCapture(event.pointerId);
-        } catch (error) {
-          // Ignore release errors
-        }
+        });
       }
       clearDragState();
     };
 
-    const handlePointerCancel = (event) => {
-      handlePointerEnd(event);
+    const handlePointerCancel = () => {
+      clearDragState();
     };
 
     const handleClickCapture = (event) => {
