@@ -1,3 +1,5 @@
+import useDragScroll from '../hooks/useDragScroll.js';
+
 export default function SeasonCarousel({
   label,
   ariaLabel,
@@ -15,6 +17,9 @@ export default function SeasonCarousel({
   displayRange = true,
   hideLabel = false,
 }) {
+  const trackRef = React.useRef(null);
+  useDragScroll(trackRef);
+
   const handleSelect = React.useCallback(
     (value) => {
       if (typeof onSelect === 'function') {
@@ -41,7 +46,7 @@ export default function SeasonCarousel({
     content = renderStatus(emptyLabel || 'No season available.');
   } else {
     content = (
-      <div className="season-carousel-track" role="list">
+      <div className="season-carousel-track" role="list" ref={trackRef}>
         <button
           type="button"
           className={activeId === null ? 'season-carousel-item selected' : 'season-carousel-item'}

@@ -400,6 +400,7 @@ const de = {
   dungeonSelectorToggleExpand: 'Dungeonliste anzeigen',
   dungeonSelectorToggleCollapse: 'Dungeonliste ausblenden',
   weekFilterLabel: 'Wochen',
+  weekFilterAll: 'Alle Wochen',
   weekFilterLoading: 'Wochen werden geladen…',
   weekFilterError: 'Wochenliste konnte nicht geladen werden.',
   weekFilterEmpty: 'Keine Wochen verfügbar.',

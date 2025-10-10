@@ -400,6 +400,7 @@ const pt = {
   dungeonSelectorToggleExpand: 'Mostrar lista de masmorras',
   dungeonSelectorToggleCollapse: 'Ocultar lista de masmorras',
   weekFilterLabel: 'Semanas',
+  weekFilterAll: 'Todas as semanas',
   weekFilterLoading: 'A carregar semanas…',
   weekFilterError: 'Não foi possível carregar a lista de semanas.',
   weekFilterEmpty: 'Nenhuma semana disponível.',

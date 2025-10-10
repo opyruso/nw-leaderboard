@@ -400,6 +400,7 @@ const pl = {
   dungeonSelectorToggleExpand: 'Pokaż listę lochów',
   dungeonSelectorToggleCollapse: 'Ukryj listę lochów',
   weekFilterLabel: 'Tygodnie',
+  weekFilterAll: 'Wszystkie tygodnie',
   weekFilterLoading: 'Wczytywanie tygodni…',
   weekFilterError: 'Nie można załadować listy tygodni.',
   weekFilterEmpty: 'Brak dostępnych tygodni.',

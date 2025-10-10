@@ -401,6 +401,7 @@ const en = {
   dungeonSelectorToggleExpand: 'Show dungeon list',
   dungeonSelectorToggleCollapse: 'Hide dungeon list',
   weekFilterLabel: 'Weeks',
+  weekFilterAll: 'All weeks',
   weekFilterLoading: 'Loading weeks…',
   weekFilterError: 'Unable to load the week list.',
   weekFilterEmpty: 'No weeks available.',

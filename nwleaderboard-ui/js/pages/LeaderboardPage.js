@@ -23,6 +23,7 @@ import {
 } from '../seasons.js';
 import { capitaliseWords } from '../text.js';
 import { ThemeContext } from '../theme.js';
+import useDragScroll from '../hooks/useDragScroll.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -305,6 +306,8 @@ export default function LeaderboardPage({
   const [weekOptions, setWeekOptions] = React.useState([]);
   const [weekLoading, setWeekLoading] = React.useState(false);
   const [weekError, setWeekError] = React.useState(false);
+  const weekTrackRef = React.useRef(null);
+  useDragScroll(weekTrackRef);
   const [regionOptions, setRegionOptions] = React.useState([]);
   const [regionLoading, setRegionLoading] = React.useState(false);
   const [regionError, setRegionError] = React.useState(false);
@@ -434,6 +437,12 @@ export default function LeaderboardPage({
   }, []);
 
   const handleWeekFilterToggle = React.useCallback((week) => {
+    if (week === null || week === undefined || week === '') {
+      weekFiltersInitialisedRef.current = true;
+      hasUserAdjustedWeekFiltersRef.current = true;
+      setSelectedWeeks([]);
+      return;
+    }
     const normalised = normaliseWeekFilterValue(week);
     if (!normalised) {
       return;
@@ -1584,18 +1593,31 @@ export default function LeaderboardPage({
         <p className="season-carousel-status error">{t.weekFilterError}</p>
       ) : hasWeekOptions ? (
         <div className="season-carousel" role="group" aria-label={t.weekFilterLabel}>
-          <div className="season-carousel-track" role="list">
+          <div className="season-carousel-track" role="list" ref={weekTrackRef}>
+            <button
+              type="button"
+              className={`season-carousel-item${isWeekSelectionActive ? '' : ' selected'}`}
+              aria-pressed={!isWeekSelectionActive}
+              onClick={() => handleWeekFilterToggle(null)}
+              role="listitem"
+            >
+              <span className="season-carousel-item-label">{t.weekFilterAll}</span>
+            </button>
             {weekOptions.map((week) => {
+              const weekKey = normaliseWeekFilterValue(week);
+              if (!weekKey) {
+                return null;
+              }
               const displayLabel = formatWeekLabel(week);
               const isActive =
-                isWeekSelectionActive && selectedWeeks.includes(week);
+                isWeekSelectionActive && selectedWeeks.includes(weekKey);
               return (
                 <button
-                  key={week}
+                  key={weekKey}
                   type="button"
                   className={`season-carousel-item${isActive ? ' selected' : ''}`}
                   aria-pressed={isActive}
-                  onClick={() => handleWeekFilterToggle(week)}
+                  onClick={() => handleWeekFilterToggle(weekKey)}
                   role="listitem"
                 >
                   <span className="season-carousel-item-label">{displayLabel}</span>

@@ -3627,25 +3627,18 @@ body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-w
   scroll-snap-type: x proximity;
   width: 100%;
   scrollbar-width: none;
-  scrollbar-gutter: stable both-edges;
-}
-
-.season-carousel-track:hover {
-  scrollbar-width: thin;
+  -ms-overflow-style: none;
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
 }
 
 .season-carousel-track::-webkit-scrollbar {
-  height: 0;
-  transition: height 0.2s ease;
+  display: none;
 }
 
-.season-carousel-track:hover::-webkit-scrollbar {
-  height: 6px;
-}
-
-.season-carousel-track::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.4);
-  border-radius: 999px;
+.season-carousel-track.is-dragging {
+  cursor: grabbing;
 }
 
 .season-carousel-item {

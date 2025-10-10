@@ -400,6 +400,7 @@ const esmx = {
   dungeonSelectorToggleExpand: 'Mostrar lista de mazmorras',
   dungeonSelectorToggleCollapse: 'Ocultar lista de mazmorras',
   weekFilterLabel: 'Semanas',
+  weekFilterAll: 'Todas las semanas',
   weekFilterLoading: 'Cargando semanas…',
   weekFilterError: 'No se pudo cargar la lista de semanas.',
   weekFilterEmpty: 'No hay semanas disponibles.',
