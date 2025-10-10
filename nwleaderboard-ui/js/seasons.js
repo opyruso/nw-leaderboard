@@ -26,21 +26,36 @@ function parseSeasonBoundary(value, endOfDay = false) {
   return parsed + oneDay - 1;
 }
 
-function normaliseStoredSeasonId(value) {
+function sanitiseSeasonId(value, { returnUndefinedForInvalid = false } = {}) {
   if (value === undefined) {
-    return undefined;
+    return returnUndefinedForInvalid ? undefined : null;
   }
   if (value === null) {
     return null;
   }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return returnUndefinedForInvalid ? undefined : null;
+    }
+    const integer = Math.trunc(value);
+    return integer > 0 ? String(integer) : null;
+  }
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    if (!trimmed) {
+      return null;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      return returnUndefinedForInvalid ? undefined : null;
+    }
+    const numeric = Number.parseInt(trimmed, 10);
+    return Number.isFinite(numeric) && numeric > 0 ? String(numeric) : null;
   }
-  if (typeof value === 'number') {
-    return String(value);
-  }
-  return undefined;
+  return returnUndefinedForInvalid ? undefined : null;
+}
+
+export function normaliseSeasonFilterValue(value) {
+  return sanitiseSeasonId(value, { returnUndefinedForInvalid: true });
 }
 
 export function loadStoredSeasonId(storageKey) {
@@ -52,7 +67,8 @@ export function loadStoredSeasonId(storageKey) {
     if (raw === null) {
       return undefined;
     }
-    return normaliseStoredSeasonId(JSON.parse(raw));
+    const parsed = JSON.parse(raw);
+    return sanitiseSeasonId(parsed, { returnUndefinedForInvalid: true });
   } catch (error) {
     return undefined;
   }
@@ -63,11 +79,12 @@ export function saveStoredSeasonId(storageKey, seasonId) {
     return;
   }
   try {
-    if (seasonId === undefined) {
+    const normalised = sanitiseSeasonId(seasonId, { returnUndefinedForInvalid: true });
+    if (normalised === undefined) {
       window.localStorage.removeItem(storageKey);
       return;
     }
-    const payload = seasonId === null ? null : String(seasonId);
+    const payload = normalised === null ? null : normalised;
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
   } catch (error) {
     // ignore storage errors
@@ -82,7 +99,7 @@ export function normaliseSeason(entry) {
   const id = Number.isFinite(idValue) ? idValue : null;
   const dateBegin = entry.dateBegin ?? entry.date_begin ?? entry.startDate ?? null;
   const dateEnd = entry.dateEnd ?? entry.date_end ?? entry.endDate ?? null;
-  if (id === null) {
+  if (id === null || id <= 0) {
     return null;
   }
   return { id, dateBegin: dateBegin || null, dateEnd: dateEnd || null };

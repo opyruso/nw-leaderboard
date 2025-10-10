@@ -6,6 +6,7 @@ import {
   SEASON_STORAGE_PREFIX,
   loadStoredSeasonId,
   saveStoredSeasonId,
+  normaliseSeasonFilterValue,
 } from '../seasons.js';
 import { translateRegion, extractRegionId } from '../regions.js';
 const { Link } = ReactRouterDOM;
@@ -122,8 +123,9 @@ export default function Individual() {
 
     const params = new URLSearchParams();
     params.set('mode', mode);
-    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
-      params.set('seasonId', selectedSeasonId);
+    const seasonFilterId = normaliseSeasonFilterValue(selectedSeasonId);
+    if (seasonFilterId !== null && seasonFilterId !== undefined) {
+      params.set('seasonId', seasonFilterId);
     }
     const url = `${API_BASE_URL}/leaderboard/individual?${params.toString()}`;
 
@@ -170,9 +172,12 @@ export default function Individual() {
   }, []);
 
   const handleSeasonSelect = React.useCallback((value) => {
+    const next = normaliseSeasonFilterValue(value);
+    if (next === undefined) {
+      return;
+    }
     setSelectedSeasonId((previous) => {
-      const next = value === null || value === undefined ? null : String(value);
-      if (previous === next) {
+      if (previous === next || (previous === null && next === null)) {
         return previous;
       }
       return next;

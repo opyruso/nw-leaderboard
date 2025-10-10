@@ -20,6 +20,7 @@ import {
   SEASON_STORAGE_PREFIX,
   loadStoredSeasonId,
   saveStoredSeasonId,
+  normaliseSeasonFilterValue,
 } from '../seasons.js';
 import { capitaliseWords } from '../text.js';
 import { ThemeContext } from '../theme.js';
@@ -553,8 +554,9 @@ export default function LeaderboardPage({
       }
     }
 
-    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
-      params.set('seasonId', String(selectedSeasonId));
+    const seasonFilterId = normaliseSeasonFilterValue(selectedSeasonId);
+    if (seasonFilterId !== null && seasonFilterId !== undefined) {
+      params.set('seasonId', seasonFilterId);
     }
 
     return params;
@@ -767,8 +769,9 @@ export default function LeaderboardPage({
 
     const params = new URLSearchParams();
     params.set('dungeonId', String(selectedDungeon));
-    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
-      params.set('seasonId', String(selectedSeasonId));
+    const seasonFilterId = normaliseSeasonFilterValue(selectedSeasonId);
+    if (seasonFilterId !== null && seasonFilterId !== undefined) {
+      params.set('seasonId', seasonFilterId);
     }
 
     fetch(`${API_BASE_URL}/leaderboard/weeks?${params.toString()}`, { signal: controller.signal })
@@ -1197,9 +1200,12 @@ export default function LeaderboardPage({
   }, []);
 
   const handleSeasonSelect = React.useCallback((value) => {
+    const next = normaliseSeasonFilterValue(value);
+    if (next === undefined) {
+      return;
+    }
     setSelectedSeasonId((previous) => {
-      const next = value === null || value === undefined ? null : String(value);
-      if (previous === next) {
+      if (previous === next || (previous === null && next === null)) {
         return previous;
       }
       return next;

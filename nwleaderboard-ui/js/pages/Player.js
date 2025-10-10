@@ -16,6 +16,7 @@ import {
   SEASON_STORAGE_PREFIX,
   loadStoredSeasonId,
   saveStoredSeasonId,
+  normaliseSeasonFilterValue,
 } from '../seasons.js';
 
 const { Link, useNavigate, useParams } = ReactRouterDOM;
@@ -494,6 +495,10 @@ export default function Player({ canContribute = false }) {
     loadStoredSeasonId(seasonStorageKey),
   );
   const [seasonInitialised, setSeasonInitialised] = React.useState(false);
+  const seasonFilterId = React.useMemo(
+    () => normaliseSeasonFilterValue(selectedSeasonId),
+    [selectedSeasonId],
+  );
   const [individualRank, setIndividualRank] = React.useState(null);
   const [individualRankLoading, setIndividualRankLoading] = React.useState(false);
   const [individualRankError, setIndividualRankError] = React.useState(false);
@@ -676,11 +681,8 @@ export default function Player({ canContribute = false }) {
 
     const params = new URLSearchParams();
     params.set('mode', 'global');
-    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
-      const normalisedSeasonId = String(selectedSeasonId).trim();
-      if (normalisedSeasonId) {
-        params.set('seasonId', normalisedSeasonId);
-      }
+    if (seasonFilterId !== null && seasonFilterId !== undefined) {
+      params.set('seasonId', seasonFilterId);
     }
     const url = `${API_BASE_URL}/leaderboard/individual?${params.toString()}`;
 
@@ -735,7 +737,7 @@ export default function Player({ canContribute = false }) {
       active = false;
       controller.abort();
     };
-  }, [seasonInitialised, selectedSeasonId, targetPlayerId]);
+  }, [seasonInitialised, seasonFilterId, targetPlayerId]);
 
   React.useEffect(() => {
     setEditingMainLink(false);
@@ -748,9 +750,12 @@ export default function Player({ canContribute = false }) {
   const trimmedMainLinkName = React.useMemo(() => mainLinkName.trim(), [mainLinkName]);
 
   const handleSeasonSelect = React.useCallback((value) => {
+    const next = normaliseSeasonFilterValue(value);
+    if (next === undefined) {
+      return;
+    }
     setSelectedSeasonId((previous) => {
-      const next = value === null || value === undefined ? null : String(value);
-      if (previous === next) {
+      if (previous === next || (previous === null && next === null)) {
         return previous;
       }
       return next;
@@ -941,8 +946,8 @@ export default function Player({ canContribute = false }) {
     setProfile(null);
 
     const params = new URLSearchParams();
-    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
-      params.set('seasonId', selectedSeasonId);
+    if (seasonFilterId !== null && seasonFilterId !== undefined) {
+      params.set('seasonId', seasonFilterId);
     }
     const query = params.toString();
     const url = query
@@ -978,7 +983,7 @@ export default function Player({ canContribute = false }) {
       active = false;
       controller.abort();
     };
-  }, [hasPlayerId, normalisedPlayerId, seasonInitialised, selectedSeasonId]);
+  }, [hasPlayerId, normalisedPlayerId, seasonFilterId, seasonInitialised]);
 
   React.useEffect(() => {
     if (!showRelationshipGraph || !hasPlayerId || !seasonInitialised) {
@@ -986,9 +991,7 @@ export default function Player({ canContribute = false }) {
     }
 
     const seasonKey =
-      selectedSeasonId !== null && selectedSeasonId !== undefined
-        ? String(selectedSeasonId)
-        : '';
+      seasonFilterId !== null && seasonFilterId !== undefined ? seasonFilterId : '';
 
     if (
       relationshipPlayerId === normalisedPlayerId &&
@@ -1052,7 +1055,7 @@ export default function Player({ canContribute = false }) {
     relationshipPlayerId,
     relationshipSeasonKey,
     seasonInitialised,
-    selectedSeasonId,
+    seasonFilterId,
   ]);
 
   const preparedDungeons = React.useMemo(() => {
