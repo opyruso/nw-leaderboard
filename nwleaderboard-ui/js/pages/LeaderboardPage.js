@@ -556,6 +556,13 @@ export default function LeaderboardPage({
       const sanitisedWeeks = uniqueWeeks.filter((value) => availableWeeks.includes(value));
       if (sanitisedWeeks.length > 0) {
         sanitisedWeeks.forEach((value) => params.append('week', value));
+      } else if (
+        hasUserAdjustedWeekFiltersRef.current &&
+        selectedWeekValues.length === 0 &&
+        availableWeeks.length > 0
+      ) {
+        const uniqueAvailableWeeks = Array.from(new Set(availableWeeks));
+        uniqueAvailableWeeks.forEach((value) => params.append('week', value));
       }
     }
 
