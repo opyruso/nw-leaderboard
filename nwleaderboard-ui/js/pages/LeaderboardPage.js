@@ -509,15 +509,15 @@ export default function LeaderboardPage({
       if (!mutationFiltersReady) {
         return;
       }
-      const shouldFilter = sanitisedSelected.length < available.length || selected.length === 0;
-      if (!shouldFilter) {
+      if (sanitisedSelected.length > 0) {
+        if (sanitisedSelected.length < available.length) {
+          sanitisedSelected.forEach((value) => params.append(paramName, value));
+        }
         return;
       }
-      if (sanitisedSelected.length === 0) {
+      if (selected.length > 0) {
         params.append(paramName, '');
-        return;
       }
-      sanitisedSelected.forEach((value) => params.append(paramName, value));
     });
 
     if (regionFiltersReady) {
