@@ -47,6 +47,7 @@ public class LeaderboardResource {
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
             @QueryParam("region") List<String> regionIds,
+            @QueryParam("week") List<Integer> weekNumbers,
             @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
@@ -61,6 +62,7 @@ public class LeaderboardResource {
                 mutationPromotionIds,
                 mutationCurseIds,
                 regionIds,
+                weekNumbers,
                 seasonId);
         return Response.ok(response).build();
     }
@@ -73,6 +75,7 @@ public class LeaderboardResource {
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
             @QueryParam("region") List<String> regionIds,
+            @QueryParam("week") List<Integer> weekNumbers,
             @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
@@ -80,7 +83,13 @@ public class LeaderboardResource {
                     .build();
         }
         LeaderboardChartResponse response = leaderboardService.getScoreChartData(
-                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds, seasonId);
+                dungeonId,
+                mutationTypeIds,
+                mutationPromotionIds,
+                mutationCurseIds,
+                regionIds,
+                weekNumbers,
+                seasonId);
         return Response.ok(response).build();
     }
 
@@ -94,6 +103,7 @@ public class LeaderboardResource {
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
             @QueryParam("region") List<String> regionIds,
+            @QueryParam("week") List<Integer> weekNumbers,
             @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
@@ -108,6 +118,7 @@ public class LeaderboardResource {
                 mutationPromotionIds,
                 mutationCurseIds,
                 regionIds,
+                weekNumbers,
                 seasonId);
         return Response.ok(response).build();
     }
@@ -120,6 +131,7 @@ public class LeaderboardResource {
             @QueryParam("mutationPromotion") List<String> mutationPromotionIds,
             @QueryParam("mutationCurse") List<String> mutationCurseIds,
             @QueryParam("region") List<String> regionIds,
+            @QueryParam("week") List<Integer> weekNumbers,
             @QueryParam("seasonId") Integer seasonId) {
         if (dungeonId == null) {
             return Response.status(Status.BAD_REQUEST)
@@ -127,8 +139,27 @@ public class LeaderboardResource {
                     .build();
         }
         LeaderboardChartResponse response = leaderboardService.getTimeChartData(
-                dungeonId, mutationTypeIds, mutationPromotionIds, mutationCurseIds, regionIds, seasonId);
+                dungeonId,
+                mutationTypeIds,
+                mutationPromotionIds,
+                mutationCurseIds,
+                regionIds,
+                weekNumbers,
+                seasonId);
         return Response.ok(response).build();
+    }
+
+    @GET
+    @Path("/weeks")
+    public Response listWeeks(
+            @QueryParam("dungeonId") Long dungeonId, @QueryParam("seasonId") Integer seasonId) {
+        if (dungeonId == null) {
+            return Response.status(Status.BAD_REQUEST)
+                    .entity(new ApiMessageResponse("dungeonId query parameter is required", null))
+                    .build();
+        }
+        List<Integer> weeks = leaderboardService.listAvailableWeeks(dungeonId, seasonId);
+        return Response.ok(weeks).build();
     }
 
     @GET
