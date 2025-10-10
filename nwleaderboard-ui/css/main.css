@@ -3630,7 +3630,6 @@ body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-w
   -ms-overflow-style: none;
   touch-action: pan-y;
   cursor: grab;
-  user-select: none;
 }
 
 .season-carousel-track::-webkit-scrollbar {
@@ -3639,6 +3638,7 @@ body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-w
 
 .season-carousel-track.is-dragging {
   cursor: grabbing;
+  user-select: none;
 }
 
 .season-carousel-item {

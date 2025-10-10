@@ -9,12 +9,39 @@ export default function useDragScroll(ref) {
     let hasMoved = false;
     let startX = 0;
     let startScrollLeft = 0;
+    let animationFrame = null;
+    let pendingScrollLeft = null;
+
+    const cancelScheduledScroll = () => {
+      if (animationFrame !== null) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      pendingScrollLeft = null;
+    };
+
+    const flushScroll = () => {
+      animationFrame = null;
+      if (pendingScrollLeft === null) {
+        return;
+      }
+      target.scrollLeft = pendingScrollLeft;
+      pendingScrollLeft = null;
+    };
+
+    const scheduleScroll = () => {
+      if (animationFrame !== null) {
+        return;
+      }
+      animationFrame = window.requestAnimationFrame(flushScroll);
+    };
 
     const stopDragging = (event) => {
       if (!isActive) {
         return;
       }
       isActive = false;
+      cancelScheduledScroll();
       target.classList.remove('is-dragging');
       if (event && typeof event.pointerId === 'number') {
         try {
@@ -36,13 +63,13 @@ export default function useDragScroll(ref) {
       hasMoved = false;
       startX = event.clientX;
       startScrollLeft = target.scrollLeft;
-      target.classList.add('is-dragging');
-      try {
-        target.setPointerCapture(event.pointerId);
-      } catch (error) {
-        // Ignore capture errors
+      if (typeof event.pointerId === 'number') {
+        try {
+          target.setPointerCapture(event.pointerId);
+        } catch (error) {
+          // Ignore capture errors
+        }
       }
-      event.preventDefault();
     };
 
     const handlePointerMove = (event) => {
@@ -53,7 +80,11 @@ export default function useDragScroll(ref) {
       if (!hasMoved && Math.abs(deltaX) > 3) {
         hasMoved = true;
       }
-      target.scrollLeft = startScrollLeft - deltaX;
+      if (hasMoved && !target.classList.contains('is-dragging')) {
+        target.classList.add('is-dragging');
+      }
+      pendingScrollLeft = startScrollLeft - deltaX;
+      scheduleScroll();
     };
 
     const handlePointerUp = (event) => {
@@ -71,7 +102,7 @@ export default function useDragScroll(ref) {
       }
     };
 
-    target.addEventListener('pointerdown', handlePointerDown, { passive: false });
+    target.addEventListener('pointerdown', handlePointerDown);
     target.addEventListener('pointermove', handlePointerMove);
     target.addEventListener('pointerup', handlePointerUp);
     target.addEventListener('pointerleave', handlePointerCancel);
@@ -79,6 +110,7 @@ export default function useDragScroll(ref) {
     target.addEventListener('click', handleClickCapture, true);
 
     return () => {
+      cancelScheduledScroll();
       target.removeEventListener('pointerdown', handlePointerDown);
       target.removeEventListener('pointermove', handlePointerMove);
       target.removeEventListener('pointerup', handlePointerUp);
