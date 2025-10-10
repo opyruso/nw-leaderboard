@@ -71,6 +71,7 @@ public class LeaderboardService {
             List<String> mutationPromotionIds,
             List<String> mutationCurseIds,
             List<String> regionIds,
+            List<Integer> weekNumbers,
             Integer seasonId) {
         int safePageSize = sanitisePageSize(pageSizeParam);
         int requestedPage = sanitisePage(pageParam);
@@ -80,7 +81,7 @@ public class LeaderboardService {
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
         Set<String> regionFilter = sanitiseRegionIds(regionIds);
-        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId, weekNumbers);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
@@ -132,6 +133,7 @@ public class LeaderboardService {
             List<String> mutationPromotionIds,
             List<String> mutationCurseIds,
             List<String> regionIds,
+            List<Integer> weekNumbers,
             Integer seasonId) {
         int safePageSize = sanitisePageSize(pageSizeParam);
         int requestedPage = sanitisePage(pageParam);
@@ -141,7 +143,7 @@ public class LeaderboardService {
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
         Set<String> regionFilter = sanitiseRegionIds(regionIds);
-        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId, weekNumbers);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardPageResponse(List.of(), 0L, 1, safePageSize, 1);
         }
@@ -192,6 +194,7 @@ public class LeaderboardService {
             List<String> mutationPromotionIds,
             List<String> mutationCurseIds,
             List<String> regionIds,
+            List<Integer> weekNumbers,
             Integer seasonId) {
         if (dungeonId == null) {
             return new LeaderboardChartResponse(List.of(), null);
@@ -199,7 +202,7 @@ public class LeaderboardService {
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
         Set<String> regionFilter = sanitiseRegionIds(regionIds);
-        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId, weekNumbers);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardChartResponse(List.of(), null);
         }
@@ -216,6 +219,7 @@ public class LeaderboardService {
             List<String> mutationPromotionIds,
             List<String> mutationCurseIds,
             List<String> regionIds,
+            List<Integer> weekNumbers,
             Integer seasonId) {
         if (dungeonId == null) {
             return new LeaderboardChartResponse(List.of(), null);
@@ -223,7 +227,7 @@ public class LeaderboardService {
 
         MutationFilter filter = sanitiseMutationFilter(mutationTypeIds, mutationPromotionIds, mutationCurseIds);
         Set<String> regionFilter = sanitiseRegionIds(regionIds);
-        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId);
+        List<Integer> weekFilter = resolveWeekFilter(dungeonId, filter, seasonId, weekNumbers);
         if (weekFilter != null && weekFilter.isEmpty()) {
             return new LeaderboardChartResponse(List.of(), null);
         }
@@ -231,6 +235,23 @@ public class LeaderboardService {
         List<ChartAggregate> aggregates = mapChartAggregates(
                 runTimeRepository.aggregateByDungeonAndWeeks(dungeonId, weekFilter, regionFilter, seasonId));
         return buildChartResponse(aggregates, true);
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public List<Integer> listAvailableWeeks(Long dungeonId, Integer seasonId) {
+        if (dungeonId == null) {
+            return List.of();
+        }
+        if (seasonId != null) {
+            List<Integer> seasonWeeks = normaliseWeekList(
+                    weekMutationDungeonRepository.findWeekNumbersBySeason(dungeonId, seasonId));
+            if (seasonWeeks != null) {
+                return seasonWeeks;
+            }
+        }
+        List<Integer> weeks = normaliseWeekList(
+                weekMutationDungeonRepository.findWeekNumbersByFilters(dungeonId, null, null, null));
+        return weeks != null ? weeks : List.of();
     }
 
     @Transactional(Transactional.TxType.SUPPORTS)
@@ -536,37 +557,24 @@ public class LeaderboardService {
         return unique.isEmpty() ? Set.of() : Collections.unmodifiableSet(unique);
     }
 
-    private List<Integer> resolveWeekFilter(Long dungeonId, MutationFilter filter, Integer seasonId) {
-        List<Integer> mutationWeeks = resolveMutationWeekFilter(dungeonId, filter);
+    private List<Integer> resolveWeekFilter(
+            Long dungeonId, MutationFilter filter, Integer seasonId, List<Integer> requestedWeeks) {
+        List<Integer> manualWeeks = normaliseWeekList(requestedWeeks);
+        if (manualWeeks != null && manualWeeks.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> mutationWeeks = normaliseWeekList(resolveMutationWeekFilter(dungeonId, filter));
         if (mutationWeeks != null && mutationWeeks.isEmpty()) {
             return List.of();
         }
-        List<Integer> seasonWeeks = resolveSeasonWeekFilter(dungeonId, seasonId);
+        List<Integer> seasonWeeks = normaliseWeekList(resolveSeasonWeekFilter(dungeonId, seasonId));
         if (seasonWeeks != null && seasonWeeks.isEmpty()) {
             return List.of();
         }
-        if (mutationWeeks == null) {
-            return seasonWeeks;
-        }
-        if (seasonWeeks == null) {
-            return mutationWeeks;
-        }
-        Set<Integer> mutationSet = new LinkedHashSet<>();
-        for (Integer week : mutationWeeks) {
-            if (week != null) {
-                mutationSet.add(week);
-            }
-        }
-        LinkedHashSet<Integer> intersection = new LinkedHashSet<>();
-        for (Integer week : seasonWeeks) {
-            if (week != null && mutationSet.contains(week)) {
-                intersection.add(week);
-            }
-        }
-        if (intersection.isEmpty()) {
-            return List.of();
-        }
-        return List.copyOf(intersection);
+
+        List<Integer> combined = intersectWeekFilters(manualWeeks, mutationWeeks);
+        combined = intersectWeekFilters(combined, seasonWeeks);
+        return combined;
     }
 
     private List<Integer> resolveMutationWeekFilter(Long dungeonId, MutationFilter filter) {
@@ -593,19 +601,47 @@ public class LeaderboardService {
             return List.of();
         }
         List<Integer> weeks = weekMutationDungeonRepository.findWeekNumbersBySeason(dungeonId, seasonId);
-        if (weeks == null || weeks.isEmpty()) {
-            return List.of();
+        return normaliseWeekList(weeks);
+    }
+
+    private List<Integer> normaliseWeekList(List<Integer> weeks) {
+        if (weeks == null) {
+            return null;
         }
         LinkedHashSet<Integer> unique = new LinkedHashSet<>();
         for (Integer week : weeks) {
-            if (week != null) {
-                unique.add(week);
+            if (week == null) {
+                continue;
+            }
+            int value = week.intValue();
+            if (value > 0) {
+                unique.add(value);
             }
         }
         if (unique.isEmpty()) {
             return List.of();
         }
         return List.copyOf(unique);
+    }
+
+    private List<Integer> intersectWeekFilters(List<Integer> base, List<Integer> other) {
+        if (base == null) {
+            return other;
+        }
+        if (other == null) {
+            return base;
+        }
+        LinkedHashSet<Integer> otherSet = new LinkedHashSet<>(other);
+        LinkedHashSet<Integer> intersection = new LinkedHashSet<>();
+        for (Integer week : base) {
+            if (week != null && otherSet.contains(week)) {
+                intersection.add(week);
+            }
+        }
+        if (intersection.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(intersection);
     }
 
     private int sanitisePage(Integer page) {

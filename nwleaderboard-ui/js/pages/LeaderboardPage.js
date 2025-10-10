@@ -34,6 +34,21 @@ const FILTER_STORAGE_PREFIX = 'nwleaderboard:filters:';
 const SHARED_FILTER_STORAGE_KEY = `${FILTER_STORAGE_PREFIX}score-time`;
 const SHARED_FILTER_MODES = new Set(['score', 'time']);
 
+function normaliseWeekFilterValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const numeric = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+  return String(numeric);
+}
+
 function getFilterStorageKeys(mode, { includeLegacy = false } = {}) {
   if (!mode) {
     return [];
@@ -69,7 +84,12 @@ function normaliseStoredFilters(parsed) {
     typeof parsed.dungeon === 'string' || typeof parsed.dungeon === 'number'
       ? String(parsed.dungeon).trim()
       : '';
-  return { mutation, regions, dungeon: dungeon || null };
+  const weeks = Array.isArray(parsed.weeks)
+    ? parsed.weeks
+        .map((value) => normaliseWeekFilterValue(value))
+        .filter(Boolean)
+    : [];
+  return { mutation, regions, dungeon: dungeon || null, weeks };
 }
 
 function createEmptyMutationFilters() {
@@ -93,7 +113,13 @@ function loadStoredFilters(mode) {
         continue;
       }
       if (SHARED_FILTER_MODES.has(mode) && key !== SHARED_FILTER_STORAGE_KEY) {
-        saveStoredFilters(mode, normalised.mutation, normalised.regions, normalised.dungeon);
+        saveStoredFilters(
+          mode,
+          normalised.mutation,
+          normalised.regions,
+          normalised.dungeon,
+          normalised.weeks,
+        );
       }
       return normalised;
     } catch (error) {
@@ -103,7 +129,7 @@ function loadStoredFilters(mode) {
   return null;
 }
 
-function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
+function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId, weekFilters) {
   if (!mode || typeof window === 'undefined' || !window.localStorage) {
     return;
   }
@@ -125,6 +151,11 @@ function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId) {
         typeof dungeonId === 'string' || typeof dungeonId === 'number'
           ? String(dungeonId).trim()
           : null,
+      weeks: Array.isArray(weekFilters)
+        ? weekFilters
+            .map((value) => normaliseWeekFilterValue(value))
+            .filter(Boolean)
+        : [],
     };
     const storageKeys = Array.from(new Set(getFilterStorageKeys(mode, { includeLegacy: true })));
     storageKeys.forEach((key) => {
@@ -268,6 +299,12 @@ export default function LeaderboardPage({
   const [regionFilters, setRegionFilters] = React.useState(() =>
     Array.isArray(storedFilters?.regions) ? storedFilters.regions : [],
   );
+  const [selectedWeeks, setSelectedWeeks] = React.useState(() =>
+    Array.isArray(storedFilters?.weeks) ? storedFilters.weeks : [],
+  );
+  const [weekOptions, setWeekOptions] = React.useState([]);
+  const [weekLoading, setWeekLoading] = React.useState(false);
+  const [weekError, setWeekError] = React.useState(false);
   const [regionOptions, setRegionOptions] = React.useState([]);
   const [regionLoading, setRegionLoading] = React.useState(false);
   const [regionError, setRegionError] = React.useState(false);
@@ -285,6 +322,9 @@ export default function LeaderboardPage({
   const hasUserAdjustedMutationFiltersRef = React.useRef(false);
   const regionFiltersInitialisedRef = React.useRef(false);
   const hasUserAdjustedRegionFiltersRef = React.useRef(false);
+  const weekFiltersInitialisedRef = React.useRef(false);
+  const hasUserAdjustedWeekFiltersRef = React.useRef(false);
+  const weekFetchAttemptedRef = React.useRef(false);
   const [isMobileViewport, setIsMobileViewport] = React.useState(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return false;
@@ -329,6 +369,9 @@ export default function LeaderboardPage({
       regionFiltersInitialisedRef.current = true;
       hasUserAdjustedRegionFiltersRef.current = true;
     }
+    if (Array.isArray(storedFilters?.weeks) && storedFilters.weeks.length > 0) {
+      hasUserAdjustedWeekFiltersRef.current = true;
+    }
   }, [storedFilters]);
 
   React.useEffect(() => {
@@ -345,12 +388,73 @@ export default function LeaderboardPage({
     });
   }, [seasonStorageKey]);
 
+  React.useEffect(() => {
+    setSelectedWeeks((previous) => {
+      const currentValues = Array.isArray(previous)
+        ? previous.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+        : [];
+      const available = Array.isArray(weekOptions)
+        ? weekOptions.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+        : [];
+      const uniqueCurrent = Array.from(new Set(currentValues));
+      let finalValues = uniqueCurrent.filter((value) => available.includes(value));
+
+      if (weekFetchAttemptedRef.current && !weekFiltersInitialisedRef.current) {
+        const stored = Array.isArray(storedFilters?.weeks)
+          ? storedFilters.weeks.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+          : [];
+        if (stored.length > 0) {
+          const sanitisedStored = stored.filter((value) => available.includes(value));
+          if (sanitisedStored.length > 0) {
+            finalValues = sanitisedStored;
+            hasUserAdjustedWeekFiltersRef.current = true;
+          }
+        }
+        if (!weekLoading) {
+          weekFiltersInitialisedRef.current = true;
+        }
+      }
+
+      if (
+        finalValues.length !== uniqueCurrent.length ||
+        finalValues.some((value, index) => value !== uniqueCurrent[index])
+      ) {
+        return finalValues;
+      }
+      return uniqueCurrent;
+    });
+  }, [weekOptions, storedFilters, weekLoading]);
+
   const handleMutationPanelToggle = React.useCallback(() => {
     setIsMutationCollapsed((previous) => !previous);
   }, []);
 
   const handleRegionPanelToggle = React.useCallback(() => {
     setIsRegionCollapsed((previous) => !previous);
+  }, []);
+
+  const handleWeekFilterToggle = React.useCallback((week) => {
+    const normalised = normaliseWeekFilterValue(week);
+    if (!normalised) {
+      return;
+    }
+    weekFiltersInitialisedRef.current = true;
+    hasUserAdjustedWeekFiltersRef.current = true;
+    setSelectedWeeks((previous) => {
+      const currentValues = Array.isArray(previous)
+        ? previous.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+        : [];
+      if (currentValues.includes(normalised)) {
+        return currentValues.filter((value) => value !== normalised);
+      }
+      return [...currentValues, normalised];
+    });
+  }, []);
+
+  const handleWeekFilterReset = React.useCallback(() => {
+    weekFiltersInitialisedRef.current = true;
+    hasUserAdjustedWeekFiltersRef.current = true;
+    setSelectedWeeks([]);
   }, []);
 
   const mutationOptions = React.useMemo(() => {
@@ -432,6 +536,20 @@ export default function LeaderboardPage({
       }
     }
 
+    if (weekFiltersInitialisedRef.current) {
+      const availableWeeks = Array.isArray(weekOptions)
+        ? weekOptions.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+        : [];
+      const selectedWeekValues = Array.isArray(selectedWeeks)
+        ? selectedWeeks.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+        : [];
+      const uniqueWeeks = Array.from(new Set(selectedWeekValues));
+      const sanitisedWeeks = uniqueWeeks.filter((value) => availableWeeks.includes(value));
+      if (sanitisedWeeks.length > 0) {
+        sanitisedWeeks.forEach((value) => params.append('week', value));
+      }
+    }
+
     if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
       params.set('seasonId', String(selectedSeasonId));
     }
@@ -443,6 +561,8 @@ export default function LeaderboardPage({
     mutationOptions,
     regionFilters,
     regionOptions,
+    selectedWeeks,
+    weekOptions,
     selectedSeasonId,
   ]);
 
@@ -621,6 +741,77 @@ export default function LeaderboardPage({
       controller.abort();
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!seasonInitialised) {
+      return;
+    }
+    if (!selectedDungeon) {
+      weekFiltersInitialisedRef.current = false;
+      setWeekOptions([]);
+      setWeekLoading(false);
+      setWeekError(false);
+      weekFetchAttemptedRef.current = true;
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    weekFiltersInitialisedRef.current = false;
+    setWeekLoading(true);
+    setWeekError(false);
+    weekFetchAttemptedRef.current = true;
+
+    const params = new URLSearchParams();
+    params.set('dungeonId', String(selectedDungeon));
+    if (selectedSeasonId !== null && selectedSeasonId !== undefined) {
+      params.set('seasonId', String(selectedSeasonId));
+    }
+
+    fetch(`${API_BASE_URL}/leaderboard/weeks?${params.toString()}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load weeks: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const unique = Array.from(
+          new Set(
+            (Array.isArray(data) ? data : [])
+              .map((value) => normaliseWeekFilterValue(value))
+              .filter(Boolean),
+          ),
+        );
+        unique.sort((left, right) => {
+          const leftNumber = Number(left);
+          const rightNumber = Number(right);
+          if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber)) {
+            return rightNumber - leftNumber;
+          }
+          return left.localeCompare(right, undefined, { numeric: true });
+        });
+        setWeekOptions(unique);
+        setWeekLoading(false);
+      })
+      .catch((error) => {
+        if (!active || error.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load weeks', error);
+        setWeekOptions([]);
+        setWeekError(true);
+        setWeekLoading(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [seasonInitialised, selectedDungeon, selectedSeasonId]);
 
   React.useEffect(() => {
     if (!Array.isArray(dungeons) || dungeons.length === 0) {
@@ -945,7 +1136,7 @@ export default function LeaderboardPage({
   React.useEffect(() => {
     setRequestedPage(1);
     setCurrentPage(1);
-  }, [selectedDungeon, mutationFilters, regionFilters, selectedSeasonId]);
+  }, [selectedDungeon, mutationFilters, regionFilters, selectedSeasonId, selectedWeeks]);
 
   const handleMutationFilterToggle = React.useCallback((key, value) => {
     if (!MUTATION_FILTER_KEYS.includes(key)) {
@@ -1013,8 +1204,8 @@ export default function LeaderboardPage({
   }, []);
 
   React.useEffect(() => {
-    saveStoredFilters(mode, mutationFilters, regionFilters, selectedDungeon);
-  }, [mode, mutationFilters, regionFilters, selectedDungeon]);
+    saveStoredFilters(mode, mutationFilters, regionFilters, selectedDungeon, selectedWeeks);
+  }, [mode, mutationFilters, regionFilters, selectedDungeon, selectedWeeks]);
 
   React.useEffect(() => {
     saveStoredSeasonId(seasonStorageKey, selectedSeasonId);
@@ -1057,13 +1248,17 @@ export default function LeaderboardPage({
       : [];
     const curseFilters = Array.isArray(mutationFilters?.curse) ? mutationFilters.curse : [];
     const regionFilterValues = Array.isArray(regionFilters) ? regionFilters : [];
+    const weekFilterValues = Array.isArray(selectedWeeks)
+      ? selectedWeeks.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
+      : [];
 
     const hasTypeFilter = typeFilters.length > 0;
     const hasPromotionFilter = promotionFilters.length > 0;
     const hasCurseFilter = curseFilters.length > 0;
     const hasRegionFilter = regionFilterValues.length > 0;
+    const hasWeekFilter = weekFilterValues.length > 0;
 
-    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter && !hasRegionFilter) {
+    if (!hasTypeFilter && !hasPromotionFilter && !hasCurseFilter && !hasRegionFilter && !hasWeekFilter) {
       return entries;
     }
 
@@ -1072,6 +1267,13 @@ export default function LeaderboardPage({
       const typeId = mutations?.typeId ? String(mutations.typeId) : '';
       const promotionId = mutations?.promotionId ? String(mutations.promotionId) : '';
       const curseId = mutations?.curseId ? String(mutations.curseId) : '';
+
+      if (hasWeekFilter) {
+        const entryWeekValue = normaliseWeekFilterValue(entry?.week ?? deriveWeek(entry?.raw));
+        if (!entryWeekValue || !weekFilterValues.includes(entryWeekValue)) {
+          return false;
+        }
+      }
 
       if (hasTypeFilter && !typeFilters.includes(typeId)) {
         return false;
@@ -1096,7 +1298,7 @@ export default function LeaderboardPage({
       }
       return true;
     });
-  }, [entries, mutationFilters, regionFilters]);
+  }, [entries, mutationFilters, regionFilters, selectedWeeks]);
 
   const formatWeekLabel = React.useCallback(
     (week) => {
@@ -1375,6 +1577,59 @@ export default function LeaderboardPage({
       }
       displayRange={false}
     />
+  );
+
+  const hasWeekOptions = Array.isArray(weekOptions) && weekOptions.length > 0;
+  const isWeekSelectionActive = Array.isArray(selectedWeeks) && selectedWeeks.length > 0;
+
+  const weekFilterPanel = (
+    <div className="leaderboard-week-filter" aria-live="polite">
+      <div className="leaderboard-week-filter-header">
+        <span className="leaderboard-week-filter-label">{t.weekFilterLabel}</span>
+        {isWeekSelectionActive ? (
+          <button
+            type="button"
+            className="leaderboard-week-filter-reset"
+            onClick={handleWeekFilterReset}
+          >
+            {t.weekFilterAll}
+          </button>
+        ) : null}
+      </div>
+      {weekLoading ? (
+        <p className="leaderboard-status">{t.weekFilterLoading}</p>
+      ) : weekError ? (
+        <p className="leaderboard-status error">{t.weekFilterError}</p>
+      ) : hasWeekOptions ? (
+        <div className="leaderboard-week-filter-list" role="group" aria-label={t.weekFilterLabel}>
+          <button
+            type="button"
+            className={`leaderboard-week-filter-button${!isWeekSelectionActive ? ' active' : ''}`}
+            onClick={handleWeekFilterReset}
+            aria-pressed={!isWeekSelectionActive}
+          >
+            {t.weekFilterAll}
+          </button>
+          {weekOptions.map((week) => {
+            const displayLabel = formatWeekLabel(week);
+            const isActive = isWeekSelectionActive && selectedWeeks.includes(week);
+            return (
+              <button
+                key={week}
+                type="button"
+                className={`leaderboard-week-filter-button${isActive ? ' active' : ''}`}
+                aria-pressed={isActive}
+                onClick={() => handleWeekFilterToggle(week)}
+              >
+                {displayLabel}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="leaderboard-filter-empty">{t.weekFilterEmpty}</p>
+      )}
+    </div>
   );
 
 
@@ -1897,24 +2152,28 @@ export default function LeaderboardPage({
           {entriesLoading ? (
             <>
               {seasonCarousel}
+              {weekFilterPanel}
               <p className="leaderboard-status">{t.leaderboardLoading}</p>
             </>
           ) : entriesError ? (
             <>
               {chartSection}
               {seasonCarousel}
+              {weekFilterPanel}
               <p className="leaderboard-status error">{t.leaderboardError}</p>
             </>
           ) : sortedEntries.length === 0 ? (
             <>
               {chartSection}
               {seasonCarousel}
+              {weekFilterPanel}
               <p className="leaderboard-status">{t.leaderboardNoResults}</p>
             </>
           ) : (
             <>
               {chartSection}
               {seasonCarousel}
+              {weekFilterPanel}
               <ul className="leaderboard-list">
                 {displayEntries.map((entry) => {
                   const regionLabel = entry.region ? translateRegion(t, entry.region) : '';
