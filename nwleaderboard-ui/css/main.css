@@ -3610,60 +3610,7 @@ body[data-theme='light'] .player-dungeon-card.highlighted-glow .player-dungeon-w
 }
 
 .leaderboard-week-filter {
-  margin: 0.75rem 0 1.5rem;
-}
-
-.leaderboard-week-filter-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.leaderboard-week-filter-label {
-  font-weight: 600;
-}
-
-.leaderboard-week-filter-reset {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.leaderboard-week-filter-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.leaderboard-week-filter-button {
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(148, 163, 184, 0.12);
-  color: inherit;
-  font: inherit;
-  padding: 0.35rem 0.75rem;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.leaderboard-week-filter-button.active {
-  border-color: rgba(124, 92, 255, 0.85);
-  background: rgba(124, 92, 255, 0.2);
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
-}
-
-.leaderboard-week-filter-button:not(.active):hover,
-.leaderboard-week-filter-button:not(.active):focus-visible {
-  outline: none;
-  border-color: rgba(124, 92, 255, 0.6);
-  background: rgba(124, 92, 255, 0.16);
-  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18);
+  margin: 1.25rem 0;
 }
 
 .season-carousel-label {
@@ -3768,23 +3715,6 @@ body[data-theme='light'] .season-carousel-item.selected {
 
 body[data-theme='light'] .season-carousel-item:not(.selected):hover,
 body[data-theme='light'] .season-carousel-item:not(.selected):focus-visible {
-  border-color: rgba(94, 53, 177, 0.6);
-  background: rgba(94, 53, 177, 0.15);
-}
-
-body[data-theme='light'] .leaderboard-week-filter-button {
-  border-color: rgba(148, 163, 184, 0.45);
-  background: rgba(15, 23, 42, 0.05);
-}
-
-body[data-theme='light'] .leaderboard-week-filter-button.active {
-  border-color: rgba(94, 53, 177, 0.75);
-  background: rgba(94, 53, 177, 0.18);
-  box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.25);
-}
-
-body[data-theme='light'] .leaderboard-week-filter-button:not(.active):hover,
-body[data-theme='light'] .leaderboard-week-filter-button:not(.active):focus-visible {
   border-color: rgba(94, 53, 177, 0.6);
   background: rgba(94, 53, 177, 0.15);
 }

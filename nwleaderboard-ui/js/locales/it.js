@@ -400,7 +400,6 @@ const it = {
   dungeonSelectorToggleExpand: 'Mostra elenco spedizioni',
   dungeonSelectorToggleCollapse: 'Nascondi elenco spedizioni',
   weekFilterLabel: 'Settimane',
-  weekFilterAll: 'Tutte le settimane',
   weekFilterLoading: 'Caricamento delle settimane…',
   weekFilterError: "Impossibile caricare l'elenco delle settimane.",
   weekFilterEmpty: 'Nessuna settimana disponibile.',

@@ -407,7 +407,6 @@ const fr = {
   dungeonSelectorToggleExpand: 'Afficher la liste des donjons',
   dungeonSelectorToggleCollapse: 'Masquer la liste des donjons',
   weekFilterLabel: 'Semaines',
-  weekFilterAll: 'Toutes les semaines',
   weekFilterLoading: 'Chargement des semaines…',
   weekFilterError: 'Impossible de charger la liste des semaines.',
   weekFilterEmpty: 'Aucune semaine disponible.',

@@ -451,12 +451,6 @@ export default function LeaderboardPage({
     });
   }, []);
 
-  const handleWeekFilterReset = React.useCallback(() => {
-    weekFiltersInitialisedRef.current = true;
-    hasUserAdjustedWeekFiltersRef.current = true;
-    setSelectedWeeks([]);
-  }, []);
-
   const mutationOptions = React.useMemo(() => {
     const sortOptions = (values) =>
       values
@@ -1584,50 +1578,34 @@ export default function LeaderboardPage({
 
   const weekFilterPanel = (
     <div className="leaderboard-week-filter" aria-live="polite">
-      <div className="leaderboard-week-filter-header">
-        <span className="leaderboard-week-filter-label">{t.weekFilterLabel}</span>
-        {isWeekSelectionActive ? (
-          <button
-            type="button"
-            className="leaderboard-week-filter-reset"
-            onClick={handleWeekFilterReset}
-          >
-            {t.weekFilterAll}
-          </button>
-        ) : null}
-      </div>
       {weekLoading ? (
-        <p className="leaderboard-status">{t.weekFilterLoading}</p>
+        <p className="season-carousel-status">{t.weekFilterLoading}</p>
       ) : weekError ? (
-        <p className="leaderboard-status error">{t.weekFilterError}</p>
+        <p className="season-carousel-status error">{t.weekFilterError}</p>
       ) : hasWeekOptions ? (
-        <div className="leaderboard-week-filter-list" role="group" aria-label={t.weekFilterLabel}>
-          <button
-            type="button"
-            className={`leaderboard-week-filter-button${!isWeekSelectionActive ? ' active' : ''}`}
-            onClick={handleWeekFilterReset}
-            aria-pressed={!isWeekSelectionActive}
-          >
-            {t.weekFilterAll}
-          </button>
-          {weekOptions.map((week) => {
-            const displayLabel = formatWeekLabel(week);
-            const isActive = isWeekSelectionActive && selectedWeeks.includes(week);
-            return (
-              <button
-                key={week}
-                type="button"
-                className={`leaderboard-week-filter-button${isActive ? ' active' : ''}`}
-                aria-pressed={isActive}
-                onClick={() => handleWeekFilterToggle(week)}
-              >
-                {displayLabel}
-              </button>
-            );
-          })}
+        <div className="season-carousel" role="group" aria-label={t.weekFilterLabel}>
+          <div className="season-carousel-track" role="list">
+            {weekOptions.map((week) => {
+              const displayLabel = formatWeekLabel(week);
+              const isActive =
+                isWeekSelectionActive && selectedWeeks.includes(week);
+              return (
+                <button
+                  key={week}
+                  type="button"
+                  className={`season-carousel-item${isActive ? ' selected' : ''}`}
+                  aria-pressed={isActive}
+                  onClick={() => handleWeekFilterToggle(week)}
+                  role="listitem"
+                >
+                  <span className="season-carousel-item-label">{displayLabel}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <p className="leaderboard-filter-empty">{t.weekFilterEmpty}</p>
+        <p className="season-carousel-status">{t.weekFilterEmpty}</p>
       )}
     </div>
   );
