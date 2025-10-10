@@ -365,8 +365,14 @@ export default function LeaderboardPage({
 
   React.useEffect(() => {
     if (storedFilters?.mutation) {
-      mutationFiltersInitialisedRef.current = true;
-      hasUserAdjustedMutationFiltersRef.current = true;
+      const hasStoredMutationSelection = MUTATION_FILTER_KEYS.some((key) => {
+        const values = storedFilters.mutation[key];
+        return Array.isArray(values) && values.length > 0;
+      });
+      if (hasStoredMutationSelection) {
+        mutationFiltersInitialisedRef.current = true;
+        hasUserAdjustedMutationFiltersRef.current = true;
+      }
     }
     if (Array.isArray(storedFilters?.regions) && storedFilters.regions.length > 0) {
       regionFiltersInitialisedRef.current = true;
