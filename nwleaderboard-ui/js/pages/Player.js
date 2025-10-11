@@ -1299,6 +1299,8 @@ export default function Player({ canContribute = false }) {
 
     const nodes = [];
     const groupNodes = new Map();
+    const groupMembers = new Map();
+    const nodeIndex = new Map();
     const edges = [];
     let maxSharedRuns = 0;
 
@@ -1349,14 +1351,46 @@ export default function Player({ canContribute = false }) {
         nodeData.parent = parentId;
         nodeData.groupId = groupId;
         nodeData.groupLabel = parentNode?.data?.groupLabel || groupLabel || label || groupId;
+        if (!groupMembers.has(parentId)) {
+          groupMembers.set(parentId, new Set());
+        }
+        groupMembers.get(parentId).add(id);
       }
 
-      nodes.push({
+      const nodeEntry = {
         data: nodeData,
         classes: `node-${category}`,
-      });
+      };
+      nodes.push(nodeEntry);
+      nodeIndex.set(id, nodeData);
     });
 
+    const classifySharedRuns = (value) => {
+      if (value >= 10) {
+        return 'strong';
+      }
+      if (value >= 5) {
+        return 'medium';
+      }
+      return 'weak';
+    };
+
+    const resolveAggregateNode = (nodeId) => {
+      if (!nodeId) {
+        return '';
+      }
+      const nodeData = nodeIndex.get(nodeId);
+      if (!nodeData || !nodeData.parent) {
+        return nodeId;
+      }
+      const members = groupMembers.get(nodeData.parent);
+      if (!members || members.size < 2) {
+        return nodeId;
+      }
+      return nodeData.parent;
+    };
+
+    const aggregatedEdges = new Map();
     const rawEdges = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
     rawEdges.forEach((edge) => {
       if (!edge) {
@@ -1374,9 +1408,59 @@ export default function Player({ canContribute = false }) {
       const category = normaliseCategory(edge.category, 'weak');
       const sharedRunsRaw = Number(edge.sharedRuns);
       const sharedRuns = Number.isFinite(sharedRunsRaw) && sharedRunsRaw > 0 ? Math.round(sharedRunsRaw) : 0;
-      maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
-      const showSharedRunsLabel = category !== 'alternate' && category !== 'alt';
-      const sharedRunsLabel = showSharedRunsLabel && sharedRuns > 0 ? String(sharedRuns) : '';
+      const isAlternateEdge = category === 'alternate' || category === 'alt';
+
+      if (isAlternateEdge) {
+        maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
+        const sharedRunsLabel = '';
+        edges.push({
+          data: {
+            id,
+            source,
+            target,
+            category,
+            sharedRuns,
+            sharedRunsLabel,
+          },
+          classes: `relationship-${category}`,
+        });
+        return;
+      }
+
+      const aggregatedSource = resolveAggregateNode(source);
+      const aggregatedTarget = resolveAggregateNode(target);
+      if (!aggregatedSource || !aggregatedTarget || aggregatedSource === aggregatedTarget) {
+        return;
+      }
+
+      const [pairSource, pairTarget] = aggregatedSource < aggregatedTarget
+        ? [aggregatedSource, aggregatedTarget]
+        : [aggregatedTarget, aggregatedSource];
+      const pairKey = `${pairSource}|${pairTarget}`;
+      const existing = aggregatedEdges.get(pairKey);
+      if (existing) {
+        existing.sharedRuns += sharedRuns;
+      } else {
+        aggregatedEdges.set(pairKey, {
+          source: pairSource,
+          target: pairTarget,
+          sharedRuns,
+        });
+      }
+    });
+
+    aggregatedEdges.forEach((value, pairKey) => {
+      if (!value) {
+        return;
+      }
+      const { source, target } = value;
+      const sharedRuns = Number.isFinite(value.sharedRuns) && value.sharedRuns > 0 ? Math.round(value.sharedRuns) : 0;
+      if (!source || !target || sharedRuns <= 0) {
+        return;
+      }
+      const category = classifySharedRuns(sharedRuns);
+      const sharedRunsLabel = String(sharedRuns);
+      const id = `${source}-${target}`;
       edges.push({
         data: {
           id,
@@ -1388,6 +1472,7 @@ export default function Player({ canContribute = false }) {
         },
         classes: `relationship-${category}`,
       });
+      maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
     });
 
     const combinedNodes = [...groupNodes.values(), ...nodes];
