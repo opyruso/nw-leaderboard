@@ -50,18 +50,14 @@ function normaliseWeekFilterValue(value) {
   return String(numeric);
 }
 
-function getFilterStorageKeys(mode, { includeLegacy = false } = {}) {
+function getFilterStorageKey(mode) {
   if (!mode) {
-    return [];
+    return null;
   }
   if (SHARED_FILTER_MODES.has(mode)) {
-    const keys = [SHARED_FILTER_STORAGE_KEY];
-    if (includeLegacy) {
-      keys.push(`${FILTER_STORAGE_PREFIX}${mode}`);
-    }
-    return keys;
+    return SHARED_FILTER_STORAGE_KEY;
   }
-  return [`${FILTER_STORAGE_PREFIX}${mode}`];
+  return `${FILTER_STORAGE_PREFIX}${mode}`;
 }
 
 function normaliseStoredFilters(parsed) {
@@ -90,7 +86,9 @@ function normaliseStoredFilters(parsed) {
         .map((value) => normaliseWeekFilterValue(value))
         .filter(Boolean)
     : [];
-  return { mutation, regions, dungeon: dungeon || null, weeks };
+  const uniqueWeeks = Array.from(new Set(weeks));
+  const limitedWeeks = uniqueWeeks.length > 0 ? [uniqueWeeks[0]] : [];
+  return { mutation, regions, dungeon: dungeon || null, weeks: limitedWeeks };
 }
 
 function createEmptyMutationFilters() {
@@ -98,40 +96,26 @@ function createEmptyMutationFilters() {
 }
 
 function loadStoredFilters(mode) {
-  if (!mode || typeof window === 'undefined' || !window.localStorage) {
+  const storageKey = getFilterStorageKey(mode);
+  if (!storageKey || typeof window === 'undefined' || !window.localStorage) {
     return null;
   }
-  const storageKeys = getFilterStorageKeys(mode, { includeLegacy: true });
-  for (const key of storageKeys) {
-    try {
-      const raw = window.localStorage.getItem(key);
-      if (!raw) {
-        continue;
-      }
-      const parsed = JSON.parse(raw);
-      const normalised = normaliseStoredFilters(parsed);
-      if (!normalised) {
-        continue;
-      }
-      if (SHARED_FILTER_MODES.has(mode) && key !== SHARED_FILTER_STORAGE_KEY) {
-        saveStoredFilters(
-          mode,
-          normalised.mutation,
-          normalised.regions,
-          normalised.dungeon,
-          normalised.weeks,
-        );
-      }
-      return normalised;
-    } catch (error) {
-      // ignore malformed storage entries and continue
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) {
+      return null;
     }
+    const parsed = JSON.parse(raw);
+    return normaliseStoredFilters(parsed);
+  } catch (error) {
+    // ignore malformed storage entries
+    return null;
   }
-  return null;
 }
 
 function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId, weekFilters) {
-  if (!mode || typeof window === 'undefined' || !window.localStorage) {
+  const storageKey = getFilterStorageKey(mode);
+  if (!storageKey || typeof window === 'undefined' || !window.localStorage) {
     return;
   }
   try {
@@ -152,16 +136,23 @@ function saveStoredFilters(mode, mutationFilters, regionFilters, dungeonId, week
         typeof dungeonId === 'string' || typeof dungeonId === 'number'
           ? String(dungeonId).trim()
           : null,
-      weeks: Array.isArray(weekFilters)
-        ? weekFilters
-            .map((value) => normaliseWeekFilterValue(value))
-            .filter(Boolean)
-        : [],
+      weeks: (() => {
+        const sanitised = Array.isArray(weekFilters)
+          ? weekFilters
+              .map((value) => normaliseWeekFilterValue(value))
+              .filter(Boolean)
+          : [];
+        const [firstWeek] = sanitised;
+        return firstWeek ? [firstWeek] : [];
+      })(),
     };
-    const storageKeys = Array.from(new Set(getFilterStorageKeys(mode, { includeLegacy: true })));
-    storageKeys.forEach((key) => {
-      window.localStorage.setItem(key, JSON.stringify(payload));
-    });
+    window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    if (SHARED_FILTER_MODES.has(mode)) {
+      const legacyKey = `${FILTER_STORAGE_PREFIX}${mode}`;
+      if (legacyKey !== storageKey) {
+        window.localStorage.removeItem(legacyKey);
+      }
+    }
   } catch (error) {
     // ignore storage errors
   }
@@ -406,7 +397,8 @@ export default function LeaderboardPage({
         ? weekOptions.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
         : [];
       const uniqueCurrent = Array.from(new Set(currentValues));
-      let finalValues = uniqueCurrent.filter((value) => available.includes(value));
+      const limitedCurrent = uniqueCurrent.length > 0 ? [uniqueCurrent[0]] : [];
+      let finalValues = limitedCurrent.filter((value) => available.includes(value));
 
       if (weekFetchAttemptedRef.current && !weekFiltersInitialisedRef.current) {
         const stored = Array.isArray(storedFilters?.weeks)
@@ -415,7 +407,7 @@ export default function LeaderboardPage({
         if (stored.length > 0) {
           const sanitisedStored = stored.filter((value) => available.includes(value));
           if (sanitisedStored.length > 0) {
-            finalValues = sanitisedStored;
+            finalValues = [sanitisedStored[0]];
             hasUserAdjustedWeekFiltersRef.current = true;
           }
         }
@@ -424,13 +416,15 @@ export default function LeaderboardPage({
         }
       }
 
+      const limitedFinalValues = finalValues.length > 0 ? [finalValues[0]] : [];
+
       if (
-        finalValues.length !== uniqueCurrent.length ||
-        finalValues.some((value, index) => value !== uniqueCurrent[index])
+        limitedFinalValues.length !== limitedCurrent.length ||
+        limitedFinalValues.some((value, index) => value !== limitedCurrent[index])
       ) {
-        return finalValues;
+        return limitedFinalValues;
       }
-      return uniqueCurrent;
+      return limitedCurrent;
     });
   }, [weekOptions, storedFilters, weekLoading]);
 
@@ -459,10 +453,11 @@ export default function LeaderboardPage({
       const currentValues = Array.isArray(previous)
         ? previous.map((value) => normaliseWeekFilterValue(value)).filter(Boolean)
         : [];
-      if (currentValues.includes(normalised)) {
-        return currentValues.filter((value) => value !== normalised);
+      const [firstCurrent] = currentValues;
+      if (firstCurrent === normalised) {
+        return [];
       }
-      return [...currentValues, normalised];
+      return [normalised];
     });
   }, []);
 
@@ -554,8 +549,9 @@ export default function LeaderboardPage({
         : [];
       const uniqueWeeks = Array.from(new Set(selectedWeekValues));
       const sanitisedWeeks = uniqueWeeks.filter((value) => availableWeeks.includes(value));
-      if (sanitisedWeeks.length > 0) {
-        sanitisedWeeks.forEach((value) => params.append('week', value));
+      const [firstWeek] = sanitisedWeeks;
+      if (firstWeek) {
+        params.append('week', firstWeek);
       } else if (
         hasUserAdjustedWeekFiltersRef.current &&
         selectedWeekValues.length === 0 &&
