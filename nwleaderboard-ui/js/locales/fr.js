@@ -505,7 +505,7 @@ const fr = {
     `${success}/${total} ressources en cache pour une utilisation hors-ligne`,
   suggestionsDiscordTitle: 'Rejoindre notre Discord',
   suggestionsDiscordDescription:
-    'Faites une suggestion, remontez un bug ou discutez avec l’équipe sur notre serveur Discord.',
+    "Partagez vos idées, signalez un bug ou donnez-nous le nom d'un alt à lier à votre main directement sur notre serveur Discord.",
   suggestionsDiscordCTA: 'Rejoindre le serveur Discord',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Liens de pied de page',

@@ -484,7 +484,7 @@ const pt = {
   cacheSummary: (success, total) => `${success}/${total} recursos armazenados para uso offline`,
   suggestionsDiscordTitle: 'Entre no nosso Discord',
   suggestionsDiscordDescription:
-    'Envie sugestões, reporte bugs e converse diretamente com a equipe do leaderboard no Discord.',
+    'Envie sugestões, reporte bugs ou nos informe o nome de um alt para vinculá-lo ao seu main diretamente no nosso servidor do Discord.',
   suggestionsDiscordCTA: 'Abrir o servidor do Discord',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Links do rodapé',

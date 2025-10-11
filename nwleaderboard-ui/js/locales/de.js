@@ -483,7 +483,7 @@ const de = {
   cacheSummary: (success, total) => `${success}/${total} Assets für Offline-Nutzung zwischengespeichert`,
   suggestionsDiscordTitle: 'Unserem Discord beitreten',
   suggestionsDiscordDescription:
-    'Gib Vorschläge ab, melde Fehler oder sprich direkt mit dem Leaderboard-Team auf Discord.',
+    'Gib Vorschläge ab, melde Fehler oder nenne uns den Namen eines Twinks, den wir mit deinem Main verknüpfen sollen – direkt auf unserem Discord-Server.',
   suggestionsDiscordCTA: 'Discord-Server öffnen',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Footer-Links',

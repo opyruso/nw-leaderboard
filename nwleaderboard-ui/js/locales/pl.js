@@ -483,7 +483,7 @@ const pl = {
   cacheSummary: (success, total) => `${success}/${total} zasobów zapisanych do użycia offline`,
   suggestionsDiscordTitle: 'Dołącz do naszego Discorda',
   suggestionsDiscordDescription:
-    'Przekaż sugestię, zgłoś błąd i porozmawiaj bezpośrednio z zespołem leaderboardu na Discordzie.',
+    'Przekaż sugestię, zgłoś błąd lub podaj nam nazwę alta do powiązania z Twoim mainem – wszystko na naszym serwerze Discord.',
   suggestionsDiscordCTA: 'Otwórz serwer Discord',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Linki w stopce',

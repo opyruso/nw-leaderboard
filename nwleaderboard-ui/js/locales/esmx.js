@@ -483,7 +483,7 @@ const esmx = {
   cacheSummary: (success, total) => `${success}/${total} recursos cacheados para usar sin conexión`,
   suggestionsDiscordTitle: 'Únete a nuestro Discord',
   suggestionsDiscordDescription:
-    'Manda sugerencias, reporta bugs y platica directo con el equipo del leaderboard en Discord.',
+    'Comparte sugerencias, reporta bugs o dinos el nombre de un alter para ligarlo con tu main directamente en nuestro servidor de Discord.',
   suggestionsDiscordCTA: 'Abrir el servidor de Discord',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Enlaces del pie',

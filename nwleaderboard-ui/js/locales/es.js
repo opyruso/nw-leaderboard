@@ -486,7 +486,7 @@ const es = {
   cacheSummary: (success, total) => `${success}/${total} recursos en caché para uso sin conexión`,
   suggestionsDiscordTitle: 'Únete a nuestro Discord',
   suggestionsDiscordDescription:
-    'Envía sugerencias, reporta errores y habla directamente con el equipo del leaderboard en Discord.',
+    'Comparte sugerencias, reporta errores o indícanos el nombre de un alter para vincularlo con tu personaje principal directamente en nuestro servidor de Discord.',
   suggestionsDiscordCTA: 'Abrir el servidor de Discord',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Enlaces de pie de página',

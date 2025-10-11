@@ -497,7 +497,7 @@ const en = {
     `${success}/${total} assets cached for offline usage`,
   suggestionsDiscordTitle: 'Join our Discord server',
   suggestionsDiscordDescription:
-    'Share suggestions, report bugs, and chat directly with the leaderboard team on Discord.',
+    'Share suggestions, report bugs, or let us know an alt character name to link with your main directly on our Discord server.',
   suggestionsDiscordCTA: 'Open the Discord server',
   footerBrand: (currentYear) => `oPyRuSo (TM) 2025 - ${currentYear}`,
   footerLinks: 'Footer links',
