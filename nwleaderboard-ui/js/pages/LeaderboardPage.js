@@ -1856,6 +1856,12 @@ export default function LeaderboardPage({
   const dungeonPanelId = React.useMemo(() => `${mode}-dungeon-list`, [mode]);
   const simplePagination = (mode === 'score' || mode === 'time') && isMobileViewport;
 
+  const isRegionFilterActive = Array.isArray(regionFilters) && regionFilters.length > 0;
+  const isMutationFilterActive =
+    (Array.isArray(mutationFilters?.type) && mutationFilters.type.length > 0) ||
+    (Array.isArray(mutationFilters?.promotion) && mutationFilters.promotion.length > 0) ||
+    (Array.isArray(mutationFilters?.curse) && mutationFilters.curse.length > 0);
+
   return (
     <main className="page leaderboard-page" aria-labelledby={`${mode}-title`}>
       <h1 id={`${mode}-title`} className="page-title title-with-icon">
@@ -1874,6 +1880,9 @@ export default function LeaderboardPage({
             >
               <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
                 {t.regionFilterTitle}
+                {isRegionFilterActive ? (
+                  <span className="leaderboard-filter-active-indicator" aria-hidden="true">*</span>
+                ) : null}
               </span>
               <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
               <span className="visually-hidden">
@@ -1931,6 +1940,9 @@ export default function LeaderboardPage({
             >
               <span className="leaderboard-sidebar-title" role="heading" aria-level="2">
                 {t.mutationFilterTitle}
+                {isMutationFilterActive ? (
+                  <span className="leaderboard-filter-active-indicator" aria-hidden="true">*</span>
+                ) : null}
               </span>
               <span className="leaderboard-sidebar-toggle-icon" aria-hidden="true" />
               <span className="visually-hidden">

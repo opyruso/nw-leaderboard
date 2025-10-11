@@ -3762,6 +3762,11 @@ body[data-theme='light'] .leaderboard-sidebar {
   flex: 1 1 auto;
 }
 
+.leaderboard-filter-active-indicator {
+  color: #ff6b6b;
+  margin-left: 0.25rem;
+}
+
 .leaderboard-sidebar-toggle {
   display: flex;
   align-items: center;
