@@ -552,13 +552,13 @@ export default function LeaderboardPage({
       const [firstWeek] = sanitisedWeeks;
       if (firstWeek) {
         params.append('week', firstWeek);
-      } else if (
-        hasUserAdjustedWeekFiltersRef.current &&
-        selectedWeekValues.length === 0 &&
-        availableWeeks.length > 0
-      ) {
-        const uniqueAvailableWeeks = Array.from(new Set(availableWeeks));
-        uniqueAvailableWeeks.forEach((value) => params.append('week', value));
+      } else if (selectedWeekValues.length === 0 && availableWeeks.length > 0) {
+        const shouldIncludeAllWeeks =
+          hasUserAdjustedWeekFiltersRef.current || selectedSeasonId === null;
+        if (shouldIncludeAllWeeks) {
+          const uniqueAvailableWeeks = Array.from(new Set(availableWeeks));
+          uniqueAvailableWeeks.forEach((value) => params.append('week', value));
+        }
       }
     }
 
