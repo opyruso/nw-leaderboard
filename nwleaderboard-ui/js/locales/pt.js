@@ -456,6 +456,8 @@ const pt = {
   playerRelationshipAria: (name) =>
     name ? `Grafo de relações de ${name}` : 'Grafo de relações',
   playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipResetSelection: 'Redefinir seleção',
+  playerRelationshipResetSelectionTitle: 'Limpar todos os nós selecionados',
   playerRelationshipThresholdValue: (value) => `≥ ${value}`,
   playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Classificação individual',

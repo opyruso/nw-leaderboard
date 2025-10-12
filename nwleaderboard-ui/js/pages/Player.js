@@ -452,6 +452,8 @@ const RELATIONSHIP_LAYOUTS = [
   },
 ];
 
+const DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS = 20;
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -503,7 +505,9 @@ export default function Player({ canContribute = false }) {
   const [relationshipError, setRelationshipError] = React.useState(false);
   const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
   const [relationshipSeasonKey, setRelationshipSeasonKey] = React.useState('');
-  const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(1);
+  const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(
+    DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+  );
   const relationshipLayoutAvailability = React.useMemo(() => {
     const globalWindow = typeof window === 'undefined' ? null : window;
     return RELATIONSHIP_LAYOUTS.reduce((accumulator, layout) => {
@@ -1299,6 +1303,9 @@ export default function Player({ canContribute = false }) {
 
     const nodes = [];
     const groupNodes = new Map();
+    const nodeMetadata = new Map();
+    const playerGroupMap = new Map();
+    const groupMemberCounts = new Map();
     const edges = [];
     let maxSharedRuns = 0;
 
@@ -1336,6 +1343,10 @@ export default function Player({ canContribute = false }) {
             },
             classes: 'node-group',
           });
+          nodeMetadata.set(parentId, {
+            id: parentId,
+            isGroup: true,
+          });
         }
       }
 
@@ -1349,15 +1360,42 @@ export default function Player({ canContribute = false }) {
         nodeData.parent = parentId;
         nodeData.groupId = groupId;
         nodeData.groupLabel = parentNode?.data?.groupLabel || groupLabel || label || groupId;
+        playerGroupMap.set(id, parentId);
+        groupMemberCounts.set(parentId, (groupMemberCounts.get(parentId) || 0) + 1);
       }
 
       nodes.push({
         data: nodeData,
         classes: `node-${category}`,
       });
+      nodeMetadata.set(id, {
+        id,
+        category,
+        parentId,
+        isGroup: false,
+      });
     });
 
     const rawEdges = Array.isArray(relationshipData.edges) ? relationshipData.edges : [];
+    const aggregatedEdges = new Map();
+    const resolveAggregatedNodeId = (nodeId) => {
+      if (!nodeId) {
+        return '';
+      }
+      const metadata = nodeMetadata.get(nodeId);
+      if (!metadata || metadata.isGroup) {
+        return nodeId;
+      }
+      const parent = playerGroupMap.get(nodeId);
+      if (!parent) {
+        return nodeId;
+      }
+      const memberCount = groupMemberCounts.get(parent) || 0;
+      if (memberCount > 1) {
+        return parent;
+      }
+      return nodeId;
+    };
     rawEdges.forEach((edge) => {
       if (!edge) {
         return;
@@ -1374,20 +1412,71 @@ export default function Player({ canContribute = false }) {
       const category = normaliseCategory(edge.category, 'weak');
       const sharedRunsRaw = Number(edge.sharedRuns);
       const sharedRuns = Number.isFinite(sharedRunsRaw) && sharedRunsRaw > 0 ? Math.round(sharedRunsRaw) : 0;
-      maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
       const showSharedRunsLabel = category !== 'alternate' && category !== 'alt';
       const sharedRunsLabel = showSharedRunsLabel && sharedRuns > 0 ? String(sharedRuns) : '';
+      const isAlternateCategory = category === 'alternate' || category === 'alt';
+      if (isAlternateCategory) {
+        edges.push({
+          data: {
+            id,
+            source,
+            target,
+            category,
+            sharedRuns,
+            sharedRunsLabel,
+          },
+          classes: `relationship-${category}`,
+        });
+        return;
+      }
+
+      const resolvedSource = resolveAggregatedNodeId(source);
+      const resolvedTarget = resolveAggregatedNodeId(target);
+      if (!resolvedSource || !resolvedTarget || resolvedSource === resolvedTarget) {
+        return;
+      }
+      const [keySource, keyTarget] = resolvedSource < resolvedTarget
+        ? [resolvedSource, resolvedTarget]
+        : [resolvedTarget, resolvedSource];
+      const aggregatedKey = `${keySource}|${keyTarget}|${category}`;
+      const existing = aggregatedEdges.get(aggregatedKey);
+      if (existing) {
+        existing.sharedRuns += sharedRuns;
+      } else {
+        aggregatedEdges.set(aggregatedKey, {
+          id: aggregatedKey,
+          source: resolvedSource,
+          target: resolvedTarget,
+          category,
+          sharedRuns,
+        });
+      }
+    });
+
+    aggregatedEdges.forEach((aggregatedEdge) => {
+      const sharedRuns = Number.isFinite(aggregatedEdge.sharedRuns)
+        ? Math.max(0, Math.round(aggregatedEdge.sharedRuns))
+        : 0;
+      const sharedRunsLabel = sharedRuns > 0 ? String(sharedRuns) : '';
       edges.push({
         data: {
-          id,
-          source,
-          target,
-          category,
+          id: aggregatedEdge.id,
+          source: aggregatedEdge.source,
+          target: aggregatedEdge.target,
+          category: aggregatedEdge.category,
           sharedRuns,
           sharedRunsLabel,
         },
-        classes: `relationship-${category}`,
+        classes: `relationship-${aggregatedEdge.category}`,
       });
+      maxSharedRuns = Math.max(maxSharedRuns, sharedRuns);
+    });
+
+    edges.forEach((edge) => {
+      const sharedRunsValue = Number(edge?.data?.sharedRuns);
+      if (Number.isFinite(sharedRunsValue)) {
+        maxSharedRuns = Math.max(maxSharedRuns, sharedRunsValue);
+      }
     });
 
     const combinedNodes = [...groupNodes.values(), ...nodes];
@@ -1403,13 +1492,13 @@ export default function Player({ canContribute = false }) {
 
   React.useEffect(() => {
     if (!relationshipMaxSharedRuns || relationshipMaxSharedRuns < 1) {
-      setRelationshipMinSharedRuns(1);
+      setRelationshipMinSharedRuns(DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS);
       return;
     }
     setRelationshipMinSharedRuns((current) => {
       const numeric = Number(current);
       if (!Number.isFinite(numeric) || numeric < 1) {
-        return 1;
+        return Math.min(DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS, relationshipMaxSharedRuns);
       }
       if (numeric > relationshipMaxSharedRuns) {
         return relationshipMaxSharedRuns;
@@ -1424,7 +1513,10 @@ export default function Player({ canContribute = false }) {
     }
     const groupNodes = relationshipGraphNodes.filter((node) => Boolean(node?.data?.isGroup));
     const playerNodes = relationshipGraphNodes.filter((node) => !node?.data?.isGroup);
-    const minSharedRuns = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const minSharedRuns = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const filteredEdges = relationshipGraphEdges.filter((edge) => {
       const category = String(edge?.data?.category || '').toLowerCase();
       if (category === 'alternate' || category === 'alt') {
@@ -1472,6 +1564,22 @@ export default function Player({ canContribute = false }) {
       }
       adjacency.get(source).add(target);
       adjacency.get(target).add(source);
+    });
+
+    playerNodes.forEach((node) => {
+      const id = node?.data?.id;
+      const parent = node?.data?.parent;
+      if (!id || !parent) {
+        return;
+      }
+      if (!adjacency.has(id)) {
+        adjacency.set(id, new Set());
+      }
+      if (!adjacency.has(parent)) {
+        adjacency.set(parent, new Set());
+      }
+      adjacency.get(id).add(parent);
+      adjacency.get(parent).add(id);
     });
 
     const anchorIds = new Set();
@@ -1527,17 +1635,33 @@ export default function Player({ canContribute = false }) {
       return visibleIds.has(source) && visibleIds.has(target);
     });
 
-    const parentIds = new Set();
-    visiblePlayerNodes.forEach((node) => {
-      const parent = node?.data?.parent;
-      if (parent) {
-        parentIds.add(parent);
-      }
-    });
-    const visibleGroups = groupNodes.filter((node) => parentIds.has(node?.data?.id));
+    const visibleGroups = groupNodes.filter((node) => visibleIds.has(node?.data?.id));
 
     return [...visibleGroups, ...visiblePlayerNodes, ...visibleEdges];
   }, [relationshipGraphNodes, relationshipGraphEdges, relationshipMinSharedRuns]);
+
+  const relationshipGraphRef = React.useRef(null);
+  const relationshipModalGraphRef = React.useRef(null);
+  const [relationshipCardHasSelection, setRelationshipCardHasSelection] = React.useState(false);
+  const [relationshipModalHasSelection, setRelationshipModalHasSelection] = React.useState(false);
+  const handleRelationshipCardSelectionChange = React.useCallback((hasSelection) => {
+    setRelationshipCardHasSelection(Boolean(hasSelection));
+  }, []);
+  const handleRelationshipModalSelectionChange = React.useCallback((hasSelection) => {
+    setRelationshipModalHasSelection(Boolean(hasSelection));
+  }, []);
+  const handleRelationshipCardResetClick = React.useCallback(() => {
+    const resetSelection = relationshipGraphRef.current?.resetSelection;
+    if (typeof resetSelection === 'function') {
+      resetSelection();
+    }
+  }, []);
+  const handleRelationshipModalResetClick = React.useCallback(() => {
+    const resetSelection = relationshipModalGraphRef.current?.resetSelection;
+    if (typeof resetSelection === 'function') {
+      resetSelection();
+    }
+  }, []);
 
   const relationshipSliderMax = relationshipMaxSharedRuns > 0 ? relationshipMaxSharedRuns : 1;
   const relationshipSliderDisabled = relationshipSliderMax <= 1;
@@ -1551,8 +1675,27 @@ export default function Player({ canContribute = false }) {
     return 'Minimum shared runs';
   }, [t]);
 
+  const relationshipResetLabel = React.useMemo(() => {
+    const label = t.playerRelationshipResetSelection;
+    if (typeof label === 'string' && label.trim().length > 0) {
+      return label.trim();
+    }
+    return 'Reset selection';
+  }, [t]);
+
+  const relationshipResetTitle = React.useMemo(() => {
+    const title = t.playerRelationshipResetSelectionTitle;
+    if (typeof title === 'string' && title.trim().length > 0) {
+      return title.trim();
+    }
+    return 'Clear all selected nodes';
+  }, [t]);
+
   const relationshipThresholdValue = React.useMemo(() => {
-    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const value = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const formatter = t.playerRelationshipThresholdValue;
     if (typeof formatter === 'function') {
       return formatter(value);
@@ -1561,7 +1704,10 @@ export default function Player({ canContribute = false }) {
   }, [relationshipMinSharedRuns, t]);
 
   const relationshipThresholdAria = React.useMemo(() => {
-    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const value = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const formatter = t.playerRelationshipThresholdAria;
     if (typeof formatter === 'function') {
       return formatter(value);
@@ -2536,13 +2682,15 @@ export default function Player({ canContribute = false }) {
                       <div className="player-relationship-modal-body">
                         <div className="player-relationship-graph-wrapper player-relationship-graph-wrapper--modal">
                           <PlayerRelationshipGraph
+                            ref={relationshipModalGraphRef}
                             elements={relationshipElements}
                             layout={relationshipLayoutConfig}
                             ariaLabel={relationshipAriaLabel}
                             className="player-relationship-graph-canvas"
+                            onSelectionChange={handleRelationshipModalSelectionChange}
                           />
                         </div>
-                        {showRelationshipSlider || showRelationshipLayoutControls ? (
+                        {showRelationshipSlider || showRelationshipLayoutControls || relationshipModalHasSelection ? (
                           <div className="player-relationship-controls player-relationship-controls--modal">
                             {showRelationshipSlider ? (
                               <label
@@ -2561,18 +2709,43 @@ export default function Player({ canContribute = false }) {
                                     min="1"
                                     max={relationshipSliderMax}
                                     step="1"
-                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    value={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     onChange={handleRelationshipThresholdChange}
                                     className="player-relationship-slider"
                                     aria-valuemin={1}
                                     aria-valuemax={relationshipSliderMax}
-                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuenow={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     aria-valuetext={relationshipThresholdAria}
                                     disabled={relationshipSliderDisabled}
                                   />
                                   <span className="player-relationship-slider-value">
                                     {relationshipThresholdValue}
                                   </span>
+                                </div>
+                              ) : null}
+                              {relationshipModalHasSelection ? (
+                                <div className="player-relationship-reset">
+                                  <button
+                                    type="button"
+                                    className="player-relationship-reset-button"
+                                    onClick={handleRelationshipModalResetClick}
+                                    aria-label={relationshipResetTitle}
+                                    title={relationshipResetTitle}
+                                  >
+                                    {relationshipResetLabel}
+                                  </button>
                                 </div>
                               ) : null}
                               {renderRelationshipLayoutControls()}
@@ -2611,13 +2784,16 @@ export default function Player({ canContribute = false }) {
                       <>
                         <div className="player-relationship-graph-wrapper">
                           <PlayerRelationshipGraph
+                            ref={relationshipGraphRef}
                             elements={relationshipElements}
                             layout={relationshipLayoutConfig}
                             ariaLabel={relationshipAriaLabel}
                             className="player-relationship-graph-canvas"
+                            onSelectionChange={handleRelationshipCardSelectionChange}
                           />
                         </div>
-                        {!showRelationshipModal && (showRelationshipSlider || showRelationshipLayoutControls) ? (
+                        {!showRelationshipModal &&
+                        (showRelationshipSlider || showRelationshipLayoutControls || relationshipCardHasSelection) ? (
                           <div className="player-relationship-controls">
                             {showRelationshipSlider ? (
                               <label
@@ -2636,18 +2812,43 @@ export default function Player({ canContribute = false }) {
                                     min="1"
                                     max={relationshipSliderMax}
                                     step="1"
-                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    value={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     onChange={handleRelationshipThresholdChange}
                                     className="player-relationship-slider"
                                     aria-valuemin={1}
                                     aria-valuemax={relationshipSliderMax}
-                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuenow={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     aria-valuetext={relationshipThresholdAria}
                                     disabled={relationshipSliderDisabled}
                                   />
                                   <span className="player-relationship-slider-value">
                                     {relationshipThresholdValue}
                                   </span>
+                                </div>
+                              ) : null}
+                              {relationshipCardHasSelection ? (
+                                <div className="player-relationship-reset">
+                                  <button
+                                    type="button"
+                                    className="player-relationship-reset-button"
+                                    onClick={handleRelationshipCardResetClick}
+                                    aria-label={relationshipResetTitle}
+                                    title={relationshipResetTitle}
+                                  >
+                                    {relationshipResetLabel}
+                                  </button>
                                 </div>
                               ) : null}
                               {renderRelationshipLayoutControls()}
