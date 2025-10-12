@@ -468,6 +468,8 @@ const en = {
   playerRelationshipLayoutGroupLabel: 'Graph layout options',
   playerRelationshipModalLabel: 'Relationship graph modal',
   playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipResetSelection: 'Reset selection',
+  playerRelationshipResetSelectionTitle: 'Clear all selected nodes',
   playerRelationshipThresholdValue: (value) => `≥ ${value}`,
   playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Individual ranking',

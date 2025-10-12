@@ -458,6 +458,8 @@ const es = {
   playerRelationshipAria: (name) =>
     name ? `Gráfico de relaciones de ${name}` : 'Gráfico de relaciones',
   playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipResetSelection: 'Restablecer selección',
+  playerRelationshipResetSelectionTitle: 'Borrar todos los nodos seleccionados',
   playerRelationshipThresholdValue: (value) => `≥ ${value}`,
   playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Clasificación individual',

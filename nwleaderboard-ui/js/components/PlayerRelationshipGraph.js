@@ -182,19 +182,74 @@ const BASE_STYLE = [
       opacity: 0.85,
     },
   },
+  {
+    selector: 'node.selected',
+    style: {
+      'border-color': '#facc15',
+      'border-width': 3,
+      'background-opacity': 1,
+      'box-shadow': '0 0 0 2px rgba(250, 204, 21, 0.35)',
+    },
+  },
+  {
+    selector: 'node.faded',
+    style: {
+      opacity: 0.25,
+      'text-opacity': 0.25,
+    },
+  },
+  {
+    selector: 'edge.faded',
+    style: {
+      opacity: 0.2,
+      'text-opacity': 0.25,
+    },
+  },
+  {
+    selector: 'node.highlighted',
+    style: {
+      opacity: 1,
+    },
+  },
+  {
+    selector: 'edge.highlighted',
+    style: {
+      opacity: 1,
+    },
+  },
 ];
 
-export default function PlayerRelationshipGraph({
-  elements,
-  layout = DEFAULT_LAYOUT,
-  className = '',
-  ariaLabel,
-}) {
+const PlayerRelationshipGraph = React.forwardRef(function PlayerRelationshipGraph(
+  { elements, layout = DEFAULT_LAYOUT, className = '', ariaLabel, onSelectionChange },
+  forwardedRef,
+) {
   const containerRef = React.useRef(null);
+  const selectionRef = React.useRef(new Set());
+  const resetSelectionRef = React.useRef(() => {});
+  const lastSelectionSizeRef = React.useRef(0);
+
+  React.useImperativeHandle(
+    forwardedRef,
+    () => ({
+      resetSelection: () => {
+        const reset = resetSelectionRef.current;
+        if (typeof reset === 'function') {
+          reset();
+        }
+      },
+    }),
+    [],
+  );
 
   React.useEffect(() => {
     const cytoscapeLib = ensureCytoscape();
     if (!containerRef.current || !cytoscapeLib) {
+      selectionRef.current = new Set();
+      resetSelectionRef.current = () => {};
+      lastSelectionSizeRef.current = 0;
+      if (typeof onSelectionChange === 'function') {
+        onSelectionChange(false);
+      }
       return undefined;
     }
     const resolvedElements = Array.isArray(elements) ? elements : [];
@@ -217,21 +272,104 @@ export default function PlayerRelationshipGraph({
       pixelRatio: 1,
     });
 
+    const selection = new Set();
+    selectionRef.current = selection;
+    lastSelectionSizeRef.current = 0;
+    if (typeof onSelectionChange === 'function') {
+      onSelectionChange(false);
+    }
+
+    const applySelectionStyles = () => {
+      if (!cy || cy.destroyed()) {
+        return;
+      }
+      let hasInvalidSelection = false;
+      Array.from(selection).forEach((id) => {
+        const element = cy.getElementById(id);
+        if (!element || element.empty()) {
+          selection.delete(id);
+          hasInvalidSelection = true;
+        }
+      });
+      const hasSelection = selection.size > 0;
+      cy.batch(() => {
+        cy.nodes().removeClass('selected highlighted faded');
+        cy.edges().removeClass('highlighted faded');
+        if (!hasSelection) {
+          return;
+        }
+        const selectedNodes = cy.nodes().filter((node) => selection.has(node.id()));
+        selectedNodes.addClass('selected');
+        const neighbourhood = selectedNodes.closedNeighborhood();
+        neighbourhood.nodes().addClass('highlighted');
+        neighbourhood.edges().addClass('highlighted');
+        cy.nodes().not(neighbourhood.nodes()).addClass('faded');
+        cy.edges().not(neighbourhood.edges()).addClass('faded');
+      });
+      const selectionSize = selection.size;
+      if (hasInvalidSelection || lastSelectionSizeRef.current !== selectionSize) {
+        lastSelectionSizeRef.current = selectionSize;
+        if (typeof onSelectionChange === 'function') {
+          onSelectionChange(selectionSize > 0);
+        }
+      }
+    };
+
+    const handleNodeTap = (event) => {
+      const target = event?.target;
+      if (!target || typeof target.id !== 'function') {
+        return;
+      }
+      const nodeId = target.id();
+      if (!nodeId) {
+        return;
+      }
+      if (selection.has(nodeId)) {
+        selection.delete(nodeId);
+      } else {
+        selection.add(nodeId);
+      }
+      applySelectionStyles();
+    };
+
+    const resetSelection = () => {
+      if (selection.size === 0) {
+        return;
+      }
+      selection.clear();
+      applySelectionStyles();
+    };
+
+    resetSelectionRef.current = resetSelection;
+
+    cy.on('tap', 'node', handleNodeTap);
+
     const handleResize = () => {
       cy.resize();
       cy.layout(layoutOptions).run();
     };
     window.addEventListener('resize', handleResize);
 
+    applySelectionStyles();
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      cy.off('tap', 'node', handleNodeTap);
+      resetSelectionRef.current = () => {};
+      selectionRef.current = new Set();
+      lastSelectionSizeRef.current = 0;
+      if (typeof onSelectionChange === 'function') {
+        onSelectionChange(false);
+      }
       cy.destroy();
     };
-  }, [elements, layout]);
+  }, [elements, layout, onSelectionChange]);
 
   const combinedClassName = className
     ? `player-relationship-graph ${className}`
     : 'player-relationship-graph';
 
   return <div ref={containerRef} className={combinedClassName} role="img" aria-label={ariaLabel || undefined} />;
-}
+});
+
+export default PlayerRelationshipGraph;

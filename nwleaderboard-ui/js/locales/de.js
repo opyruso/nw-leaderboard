@@ -455,6 +455,8 @@ const de = {
   playerRelationshipAria: (name) =>
     name ? `Beziehungsdiagramm für ${name}` : 'Beziehungsdiagramm',
   playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipResetSelection: 'Auswahl zurücksetzen',
+  playerRelationshipResetSelectionTitle: 'Alle ausgewählten Knoten zurücksetzen',
   playerRelationshipThresholdValue: (value) => `≥ ${value}`,
   playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Einzelwertung',

@@ -476,6 +476,8 @@ const fr = {
   playerRelationshipLayoutGroupLabel: 'Options de disposition du graphe',
   playerRelationshipModalLabel: 'Fenêtre du graphe des relations',
   playerRelationshipThresholdLabel: 'Minimum shared runs',
+  playerRelationshipResetSelection: 'Réinitialiser la sélection',
+  playerRelationshipResetSelectionTitle: 'Effacer tous les nœuds sélectionnés',
   playerRelationshipThresholdValue: (value) => `≥ ${value}`,
   playerRelationshipThresholdAria: (value) => `Minimum shared runs: ${value}`,
   playerIndividualRankLabel: 'Classement individuel',
