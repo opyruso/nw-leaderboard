@@ -452,6 +452,8 @@ const RELATIONSHIP_LAYOUTS = [
   },
 ];
 
+const DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS = 20;
+
 export default function Player({ canContribute = false }) {
   const { t, lang } = React.useContext(LangContext);
   const { playerId } = useParams();
@@ -503,7 +505,9 @@ export default function Player({ canContribute = false }) {
   const [relationshipError, setRelationshipError] = React.useState(false);
   const [relationshipPlayerId, setRelationshipPlayerId] = React.useState('');
   const [relationshipSeasonKey, setRelationshipSeasonKey] = React.useState('');
-  const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(1);
+  const [relationshipMinSharedRuns, setRelationshipMinSharedRuns] = React.useState(
+    DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+  );
   const relationshipLayoutAvailability = React.useMemo(() => {
     const globalWindow = typeof window === 'undefined' ? null : window;
     return RELATIONSHIP_LAYOUTS.reduce((accumulator, layout) => {
@@ -1488,13 +1492,13 @@ export default function Player({ canContribute = false }) {
 
   React.useEffect(() => {
     if (!relationshipMaxSharedRuns || relationshipMaxSharedRuns < 1) {
-      setRelationshipMinSharedRuns(1);
+      setRelationshipMinSharedRuns(DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS);
       return;
     }
     setRelationshipMinSharedRuns((current) => {
       const numeric = Number(current);
       if (!Number.isFinite(numeric) || numeric < 1) {
-        return 1;
+        return Math.min(DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS, relationshipMaxSharedRuns);
       }
       if (numeric > relationshipMaxSharedRuns) {
         return relationshipMaxSharedRuns;
@@ -1509,7 +1513,10 @@ export default function Player({ canContribute = false }) {
     }
     const groupNodes = relationshipGraphNodes.filter((node) => Boolean(node?.data?.isGroup));
     const playerNodes = relationshipGraphNodes.filter((node) => !node?.data?.isGroup);
-    const minSharedRuns = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const minSharedRuns = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const filteredEdges = relationshipGraphEdges.filter((edge) => {
       const category = String(edge?.data?.category || '').toLowerCase();
       if (category === 'alternate' || category === 'alt') {
@@ -1685,7 +1692,10 @@ export default function Player({ canContribute = false }) {
   }, [t]);
 
   const relationshipThresholdValue = React.useMemo(() => {
-    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const value = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const formatter = t.playerRelationshipThresholdValue;
     if (typeof formatter === 'function') {
       return formatter(value);
@@ -1694,7 +1704,10 @@ export default function Player({ canContribute = false }) {
   }, [relationshipMinSharedRuns, t]);
 
   const relationshipThresholdAria = React.useMemo(() => {
-    const value = Math.max(1, Number(relationshipMinSharedRuns) || 1);
+    const value = Math.max(
+      1,
+      Number(relationshipMinSharedRuns) || DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+    );
     const formatter = t.playerRelationshipThresholdAria;
     if (typeof formatter === 'function') {
       return formatter(value);
@@ -2696,12 +2709,24 @@ export default function Player({ canContribute = false }) {
                                     min="1"
                                     max={relationshipSliderMax}
                                     step="1"
-                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    value={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     onChange={handleRelationshipThresholdChange}
                                     className="player-relationship-slider"
                                     aria-valuemin={1}
                                     aria-valuemax={relationshipSliderMax}
-                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuenow={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     aria-valuetext={relationshipThresholdAria}
                                     disabled={relationshipSliderDisabled}
                                   />
@@ -2787,12 +2812,24 @@ export default function Player({ canContribute = false }) {
                                     min="1"
                                     max={relationshipSliderMax}
                                     step="1"
-                                    value={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    value={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     onChange={handleRelationshipThresholdChange}
                                     className="player-relationship-slider"
                                     aria-valuemin={1}
                                     aria-valuemax={relationshipSliderMax}
-                                    aria-valuenow={Math.max(1, Number(relationshipMinSharedRuns) || 1)}
+                                    aria-valuenow={
+                                      Math.max(
+                                        1,
+                                        Number(relationshipMinSharedRuns) ||
+                                          DEFAULT_RELATIONSHIP_MIN_SHARED_RUNS,
+                                      )
+                                    }
                                     aria-valuetext={relationshipThresholdAria}
                                     disabled={relationshipSliderDisabled}
                                   />

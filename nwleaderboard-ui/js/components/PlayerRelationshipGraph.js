@@ -279,6 +279,43 @@ const PlayerRelationshipGraph = React.forwardRef(function PlayerRelationshipGrap
       onSelectionChange(false);
     }
 
+    const collectToggleIds = (node) => {
+      const ids = new Set();
+      if (!node || typeof node.id !== 'function') {
+        return ids;
+      }
+      const pushId = (element) => {
+        if (!element || typeof element.id !== 'function') {
+          return;
+        }
+        const elementId = element.id();
+        if (elementId) {
+          ids.add(elementId);
+        }
+      };
+      pushId(node);
+      const isGroupNode =
+        (typeof node.data === 'function' && node.data('isGroup')) ||
+        (typeof node.isParent === 'function' && node.isParent());
+      if (isGroupNode) {
+        let descendants = null;
+        if (typeof node.descendants === 'function') {
+          descendants = node.descendants();
+        } else if (typeof node.children === 'function') {
+          descendants = node.children();
+        }
+        if (descendants && typeof descendants.forEach === 'function') {
+          descendants.forEach((descendant) => {
+            if (descendant && typeof descendant.isNode === 'function' && !descendant.isNode()) {
+              return;
+            }
+            pushId(descendant);
+          });
+        }
+      }
+      return ids;
+    };
+
     const applySelectionStyles = () => {
       if (!cy || cy.destroyed()) {
         return;
@@ -324,10 +361,11 @@ const PlayerRelationshipGraph = React.forwardRef(function PlayerRelationshipGrap
       if (!nodeId) {
         return;
       }
+      const relatedIds = collectToggleIds(target);
       if (selection.has(nodeId)) {
-        selection.delete(nodeId);
+        relatedIds.forEach((id) => selection.delete(id));
       } else {
-        selection.add(nodeId);
+        relatedIds.forEach((id) => selection.add(id));
       }
       applySelectionStyles();
     };
