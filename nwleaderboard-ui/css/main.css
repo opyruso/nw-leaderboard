@@ -5764,6 +5764,7 @@ body[data-theme='light'] .button--danger {
   max-width: min(960px, 100%);
   margin: 0 auto;
   padding: clamp(2rem, 3vw, 3rem) clamp(1.5rem, 4vw, 4rem);
+  padding-bottom: calc(var(--site-footer-height, 0px) + clamp(2rem, 3vw, 3rem));
   display: flex;
   flex-direction: column;
   gap: clamp(1.5rem, 2vw, 2rem);
@@ -5853,7 +5854,8 @@ body[data-theme='light'] .announcement-item__toggle:focus-visible {
   display: flex;
   flex-direction: column;
   gap: clamp(1rem, 2vw, 1.5rem);
-  padding: 0 clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 3vw, 2rem);
+  padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 3vw, 2rem)
+    clamp(1.5rem, 3vw, 2.25rem);
 }
 
 .announcement-form__grid {
@@ -5910,7 +5912,7 @@ body[data-theme='light'] .announcement-form__field textarea {
 
 .announcement-popup {
   position: fixed;
-  bottom: clamp(1rem, 3vw, 1.75rem);
+  bottom: calc(var(--site-footer-height, 0px) + clamp(1rem, 3vw, 1.75rem));
   right: clamp(1rem, 3vw, 1.75rem);
   z-index: 1400;
   max-width: min(360px, calc(100% - 2rem));
