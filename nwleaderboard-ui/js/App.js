@@ -18,10 +18,12 @@ import ContributeValidate from './pages/ContributeValidate.js';
 import ContributeRuns from './pages/ContributeRuns.js';
 import Player from './pages/Player.js';
 import Suggestions from './pages/Suggestions.js';
+import Announcements from './pages/Announcements.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
 import Footer from './Footer.js';
 import BottomNav from './BottomNav.js';
+import AnnouncementPopup from './components/AnnouncementPopup.js';
 import {
   storeTokens,
   clearTokens,
@@ -141,11 +143,17 @@ export default function App() {
                 path="/suggestions"
                 element={<Suggestions isAdmin={authState.isAdmin} />}
               />
+              <Route
+                path="/announcements"
+                element={
+                  authState.isAdmin ? <Announcements /> : <Navigate to="/" replace />
+                }
+              />
               <Route path="/player/:playerId?" element={<Player canContribute={authState.canContribute} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
-          <Footer />
+          <Footer isAdmin={authState.isAdmin} />
           <BottomNav
             authenticated={authenticated}
             canContribute={authState.canContribute}
@@ -154,6 +162,7 @@ export default function App() {
         </div>
       </BrowserRouter>
       <VersionChecker />
+      <AnnouncementPopup />
     </>
   );
 }
