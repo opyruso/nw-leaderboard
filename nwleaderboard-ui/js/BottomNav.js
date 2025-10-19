@@ -77,21 +77,6 @@ function PlayersIcon() {
   );
 }
 
-function CustomCharactersIcon() {
-  return (
-    <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4 7h8m-8 5h8m-8 5h8M18 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-4 7c0-2.21 1.79-4 4-4s4 1.79 4 4v2h-8z"
-      />
-    </svg>
-  );
-}
-
 function LoginIcon() {
   return (
     <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -216,6 +201,8 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
     location.pathname.startsWith('/score') ||
     location.pathname.startsWith('/time') ||
     location.pathname.startsWith('/individual');
+  const customCharactersActive = location.pathname.startsWith('/custom-characters');
+  const playersActive = location.pathname.startsWith('/player') || customCharactersActive;
 
   React.useLayoutEffect(() => {
     if (typeof window === 'undefined') {
@@ -349,7 +336,6 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
           </div>
         </BottomNavMenu>
       ) : null}
-      <NavButton to="/custom-characters" label={t.customCharacters} icon={<CustomCharactersIcon />} />
       <NavButton to="/preferences" label={t.preferences} icon={<PreferencesIcon />} />
       <NavButton
         onClick={() => {
@@ -388,11 +374,25 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
             <BottomNavMenuLink to="/individual" label={t.individual} onClick={closeMenus} />
           </div>
         </BottomNavMenu>
-        <NavButton
-          to="/player"
+        <BottomNavMenu
+          menuKey="players"
           label={t.players || t.player}
           icon={<PlayersIcon />}
-        />
+          isOpen={openMenu === 'players'}
+          onToggle={toggleMenu}
+          isHighlighted={playersActive}
+        >
+          <div className="bottom-nav-menu__links" role="none">
+            <BottomNavMenuLink to="/player" label={t.players || t.player} onClick={closeMenus} />
+            {isAuthenticated ? (
+              <BottomNavMenuLink
+                to="/custom-characters"
+                label={t.customCharacters || 'Custom characters'}
+                onClick={closeMenus}
+              />
+            ) : null}
+          </div>
+        </BottomNavMenu>
         {accountNavigation}
       </nav>
     </>

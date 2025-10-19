@@ -1,6 +1,9 @@
 import App from './App.js';
 import { LangProvider } from './i18n.js';
 import { ThemeProvider } from './theme.js';
+import { setupAuthFetch } from './auth.js';
+
+setupAuthFetch();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
