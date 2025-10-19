@@ -19,6 +19,7 @@ import ContributeRuns from './pages/ContributeRuns.js';
 import Player from './pages/Player.js';
 import Suggestions from './pages/Suggestions.js';
 import Announcements from './pages/Announcements.js';
+import CustomCharacters from './pages/CustomCharacters.js';
 import VersionChecker from './VersionChecker.js';
 import Header from './Header.js';
 import Footer from './Footer.js';
@@ -142,6 +143,12 @@ export default function App() {
               <Route
                 path="/suggestions"
                 element={<Suggestions isAdmin={authState.isAdmin} />}
+              />
+              <Route
+                path="/custom-characters"
+                element={
+                  authenticated ? <CustomCharacters /> : <Navigate to="/login" replace />
+                }
               />
               <Route
                 path="/announcements"
