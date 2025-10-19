@@ -374,13 +374,18 @@ export default function CustomCharacters() {
             </select>
           </label>
           <label className="custom-characters-toggle">
-            <input
-              type="checkbox"
-              checked={includeDeleted}
-              onChange={(event) => setIncludeDeleted(event.target.checked)}
-              disabled={loading}
-            />
             <span>{deletedToggleLabel}</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="1"
+              value={includeDeleted ? 1 : 0}
+              onChange={(event) => setIncludeDeleted(event.target.value === '1')}
+              disabled={loading}
+              className={includeDeleted ? 'custom-characters-toggle-slider is-active' : 'custom-characters-toggle-slider'}
+              aria-label={deletedToggleLabel}
+            />
           </label>
         </div>
       </section>
