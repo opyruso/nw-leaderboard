@@ -5067,6 +5067,14 @@ body[data-theme='light'] .contribute-compact-table tbody td {
   }
 }
 
+.custom-characters-field {
+  margin-bottom: 0;
+}
+
+.custom-characters-field span {
+  margin-bottom: 0.4rem;
+}
+
 .custom-characters-add-button {
   padding: 0.85rem 1.75rem;
   border-radius: 999px;
