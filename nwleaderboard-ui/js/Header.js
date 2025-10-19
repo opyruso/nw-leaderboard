@@ -54,6 +54,9 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     location.pathname.startsWith('/time') ||
     location.pathname.startsWith('/individual');
   const customCharactersActive = location.pathname.startsWith('/custom-characters');
+  const playersActive =
+    location.pathname.startsWith('/player') || customCharactersActive;
+  const playersMenuOpen = openMenu === 'players';
 
   const closeMenus = React.useCallback(() => {
     setOpenMenu(null);
@@ -457,28 +460,55 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   </li>
                 </ul>
               </li>
-              <li className="site-nav__item">
+              <li
+                className={classNames(
+                  'site-nav__item',
+                  'site-nav__item--dropdown',
+                  playersMenuOpen ? 'site-nav__item--open' : '',
+                )}
+                {...createMenuHandlers('players')}
+              >
                 <SiteNavLink
                   to="/player"
-                  isActiveOverride={location.pathname.startsWith('/player')}
-                  aria-current={location.pathname.startsWith('/player') ? 'page' : undefined}
+                  className="site-nav__link--parent"
+                  isActiveOverride={playersActive}
+                  aria-haspopup="true"
+                  aria-expanded={playersMenuOpen ? 'true' : 'false'}
+                  aria-current={playersActive ? 'page' : undefined}
                   onClick={closeMenus}
                 >
                   {t.players || t.player}
                 </SiteNavLink>
+                <ul
+                  className={classNames(
+                    'site-nav__dropdown-menu',
+                    playersMenuOpen ? 'site-nav__dropdown-menu--open' : '',
+                  )}
+                  aria-hidden={playersMenuOpen ? undefined : 'true'}
+                >
+                  <li>
+                    <SiteNavLink
+                      to="/player"
+                      className="site-nav__sublink"
+                      end
+                      onClick={closeMenus}
+                    >
+                      {t.players || t.player}
+                    </SiteNavLink>
+                  </li>
+                  {isAuthenticated ? (
+                    <li>
+                      <SiteNavLink
+                        to="/custom-characters"
+                        className="site-nav__sublink"
+                        onClick={closeMenus}
+                      >
+                        {t.customCharacters || 'Custom characters'}
+                      </SiteNavLink>
+                    </li>
+                  ) : null}
+                </ul>
               </li>
-              {isAuthenticated ? (
-                <li className="site-nav__item">
-                  <SiteNavLink
-                    to="/custom-characters"
-                    isActiveOverride={customCharactersActive}
-                    aria-current={customCharactersActive ? 'page' : undefined}
-                    onClick={closeMenus}
-                  >
-                    {t.customCharacters || 'Custom characters'}
-                  </SiteNavLink>
-                </li>
-              ) : null}
             </ul>
             <ul className="site-nav__group site-nav__group--right">
               <li className="site-nav__item">
