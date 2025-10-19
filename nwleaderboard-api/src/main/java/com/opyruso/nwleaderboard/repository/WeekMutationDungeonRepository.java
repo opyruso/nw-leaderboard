@@ -118,4 +118,10 @@ public class WeekMutationDungeonRepository implements PanacheRepositoryBase<Week
                 .setParameter("source", from)
                 .executeUpdate();
     }
+
+    public List<Integer> listDistinctWeeksDescending() {
+        return getEntityManager()
+                .createQuery("SELECT DISTINCT w.id.week FROM WeekMutationDungeon w ORDER BY w.id.week DESC", Integer.class)
+                .getResultList();
+    }
 }

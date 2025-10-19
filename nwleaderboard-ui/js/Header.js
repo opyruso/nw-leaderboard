@@ -53,6 +53,7 @@ export default function Header({ authenticated, canContribute = false, onLogout 
     location.pathname.startsWith('/score') ||
     location.pathname.startsWith('/time') ||
     location.pathname.startsWith('/individual');
+  const customCharactersActive = location.pathname.startsWith('/custom-characters');
 
   const closeMenus = React.useCallback(() => {
     setOpenMenu(null);
@@ -466,6 +467,18 @@ export default function Header({ authenticated, canContribute = false, onLogout 
                   {t.players || t.player}
                 </SiteNavLink>
               </li>
+              {isAuthenticated ? (
+                <li className="site-nav__item">
+                  <SiteNavLink
+                    to="/custom-characters"
+                    isActiveOverride={customCharactersActive}
+                    aria-current={customCharactersActive ? 'page' : undefined}
+                    onClick={closeMenus}
+                  >
+                    {t.customCharacters || 'Custom characters'}
+                  </SiteNavLink>
+                </li>
+              ) : null}
             </ul>
             <ul className="site-nav__group site-nav__group--right">
               <li className="site-nav__item">

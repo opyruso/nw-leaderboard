@@ -77,6 +77,21 @@ function PlayersIcon() {
   );
 }
 
+function CustomCharactersIcon() {
+  return (
+    <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 7h8m-8 5h8m-8 5h8M18 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-4 7c0-2.21 1.79-4 4-4s4 1.79 4 4v2h-8z"
+      />
+    </svg>
+  );
+}
+
 function LoginIcon() {
   return (
     <svg className="bottom-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -278,14 +293,14 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
   const accountNavigation = isAuthenticated ? (
     <>
       {showContribute ? (
-      <BottomNavMenu
-        menuKey="contribute"
-        label={t.contribute}
-        icon={<ContributeIcon />}
-        isOpen={openMenu === 'contribute'}
-        onToggle={toggleMenu}
-        isHighlighted={contributeActive}
-      >
+        <BottomNavMenu
+          menuKey="contribute"
+          label={t.contribute}
+          icon={<ContributeIcon />}
+          isOpen={openMenu === 'contribute'}
+          onToggle={toggleMenu}
+          isHighlighted={contributeActive}
+        >
           <div className="bottom-nav-menu__section">
             <p className="bottom-nav-menu__title">{t.contributeMenuOrganisation}</p>
             <div className="bottom-nav-menu__links" role="none">
@@ -334,6 +349,7 @@ export default function BottomNav({ authenticated, canContribute = false, onLogo
           </div>
         </BottomNavMenu>
       ) : null}
+      <NavButton to="/custom-characters" label={t.customCharacters} icon={<CustomCharactersIcon />} />
       <NavButton to="/preferences" label={t.preferences} icon={<PreferencesIcon />} />
       <NavButton
         onClick={() => {
