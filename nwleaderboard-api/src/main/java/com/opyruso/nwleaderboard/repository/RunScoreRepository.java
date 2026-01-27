@@ -310,6 +310,30 @@ public class RunScoreRepository implements PanacheRepository<RunScore> {
         return find(jpql.toString(), parameters).list();
     }
 
+    /**
+     * Returns runs involving any of the provided players ordered with the best scores first.
+     *
+     * @param playerIds identifiers of the players
+     * @return list of runs sorted by score descending and week descending
+     */
+    public List<RunScore> listBestByPlayers(Collection<Long> playerIds, Collection<Integer> weeks) {
+        if (playerIds == null || playerIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
+            return List.of();
+        }
+        StringBuilder jpql = new StringBuilder(
+                "SELECT DISTINCT run FROM RunScorePlayer rsp "
+                        + "JOIN rsp.runScore run "
+                        + "JOIN FETCH run.dungeon dungeon "
+                        + "WHERE rsp.player.id IN :playerIds");
+        Parameters parameters = Parameters.with("playerIds", playerIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            jpql.append(" AND run.week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
+        }
+        jpql.append(" ORDER BY run.score DESC, run.week DESC, run.id ASC");
+        return find(jpql.toString(), parameters).list();
+    }
+
     /** Returns the lowest score recorded for each provided dungeon identifier. */
     public Map<Long, Integer> findMinimumScoresByDungeonIds(
             Collection<Long> dungeonIds, Collection<Integer> weeks) {

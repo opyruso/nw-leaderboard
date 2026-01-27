@@ -60,11 +60,28 @@ public class PlayerProfileService {
             return Optional.empty();
         }
 
+        Player main = resolveMain(player);
+        boolean isMainAccount = main == null || main.equals(player);
+        List<Player> accountAlternates =
+                isMainAccount ? playerRepository.listByMainCharacterId(player.getId()) : List.of();
+        List<Long> accountPlayerIds = new ArrayList<>();
+        accountPlayerIds.add(player.getId());
+        if (accountAlternates != null) {
+            for (Player alternate : accountAlternates) {
+                if (alternate == null || alternate.getId() == null) {
+                    continue;
+                }
+                if (!alternate.getId().equals(player.getId())) {
+                    accountPlayerIds.add(alternate.getId());
+                }
+            }
+        }
+
         LinkedHashMap<Long, PlayerDungeonAggregate> aggregates = new LinkedHashMap<>();
 
         LinkedHashSet<Integer> allowedWeeks = resolveAllowedWeeks(seasonId);
 
-        List<RunScore> scoreRuns = runScoreRepository.listBestByPlayer(playerId, allowedWeeks);
+        List<RunScore> scoreRuns = runScoreRepository.listBestByPlayers(accountPlayerIds, allowedWeeks);
         for (RunScore run : scoreRuns) {
             if (run == null) {
                 continue;
@@ -81,7 +98,7 @@ public class PlayerProfileService {
             }
         }
 
-        List<RunTime> timeRuns = runTimeRepository.listBestByPlayer(playerId, allowedWeeks);
+        List<RunTime> timeRuns = runTimeRepository.listBestByPlayers(accountPlayerIds, allowedWeeks);
         for (RunTime run : timeRuns) {
             if (run == null) {
                 continue;
@@ -124,17 +141,15 @@ public class PlayerProfileService {
 
         List<PlayerDungeonBestResponse> dungeonSummaries = buildDungeonSummaries(aggregates, allowedWeeks);
 
-        Player main = resolveMain(player);
         Long mainId = main != null && !main.equals(player) ? main.getId() : null;
         String mainName = main != null && !main.equals(player) ? main.getPlayerName() : null;
         List<PlayerProfileAlternateResponse> alternatePlayers = List.of();
-        if (main == null || main.equals(player)) {
-            List<Player> alternates = playerRepository.listByMainCharacterId(player.getId());
-            if (alternates != null && !alternates.isEmpty()) {
+        if (isMainAccount) {
+            if (accountAlternates != null && !accountAlternates.isEmpty()) {
                 Collator nameCollator = Collator.getInstance(Locale.ENGLISH);
                 nameCollator.setStrength(Collator.PRIMARY);
                 List<PlayerProfileAlternateResponse> summaries = new ArrayList<>();
-                for (Player alternate : alternates) {
+                for (Player alternate : accountAlternates) {
                     if (alternate == null || alternate.getId() == null) {
                         continue;
                     }
@@ -359,4 +374,3 @@ public class PlayerProfileService {
         return current;
     }
 }
-
