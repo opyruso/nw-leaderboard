@@ -308,6 +308,30 @@ public class RunTimeRepository implements PanacheRepository<RunTime> {
         return find(jpql.toString(), parameters).list();
     }
 
+    /**
+     * Returns runs involving any of the provided players ordered with the fastest times first.
+     *
+     * @param playerIds identifiers of the players
+     * @return list of runs sorted by duration ascending and week descending
+     */
+    public List<RunTime> listBestByPlayers(Collection<Long> playerIds, Collection<Integer> weeks) {
+        if (playerIds == null || playerIds.isEmpty() || (weeks != null && weeks.isEmpty())) {
+            return List.of();
+        }
+        StringBuilder jpql = new StringBuilder(
+                "SELECT DISTINCT run FROM RunTimePlayer rtp "
+                        + "JOIN rtp.runTime run "
+                        + "JOIN FETCH run.dungeon dungeon "
+                        + "WHERE rtp.player.id IN :playerIds");
+        Parameters parameters = Parameters.with("playerIds", playerIds);
+        if (weeks != null && !weeks.isEmpty()) {
+            jpql.append(" AND run.week IN :weeks");
+            parameters = parameters.and("weeks", weeks);
+        }
+        jpql.append(" ORDER BY run.timeInSecond ASC, run.week DESC, run.id ASC");
+        return find(jpql.toString(), parameters).list();
+    }
+
     /** Returns the fastest time recorded for each provided dungeon identifier. */
     public Map<Long, Integer> findMinimumTimesByDungeonIds(
             Collection<Long> dungeonIds, Collection<Integer> weeks) {
