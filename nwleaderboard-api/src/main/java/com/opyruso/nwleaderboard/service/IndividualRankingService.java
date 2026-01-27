@@ -120,17 +120,13 @@ public class IndividualRankingService {
                 if (week == null) {
                     continue;
                 }
-                int bestPlacement = Integer.MAX_VALUE;
                 Integer scorePlacement = scoreByWeek.get(week);
                 if (scorePlacement != null && scorePlacement > 0) {
-                    bestPlacement = Math.min(bestPlacement, scorePlacement);
+                    total += pointsForPlacement(scorePlacement);
                 }
                 Integer timePlacement = timeByWeek.get(week);
                 if (timePlacement != null && timePlacement > 0) {
-                    bestPlacement = Math.min(bestPlacement, timePlacement);
-                }
-                if (bestPlacement != Integer.MAX_VALUE) {
-                    total += pointsForPlacement(bestPlacement);
+                    total += pointsForPlacement(timePlacement);
                 }
             }
             points.globalPoints = total;
