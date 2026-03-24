@@ -12,7 +12,7 @@ const { Link } = ReactRouterDOM;
 
 const API_BASE_URL = (window.CONFIG?.['nwleaderboard-api-url'] || '').replace(/\/$/, '');
 
-const MODES = ['global', 'score', 'time'];
+const MODES = ['global', 'score', 'time', 'total_runs'];
 
 function formatPoints(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -252,7 +252,9 @@ export default function Individual() {
                 ? t.individualModeGlobal
                 : value === 'score'
                 ? t.individualModeScore
-                : t.individualModeTime;
+                : value === 'time'
+                ? t.individualModeTime
+                : t.individualModeTotalRuns || 'Total runs';
             return (
               <button
                 key={value}
@@ -315,6 +317,8 @@ export default function Individual() {
                       ? t.individualScorePointsHeader
                       : mode === 'time'
                       ? t.individualTimePointsHeader
+                      : mode === 'total_runs'
+                      ? t.individualTotalRunsHeader || 'Total runs'
                       : t.individualPointsHeader}
                   </th>
                 </tr>
@@ -329,7 +333,13 @@ export default function Individual() {
                   const scorePoints = Number.isFinite(entry?.scorePoints) ? entry.scorePoints : 0;
                   const timePoints = Number.isFinite(entry?.timePoints) ? entry.timePoints : 0;
                   const pointsForMode =
-                    mode === 'score' ? scorePoints : mode === 'time' ? timePoints : basePoints;
+                    mode === 'score'
+                      ? scorePoints
+                      : mode === 'time'
+                      ? timePoints
+                      : mode === 'total_runs'
+                      ? basePoints
+                      : basePoints;
                   const regionId = extractRegionId(entry);
                   const regionLabel = regionId ? translateRegion(t, regionId) : '—';
                   return (

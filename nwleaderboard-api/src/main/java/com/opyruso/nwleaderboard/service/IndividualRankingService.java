@@ -52,7 +52,8 @@ public class IndividualRankingService {
     public enum Mode {
         GLOBAL,
         SCORE,
-        TIME;
+        TIME,
+        TOTAL_RUNS;
 
         public static Mode fromQuery(String value) {
             if (value == null || value.isBlank()) {
@@ -80,8 +81,9 @@ public class IndividualRankingService {
                 computeScorePlacements(playerNames, playerRegions, allowedWeeks);
         Map<Long, Map<Integer, Integer>> timePlacements =
                 computeTimePlacements(playerNames, playerRegions, allowedWeeks);
+        Map<Long, Integer> totalRunsByPlayer = computeTotalRuns(playerNames, playerRegions, allowedWeeks);
 
-        if (scorePlacements.isEmpty() && timePlacements.isEmpty()) {
+        if (scorePlacements.isEmpty() && timePlacements.isEmpty() && totalRunsByPlayer.isEmpty()) {
             return List.of();
         }
 
@@ -103,6 +105,14 @@ public class IndividualRankingService {
                     .sum();
             points.timePoints = totalPoints;
             points.timePlacements = placementsByWeek;
+        });
+
+        totalRunsByPlayer.forEach((playerId, runCount) -> {
+            if (playerId == null || runCount == null || runCount <= 0) {
+                return;
+            }
+            PlayerPoints points = aggregates.computeIfAbsent(playerId, id -> new PlayerPoints());
+            points.totalRuns = runCount;
         });
 
         aggregates.forEach((playerId, points) -> {
@@ -144,6 +154,7 @@ public class IndividualRankingService {
                 case GLOBAL -> points.globalPoints;
                 case SCORE -> points.scorePoints;
                 case TIME -> points.timePoints;
+                case TOTAL_RUNS -> points.totalRuns;
             };
             if (selectedPoints <= 0) {
                 return;
@@ -402,6 +413,75 @@ public class IndividualRankingService {
         return placements;
     }
 
+    private Map<Long, Integer> computeTotalRuns(
+            Map<Long, String> playerNames, Map<Long, String> playerRegions, Set<Integer> allowedWeeks) {
+        Map<Long, Integer> runCounts = new HashMap<>();
+
+        List<RunScore> scoreRuns = runScoreRepository.find("ORDER BY id ASC").list();
+        if (!scoreRuns.isEmpty()) {
+            Map<Long, List<Player>> playersByRun = loadPlayersForScoreRuns(scoreRuns);
+            for (RunScore run : scoreRuns) {
+                if (run == null || run.getId() == null || !isWeekAllowed(run.getWeek(), allowedWeeks)) {
+                    continue;
+                }
+                List<Player> players = playersByRun.getOrDefault(run.getId(), List.of());
+                if (players.isEmpty()) {
+                    continue;
+                }
+                Set<Long> processed = new HashSet<>();
+                for (Player player : players) {
+                    Player main = resolveMain(player);
+                    if (main == null || main.getId() == null) {
+                        continue;
+                    }
+                    Long mainId = main.getId();
+                    if (!processed.add(mainId)) {
+                        continue;
+                    }
+                    playerNames.merge(mainId, normaliseName(main.getPlayerName()), IndividualRankingService::preferNonEmpty);
+                    String regionId = normaliseRegionId(main.getRegion() != null ? main.getRegion().getId() : null);
+                    if (regionId != null) {
+                        playerRegions.putIfAbsent(mainId, regionId);
+                    }
+                    runCounts.merge(mainId, 1, Integer::sum);
+                }
+            }
+        }
+
+        List<RunTime> timeRuns = runTimeRepository.find("ORDER BY id ASC").list();
+        if (!timeRuns.isEmpty()) {
+            Map<Long, List<Player>> playersByRun = loadPlayersForTimeRuns(timeRuns);
+            for (RunTime run : timeRuns) {
+                if (run == null || run.getId() == null || !isWeekAllowed(run.getWeek(), allowedWeeks)) {
+                    continue;
+                }
+                List<Player> players = playersByRun.getOrDefault(run.getId(), List.of());
+                if (players.isEmpty()) {
+                    continue;
+                }
+                Set<Long> processed = new HashSet<>();
+                for (Player player : players) {
+                    Player main = resolveMain(player);
+                    if (main == null || main.getId() == null) {
+                        continue;
+                    }
+                    Long mainId = main.getId();
+                    if (!processed.add(mainId)) {
+                        continue;
+                    }
+                    playerNames.merge(mainId, normaliseName(main.getPlayerName()), IndividualRankingService::preferNonEmpty);
+                    String regionId = normaliseRegionId(main.getRegion() != null ? main.getRegion().getId() : null);
+                    if (regionId != null) {
+                        playerRegions.putIfAbsent(mainId, regionId);
+                    }
+                    runCounts.merge(mainId, 1, Integer::sum);
+                }
+            }
+        }
+
+        return runCounts;
+    }
+
     private Map<Long, List<Player>> loadPlayersForScoreRuns(List<RunScore> runs) {
         List<Long> runIds = runs.stream()
                 .filter(Objects::nonNull)
@@ -523,5 +603,6 @@ public class IndividualRankingService {
         private int timePoints;
         private Map<Integer, Integer> scorePlacements;
         private Map<Integer, Integer> timePlacements;
+        private int totalRuns;
     }
 }
