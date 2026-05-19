@@ -197,6 +197,8 @@ export default function Home() {
   const { t, lang } = React.useContext(LangContext);
   const [highlights, setHighlights] = React.useState([]);
   const [carouselPage, setCarouselPage] = React.useState(0);
+  const [carouselDirection, setCarouselDirection] = React.useState('forward');
+  const [carouselAnimationKey, setCarouselAnimationKey] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
   const pageTitle = capitaliseWords(t.leaderboardTitle || '');
@@ -273,6 +275,16 @@ export default function Home() {
     }
   }, [loading, error, sortedHighlights.length]);
 
+  React.useEffect(() => {
+    if (loading || error || sortedHighlights.length === 0) {
+      setCarouselDirection('forward');
+      setCarouselAnimationKey(0);
+      return;
+    }
+    setCarouselDirection(carouselPage === 1 ? 'forward' : 'backward');
+    setCarouselAnimationKey((value) => value + 1);
+  }, [carouselPage, loading, error, sortedHighlights.length]);
+
   const isSeasonPage = carouselPage === 1;
   const carouselLabel = isSeasonPage
     ? t.highlightCarouselSeasonLabel ?? 'Current season records'
@@ -311,7 +323,10 @@ export default function Home() {
         ) : displayHighlights.length === 0 ? (
           <p className="highlight-status">{t.highlightEmpty ?? t.leaderboardEmpty}</p>
         ) : (
-          <ul className="highlight-list">
+          <ul
+            key={`${carouselPage}-${carouselAnimationKey}`}
+            className={`highlight-list highlight-list--carousel highlight-list--${carouselDirection}`}
+          >
             {displayHighlights.map((highlight) => {
               const dungeonName = getDungeonNameForLang(highlight, lang);
               const score = highlight.score;
