@@ -13,6 +13,7 @@ import { extractMutationIds, hasMutationIds } from '../mutations.js';
 import { capitaliseWords } from '../text.js';
 import { formatPlayerLinkProps } from '../playerNames.js';
 import { extractRegionId, translateRegion } from '../regions.js';
+import { findCurrentSeasonId, sortSeasons } from '../seasons.js';
 
 const { Link } = ReactRouterDOM;
 
@@ -202,6 +203,7 @@ export default function Home() {
   const [carouselTimerSeed, setCarouselTimerSeed] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
+  const [currentSeason, setCurrentSeason] = React.useState(0);
   const pageTitle = capitaliseWords(t.leaderboardTitle || '');
 
   React.useEffect(() => {
@@ -247,18 +249,45 @@ export default function Home() {
     };
   }, []);
 
+  React.useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    fetch(`${API_BASE_URL}/seasons`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load seasons: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!active) {
+          return;
+        }
+        const list = Array.isArray(data) ? data : [];
+        const sorted = sortSeasons(list);
+        const currentSeasonId = findCurrentSeasonId(sorted);
+        const numericSeason = Number.parseInt(currentSeasonId || '', 10);
+        setCurrentSeason(Number.isFinite(numericSeason) && numericSeason > 0 ? numericSeason : 0);
+      })
+      .catch((fetchError) => {
+        if (!active || fetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Unable to load seasons', fetchError);
+        setCurrentSeason(0);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
   const sortedHighlights = React.useMemo(
     () => sortDungeons(highlights, lang),
     [highlights, lang],
   );
-  const currentSeason = React.useMemo(() => {
-    return sortedHighlights.reduce((latest, highlight) => {
-      const scoreSeason = highlight?.score?.season ?? null;
-      const timeSeason = highlight?.time?.season ?? null;
-      const candidate = Math.max(scoreSeason || 0, timeSeason || 0);
-      return candidate > latest ? candidate : latest;
-    }, 0);
-  }, [sortedHighlights]);
 
   const changeCarouselPage = React.useCallback((nextPage, manual = false) => {
     const safePage = nextPage === 1 ? 1 : 0;
