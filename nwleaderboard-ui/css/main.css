@@ -1566,6 +1566,44 @@ body[data-theme='light'] .suggestion-item__details {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow-x: hidden;
+}
+
+.highlight-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.highlight-carousel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(240, 242, 255, 0.82);
+}
+
+.highlight-carousel-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.highlight-carousel-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.highlight-carousel-dot.active {
+  background: #8f82ff;
+  box-shadow: 0 0 0 0.15rem rgba(143, 130, 255, 0.2);
 }
 
 .highlight-status {
@@ -1586,6 +1624,43 @@ body[data-theme='light'] .suggestion-item__details {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.highlight-list--carousel {
+  will-change: transform, opacity;
+  animation-duration: 460ms;
+  animation-timing-function: ease;
+  animation-fill-mode: both;
+}
+
+.highlight-list--forward {
+  animation-name: highlight-slide-forward;
+}
+
+.highlight-list--backward {
+  animation-name: highlight-slide-backward;
+}
+
+@keyframes highlight-slide-forward {
+  from {
+    opacity: 0;
+    transform: translateX(3.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes highlight-slide-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-3.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .highlight-item {

@@ -196,6 +196,10 @@ function formatTime(seconds) {
 export default function Home() {
   const { t, lang } = React.useContext(LangContext);
   const [highlights, setHighlights] = React.useState([]);
+  const [carouselPage, setCarouselPage] = React.useState(0);
+  const [carouselDirection, setCarouselDirection] = React.useState('forward');
+  const [carouselAnimationKey, setCarouselAnimationKey] = React.useState(0);
+  const [carouselTimerSeed, setCarouselTimerSeed] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
   const pageTitle = capitaliseWords(t.leaderboardTitle || '');
@@ -247,22 +251,118 @@ export default function Home() {
     () => sortDungeons(highlights, lang),
     [highlights, lang],
   );
+  const currentSeason = React.useMemo(() => {
+    return sortedHighlights.reduce((latest, highlight) => {
+      const scoreSeason = highlight?.score?.season ?? null;
+      const timeSeason = highlight?.time?.season ?? null;
+      const candidate = Math.max(scoreSeason || 0, timeSeason || 0);
+      return candidate > latest ? candidate : latest;
+    }, 0);
+  }, [sortedHighlights]);
+
+  const changeCarouselPage = React.useCallback((nextPage, manual = false) => {
+    const safePage = nextPage === 1 ? 1 : 0;
+    setCarouselPage(safePage);
+    if (manual) {
+      setCarouselTimerSeed((value) => value + 1);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (loading || error || sortedHighlights.length === 0) {
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => {
+      changeCarouselPage((carouselPage + 1) % 2, false);
+    }, 10000);
+    return () => window.clearTimeout(timeoutId);
+  }, [carouselPage, carouselTimerSeed, loading, error, sortedHighlights.length, changeCarouselPage]);
+
+  React.useEffect(() => {
+    if (loading || error || sortedHighlights.length === 0) {
+      setCarouselPage(0);
+    }
+  }, [loading, error, sortedHighlights.length]);
+
+  React.useEffect(() => {
+    if (loading || error || sortedHighlights.length === 0) {
+      setCarouselDirection('forward');
+      setCarouselAnimationKey(0);
+      setCarouselTimerSeed(0);
+      return;
+    }
+    setCarouselDirection(carouselPage === 1 ? 'forward' : 'backward');
+    setCarouselAnimationKey((value) => value + 1);
+  }, [carouselPage, loading, error, sortedHighlights.length]);
+
+  const isSeasonPage = carouselPage === 1;
+  const carouselLabel = isSeasonPage
+    ? t.highlightCarouselSeasonLabel ?? 'Current season records'
+    : t.highlightCarouselAllTimeLabel ?? 'All-time records';
+  const displayHighlights = isSeasonPage
+    ? sortedHighlights.map((highlight) => {
+        const scoreMatchesSeason = currentSeason > 0 && highlight?.score?.season === currentSeason;
+        const timeMatchesSeason = currentSeason > 0 && highlight?.time?.season === currentSeason;
+        return {
+          ...highlight,
+          score: scoreMatchesSeason ? highlight.score : null,
+          time: timeMatchesSeason ? highlight.time : null,
+        };
+      })
+    : sortedHighlights;
 
   return (
     <main className="page" aria-labelledby="home-title">
       <h1 id="home-title" className="page-title title-with-icon">
         <span>{pageTitle}</span>
       </h1>
-      <section className="highlight-section" aria-live="polite">
+      <section
+        className="highlight-section"
+        aria-live="polite"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (loading || error || sortedHighlights.length === 0) {
+            return;
+          }
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            changeCarouselPage((carouselPage + 1) % 2, true);
+          }
+        }}
+      >
+        {!loading && !error && sortedHighlights.length > 0 ? (
+          <div className="highlight-carousel-header">
+            <p className="highlight-carousel-title">{carouselLabel}</p>
+            <div className="highlight-carousel-dots">
+              <button
+                type="button"
+                className={`highlight-carousel-dot${carouselPage === 0 ? ' active' : ''}`}
+                aria-label={t.highlightCarouselAllTimeLabel ?? 'All-time records'}
+                aria-current={carouselPage === 0 ? 'true' : undefined}
+                onClick={() => changeCarouselPage(0, true)}
+              />
+              <button
+                type="button"
+                className={`highlight-carousel-dot${carouselPage === 1 ? ' active' : ''}`}
+                aria-label={t.highlightCarouselSeasonLabel ?? 'Current season records'}
+                aria-current={carouselPage === 1 ? 'true' : undefined}
+                onClick={() => changeCarouselPage(1, true)}
+              />
+            </div>
+          </div>
+        ) : null}
         {loading ? (
           <p className="highlight-status">{t.highlightLoading ?? t.leaderboardLoading}</p>
         ) : error ? (
           <p className="highlight-status error">{t.highlightError ?? t.leaderboardError}</p>
-        ) : sortedHighlights.length === 0 ? (
+        ) : displayHighlights.length === 0 ? (
           <p className="highlight-status">{t.highlightEmpty ?? t.leaderboardEmpty}</p>
         ) : (
-          <ul className="highlight-list">
-            {sortedHighlights.map((highlight) => {
+          <ul
+            key={`${carouselPage}-${carouselAnimationKey}`}
+            className={`highlight-list highlight-list--carousel highlight-list--${carouselDirection}`}
+          >
+            {displayHighlights.map((highlight) => {
               const dungeonName = getDungeonNameForLang(highlight, lang);
               const score = highlight.score;
               const time = highlight.time;
