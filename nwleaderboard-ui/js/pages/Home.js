@@ -199,6 +199,7 @@ export default function Home() {
   const [carouselPage, setCarouselPage] = React.useState(0);
   const [carouselDirection, setCarouselDirection] = React.useState('forward');
   const [carouselAnimationKey, setCarouselAnimationKey] = React.useState(0);
+  const [carouselTimerSeed, setCarouselTimerSeed] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(false);
   const pageTitle = capitaliseWords(t.leaderboardTitle || '');
@@ -259,15 +260,23 @@ export default function Home() {
     }, 0);
   }, [sortedHighlights]);
 
+  const changeCarouselPage = React.useCallback((nextPage, manual = false) => {
+    const safePage = nextPage === 1 ? 1 : 0;
+    setCarouselPage(safePage);
+    if (manual) {
+      setCarouselTimerSeed((value) => value + 1);
+    }
+  }, []);
+
   React.useEffect(() => {
     if (loading || error || sortedHighlights.length === 0) {
       return undefined;
     }
-    const intervalId = window.setInterval(() => {
-      setCarouselPage((page) => (page + 1) % 2);
+    const timeoutId = window.setTimeout(() => {
+      changeCarouselPage((carouselPage + 1) % 2, false);
     }, 10000);
-    return () => window.clearInterval(intervalId);
-  }, [loading, error, sortedHighlights.length]);
+    return () => window.clearTimeout(timeoutId);
+  }, [carouselPage, carouselTimerSeed, loading, error, sortedHighlights.length, changeCarouselPage]);
 
   React.useEffect(() => {
     if (loading || error || sortedHighlights.length === 0) {
@@ -279,6 +288,7 @@ export default function Home() {
     if (loading || error || sortedHighlights.length === 0) {
       setCarouselDirection('forward');
       setCarouselAnimationKey(0);
+      setCarouselTimerSeed(0);
       return;
     }
     setCarouselDirection(carouselPage === 1 ? 'forward' : 'backward');
@@ -306,13 +316,38 @@ export default function Home() {
       <h1 id="home-title" className="page-title title-with-icon">
         <span>{pageTitle}</span>
       </h1>
-      <section className="highlight-section" aria-live="polite">
+      <section
+        className="highlight-section"
+        aria-live="polite"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (loading || error || sortedHighlights.length === 0) {
+            return;
+          }
+          if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            changeCarouselPage((carouselPage + 1) % 2, true);
+          }
+        }}
+      >
         {!loading && !error && sortedHighlights.length > 0 ? (
           <div className="highlight-carousel-header">
             <p className="highlight-carousel-title">{carouselLabel}</p>
-            <div className="highlight-carousel-dots" aria-hidden="true">
-              <span className={`highlight-carousel-dot${carouselPage === 0 ? ' active' : ''}`} />
-              <span className={`highlight-carousel-dot${carouselPage === 1 ? ' active' : ''}`} />
+            <div className="highlight-carousel-dots">
+              <button
+                type="button"
+                className={`highlight-carousel-dot${carouselPage === 0 ? ' active' : ''}`}
+                aria-label={t.highlightCarouselAllTimeLabel ?? 'All-time records'}
+                aria-current={carouselPage === 0 ? 'true' : undefined}
+                onClick={() => changeCarouselPage(0, true)}
+              />
+              <button
+                type="button"
+                className={`highlight-carousel-dot${carouselPage === 1 ? ' active' : ''}`}
+                aria-label={t.highlightCarouselSeasonLabel ?? 'Current season records'}
+                aria-current={carouselPage === 1 ? 'true' : undefined}
+                onClick={() => changeCarouselPage(1, true)}
+              />
             </div>
           </div>
         ) : null}

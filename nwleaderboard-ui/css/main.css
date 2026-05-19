@@ -1596,6 +1596,9 @@ body[data-theme='light'] .suggestion-item__details {
   height: 0.55rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.35);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .highlight-carousel-dot.active {
