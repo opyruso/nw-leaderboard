@@ -149,6 +149,12 @@ function normaliseHighlight(entry, index) {
   const playerCount = toPositiveInteger(entry.player_count ?? entry.playerCount);
   const score = normaliseMetric(entry.best_score ?? entry.score ?? entry.bestScore);
   const time = normaliseMetric(entry.best_time ?? entry.time ?? entry.bestTime);
+  const currentSeasonScore = normaliseMetric(
+    entry.best_score_current_season ?? entry.bestScoreCurrentSeason,
+  );
+  const currentSeasonTime = normaliseMetric(
+    entry.best_time_current_season ?? entry.bestTimeCurrentSeason,
+  );
   const region = extractRegionId(entry);
   return {
     id,
@@ -158,6 +164,8 @@ function normaliseHighlight(entry, index) {
     playerCount,
     score,
     time,
+    currentSeasonScore,
+    currentSeasonTime,
     region,
   };
 }
@@ -332,10 +340,12 @@ export default function Home() {
     ? sortedHighlights.map((highlight) => {
         const scoreMatchesSeason = currentSeason > 0 && highlight?.score?.season === currentSeason;
         const timeMatchesSeason = currentSeason > 0 && highlight?.time?.season === currentSeason;
+        const score = highlight?.currentSeasonScore ?? (scoreMatchesSeason ? highlight.score : null);
+        const time = highlight?.currentSeasonTime ?? (timeMatchesSeason ? highlight.time : null);
         return {
           ...highlight,
-          score: scoreMatchesSeason ? highlight.score : null,
-          time: timeMatchesSeason ? highlight.time : null,
+          score,
+          time,
         };
       })
     : sortedHighlights;

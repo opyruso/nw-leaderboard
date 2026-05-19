@@ -18,11 +18,13 @@ import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
 import com.opyruso.nwleaderboard.repository.RunTimePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunTimeRepository;
+import com.opyruso.nwleaderboard.repository.SeasonRepository;
 import com.opyruso.nwleaderboard.repository.WeekMutationDungeonRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.text.Collator;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,6 +64,9 @@ public class LeaderboardService {
 
     @Inject
     WeekMutationDungeonRepository weekMutationDungeonRepository;
+
+    @Inject
+    SeasonRepository seasonRepository;
 
     @Transactional(Transactional.TxType.SUPPORTS)
     public LeaderboardPageResponse getScoreEntries(
@@ -262,8 +267,12 @@ public class LeaderboardService {
             return List.of();
         }
 
+        Integer currentSeasonId = resolveCurrentSeasonId();
+
         LinkedHashMap<Long, RunScore> bestScoresByDungeon = new LinkedHashMap<>();
         LinkedHashMap<Long, RunTime> bestTimesByDungeon = new LinkedHashMap<>();
+        LinkedHashMap<Long, RunScore> bestCurrentSeasonScoresByDungeon = new LinkedHashMap<>();
+        LinkedHashMap<Long, RunTime> bestCurrentSeasonTimesByDungeon = new LinkedHashMap<>();
         List<RunScore> scoreRuns = new ArrayList<>();
         List<RunTime> timeRuns = new ArrayList<>();
         Map<MutationKey, MutationIds> mutationCache = new HashMap<>();
@@ -278,10 +287,32 @@ public class LeaderboardService {
                 bestScoresByDungeon.put(dungeonId, bestScore);
                 scoreRuns.add(bestScore);
             }
+            if (currentSeasonId != null) {
+                RunScore bestCurrentSeasonScore = runScoreRepository
+                        .listByDungeonAndWeeks(dungeonId, null, null, currentSeasonId, 0, 1)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+                if (bestCurrentSeasonScore != null) {
+                    bestCurrentSeasonScoresByDungeon.put(dungeonId, bestCurrentSeasonScore);
+                    scoreRuns.add(bestCurrentSeasonScore);
+                }
+            }
             RunTime bestTime = runTimeRepository.findBestByDungeon(dungeonId);
             if (bestTime != null) {
                 bestTimesByDungeon.put(dungeonId, bestTime);
                 timeRuns.add(bestTime);
+            }
+            if (currentSeasonId != null) {
+                RunTime bestCurrentSeasonTime = runTimeRepository
+                        .listByDungeonAndWeeks(dungeonId, null, null, currentSeasonId, 0, 1)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+                if (bestCurrentSeasonTime != null) {
+                    bestCurrentSeasonTimesByDungeon.put(dungeonId, bestCurrentSeasonTime);
+                    timeRuns.add(bestCurrentSeasonTime);
+                }
             }
         }
 
@@ -297,6 +328,8 @@ public class LeaderboardService {
             Long dungeonId = dungeon.getId();
             RunScore bestScore = bestScoresByDungeon.get(dungeonId);
             RunTime bestTime = bestTimesByDungeon.get(dungeonId);
+            RunScore bestCurrentSeasonScore = bestCurrentSeasonScoresByDungeon.get(dungeonId);
+            RunTime bestCurrentSeasonTime = bestCurrentSeasonTimesByDungeon.get(dungeonId);
             MutationIds scoreMutations = resolveMutationIds(
                     bestScore != null ? bestScore.getWeek() : null,
                     bestScore != null ? bestScore.getDungeon() : null,
@@ -340,6 +373,10 @@ public class LeaderboardService {
             Map<String, String> names = buildNameMap(dungeon);
             String fallbackName = names.getOrDefault("en", valueOrEmpty(dungeon.getNameLocalEn()));
             String highlightRegion = resolveHighlightRegion(scoreRegion, timeRegion);
+            HighlightMetricResponse scoreCurrentSeasonMetric = buildHighlightScoreMetric(
+                    bestCurrentSeasonScore, scorePlayersByRun, mutationCache, seasonsByRunKey, currentSeasonId);
+            HighlightMetricResponse timeCurrentSeasonMetric = buildHighlightTimeMetric(
+                    bestCurrentSeasonTime, timePlayersByRun, mutationCache, seasonsByRunKey, currentSeasonId);
             responses.add(new HighlightResponse(
                     dungeonId,
                     fallbackName,
@@ -347,7 +384,9 @@ public class LeaderboardService {
                     dungeon.getPlayerCount(),
                     highlightRegion,
                     scoreMetric,
-                    timeMetric));
+                    timeMetric,
+                    scoreCurrentSeasonMetric,
+                    timeCurrentSeasonMetric));
         }
 
         Collator collator = Collator.getInstance(Locale.ENGLISH);
@@ -360,6 +399,63 @@ public class LeaderboardService {
         return List.copyOf(responses);
     }
 
+
+
+    private Integer resolveCurrentSeasonId() {
+        LocalDate today = LocalDate.now();
+        return seasonRepository.find("dateBegin <= ?1 AND dateEnd >= ?1 ORDER BY id DESC", today)
+                .firstResultOptional()
+                .map(season -> season.getId())
+                .orElse(null);
+    }
+
+    private HighlightMetricResponse buildHighlightScoreMetric(
+            RunScore run,
+            Map<Long, List<LeaderboardPlayerResponse>> playersByRun,
+            Map<MutationKey, MutationIds> mutationCache,
+            Map<MutationKey, Integer> seasonsByRunKey,
+            Integer fallbackSeasonId) {
+        if (run == null) {
+            return null;
+        }
+        MutationIds mutations = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
+        String region = normaliseRegionId(run.getRegion() != null ? run.getRegion().getId() : null);
+        Integer season = resolveSeasonId(run.getWeek(), run.getDungeon(), seasonsByRunKey);
+        return new HighlightMetricResponse(
+                run.getScore(),
+                run.getWeek(),
+                season != null ? season : fallbackSeasonId,
+                runScoreRepository.findPositionInDungeon(run),
+                playersByRun.getOrDefault(run.getId(), List.of()),
+                region,
+                mutations.typeId(),
+                mutations.promotionId(),
+                mutations.curseId());
+    }
+
+    private HighlightMetricResponse buildHighlightTimeMetric(
+            RunTime run,
+            Map<Long, List<LeaderboardPlayerResponse>> playersByRun,
+            Map<MutationKey, MutationIds> mutationCache,
+            Map<MutationKey, Integer> seasonsByRunKey,
+            Integer fallbackSeasonId) {
+        if (run == null) {
+            return null;
+        }
+        MutationIds mutations = resolveMutationIds(run.getWeek(), run.getDungeon(), mutationCache);
+        String region = normaliseRegionId(run.getRegion() != null ? run.getRegion().getId() : null);
+        Integer season = resolveSeasonId(run.getWeek(), run.getDungeon(), seasonsByRunKey);
+        return new HighlightMetricResponse(
+                run.getTimeInSecond(),
+                run.getWeek(),
+                season != null ? season : fallbackSeasonId,
+                runTimeRepository.findPositionInDungeon(run),
+                playersByRun.getOrDefault(run.getId(), List.of()),
+                region,
+                mutations.typeId(),
+                mutations.promotionId(),
+                mutations.curseId());
+    }
 
     private Map<MutationKey, Integer> loadSeasonsForRuns(List<RunScore> scoreRuns, List<RunTime> timeRuns) {
         LinkedHashSet<WeekMutationDungeonId> ids = new LinkedHashSet<>();
