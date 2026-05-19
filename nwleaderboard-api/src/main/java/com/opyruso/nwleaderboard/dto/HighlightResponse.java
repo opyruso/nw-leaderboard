@@ -13,4 +13,6 @@ public record HighlightResponse(
         @JsonProperty("player_count") Integer playerCount,
         @JsonProperty("region") String region,
         @JsonProperty("best_score") HighlightMetricResponse bestScore,
-        @JsonProperty("best_time") HighlightMetricResponse bestTime) {}
+        @JsonProperty("best_time") HighlightMetricResponse bestTime,
+        @JsonProperty("best_score_current_season") HighlightMetricResponse bestScoreCurrentSeason,
+        @JsonProperty("best_time_current_season") HighlightMetricResponse bestTimeCurrentSeason) {}
