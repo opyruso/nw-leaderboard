@@ -12,6 +12,7 @@ import com.opyruso.nwleaderboard.entity.Player;
 import com.opyruso.nwleaderboard.entity.RunScore;
 import com.opyruso.nwleaderboard.entity.RunTime;
 import com.opyruso.nwleaderboard.entity.WeekMutationDungeon;
+import com.opyruso.nwleaderboard.entity.WeekMutationDungeonId;
 import com.opyruso.nwleaderboard.repository.DungeonRepository;
 import com.opyruso.nwleaderboard.repository.RunScorePlayerRepository;
 import com.opyruso.nwleaderboard.repository.RunScoreRepository;
@@ -286,6 +287,7 @@ public class LeaderboardService {
 
         Map<Long, List<LeaderboardPlayerResponse>> scorePlayersByRun = loadPlayersForScoreRuns(scoreRuns);
         Map<Long, List<LeaderboardPlayerResponse>> timePlayersByRun = loadPlayersForTimeRuns(timeRuns);
+        Map<MutationKey, Integer> seasonsByRunKey = loadSeasonsForRuns(scoreRuns, timeRuns);
 
         List<HighlightResponse> responses = new ArrayList<>();
         for (Dungeon dungeon : highlighted) {
@@ -307,6 +309,7 @@ public class LeaderboardService {
                     ? new HighlightMetricResponse(
                             bestScore.getScore(),
                             bestScore.getWeek(),
+                            resolveSeasonId(bestScore.getWeek(), bestScore.getDungeon(), seasonsByRunKey),
                             scorePosition,
                             scorePlayersByRun.getOrDefault(bestScore.getId(), List.of()),
                             scoreRegion,
@@ -326,6 +329,7 @@ public class LeaderboardService {
                     ? new HighlightMetricResponse(
                             bestTime.getTimeInSecond(),
                             bestTime.getWeek(),
+                            resolveSeasonId(bestTime.getWeek(), bestTime.getDungeon(), seasonsByRunKey),
                             timePosition,
                             timePlayersByRun.getOrDefault(bestTime.getId(), List.of()),
                             timeRegion,
@@ -354,6 +358,48 @@ public class LeaderboardService {
             return collator.compare(leftName, rightName);
         });
         return List.copyOf(responses);
+    }
+
+
+    private Map<MutationKey, Integer> loadSeasonsForRuns(List<RunScore> scoreRuns, List<RunTime> timeRuns) {
+        LinkedHashSet<WeekMutationDungeonId> ids = new LinkedHashSet<>();
+        if (scoreRuns != null) {
+            for (RunScore run : scoreRuns) {
+                if (run == null || run.getWeek() == null || run.getDungeon() == null || run.getDungeon().getId() == null) {
+                    continue;
+                }
+                ids.add(new WeekMutationDungeonId(run.getWeek(), run.getDungeon().getId()));
+            }
+        }
+        if (timeRuns != null) {
+            for (RunTime run : timeRuns) {
+                if (run == null || run.getWeek() == null || run.getDungeon() == null || run.getDungeon().getId() == null) {
+                    continue;
+                }
+                ids.add(new WeekMutationDungeonId(run.getWeek(), run.getDungeon().getId()));
+            }
+        }
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<MutationKey, Integer> result = new HashMap<>();
+        List<WeekMutationDungeon> entries = weekMutationDungeonRepository.listByIds(ids);
+        for (WeekMutationDungeon entry : entries) {
+            if (entry == null || entry.getId() == null) {
+                continue;
+            }
+            MutationKey key = new MutationKey(entry.getId().getWeek(), entry.getId().getDungeonId());
+            Integer seasonId = entry.getSeason() != null ? entry.getSeason().getId() : null;
+            result.put(key, seasonId);
+        }
+        return result;
+    }
+
+    private Integer resolveSeasonId(Integer week, Dungeon dungeon, Map<MutationKey, Integer> seasonsByRunKey) {
+        if (week == null || dungeon == null || dungeon.getId() == null || seasonsByRunKey == null || seasonsByRunKey.isEmpty()) {
+            return null;
+        }
+        return seasonsByRunKey.get(new MutationKey(week, dungeon.getId()));
     }
 
     private Map<Long, List<LeaderboardPlayerResponse>> loadPlayersForScoreRuns(List<RunScore> runs) {

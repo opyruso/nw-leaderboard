@@ -11,6 +11,7 @@ import java.util.List;
 public record HighlightMetricResponse(
         Integer value,
         Integer week,
+        Integer season,
         Integer position,
         List<LeaderboardPlayerResponse> players,
         @JsonProperty("region") String region,
