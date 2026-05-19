@@ -1568,6 +1568,40 @@ body[data-theme='light'] .suggestion-item__details {
   gap: 1.5rem;
 }
 
+.highlight-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.highlight-carousel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(240, 242, 255, 0.82);
+}
+
+.highlight-carousel-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.highlight-carousel-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.highlight-carousel-dot.active {
+  background: #8f82ff;
+  box-shadow: 0 0 0 0.15rem rgba(143, 130, 255, 0.2);
+}
+
 .highlight-status {
   text-align: center;
   padding: 2rem;
