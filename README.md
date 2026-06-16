@@ -24,6 +24,8 @@ file required by the service worker.
 
 ## Back-end (nwleaderboard-api)
 
+The API targets Java 25 and requires a Java 25 JDK for local builds and development.
+
 The Quarkus API serves the static UI and proxies authentication flows to
 Keycloak:
 
