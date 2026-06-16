@@ -66,13 +66,13 @@ jobs:
             "${PROJECT_NAME}" \
             "snapshot" \
             "${ENV_NAME}" \
-            "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config/config.json"
+            "${{ github.workspace }}/${UI_PROJECT_DIR}/config"
 
           java -jar propertiesmanager-java-connector-runner.jar UPDATE \
             "${PROJECT_NAME}" \
             "snapshot" \
             "${ENV_NAME}" \
-            "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config/keycloak.json"
+            "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config"
 
           cd "${{ github.workspace }}"
 
@@ -83,7 +83,20 @@ jobs:
           npm run build
 
       - name: Build backend
-        run: ./build-all.sh ${ENV_NAME}
+        run: |
+          set -euo pipefail
+
+          cd "${PROJECT_NAME}-api"
+
+          echo "📦 Build Maven API..."
+          mvn clean package
+
+          if [ ! -f "target/${PROJECT_NAME}-api-1.0.0-SNAPSHOT-runner.jar" ]; then
+            echo "❌ Le jar API n'a pas été généré. Abandon."
+            exit 1
+          fi
+
+          echo "✅ Build API terminé."
 
       - name: 🚀 Config API
         run: |
@@ -116,12 +129,8 @@ jobs:
       - name: 📤 Upload livraison site
         run: |
           rsync -av --delete \
-            "${UI_PROJECT_DIR}/build/" \
+            "${UI_PROJECT_DIR}/dist/" \
             ${REMOTE_USER}@${UI_REMOTE_HOST}:${UI_SOURCE_DIR}/dist/
-
-          rsync -av --delete \
-            "${UI_PROJECT_DIR}/public/config/" \
-            ${REMOTE_USER}@${UI_REMOTE_HOST}:${UI_SOURCE_DIR}/config/
 
       - name: 📤 Upload livraison API
         run: |
