@@ -1,0 +1,157 @@
+name: Build REC
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ENV_NAME: rec
+  PROJECT_NAME: nwleaderboard
+
+  REMOTE_USER: github-runner
+
+  UI_REMOTE_HOST: vsl-rec-fre-001
+  API_REMOTE_HOST: vsl-rec-api-001
+
+  SOURCES_DIR: /opt/sources
+  BACKUP_DIR: /opt/backups
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: 🔄 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Préparation variables livraison
+        run: |
+          VERSION=$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::8}
+
+          UI_PROJECT_DIR="${PROJECT_NAME}-ui"
+          API_PROJECT_DIR="${PROJECT_NAME}-api"
+
+          UI_APP_NAME="${PROJECT_NAME}-ui-${ENV_NAME}"
+          API_APP_NAME="${PROJECT_NAME}-api-${ENV_NAME}"
+          API_SERVICE_NAME="quarkus-${PROJECT_NAME}-api-${ENV_NAME}"
+
+          UI_TARGET_DIR="/opt/${UI_APP_NAME}"
+
+          UI_SOURCE_DIR="${SOURCES_DIR}/${UI_APP_NAME}-${VERSION}"
+          UI_BACKUP_DIR="${BACKUP_DIR}/${UI_APP_NAME}-${VERSION}"
+
+          API_SOURCE_DIR="${SOURCES_DIR}/${API_APP_NAME}-${VERSION}"
+
+          echo "DELIVERY_VERSION=${VERSION}" >> $GITHUB_ENV
+
+          echo "UI_PROJECT_DIR=${UI_PROJECT_DIR}" >> $GITHUB_ENV
+          echo "API_PROJECT_DIR=${API_PROJECT_DIR}" >> $GITHUB_ENV
+
+          echo "UI_APP_NAME=${UI_APP_NAME}" >> $GITHUB_ENV
+          echo "API_APP_NAME=${API_APP_NAME}" >> $GITHUB_ENV
+          echo "API_SERVICE_NAME=${API_SERVICE_NAME}" >> $GITHUB_ENV
+
+          echo "UI_TARGET_DIR=${UI_TARGET_DIR}" >> $GITHUB_ENV
+
+          echo "UI_SOURCE_DIR=${UI_SOURCE_DIR}" >> $GITHUB_ENV
+          echo "UI_BACKUP_DIR=${UI_BACKUP_DIR}" >> $GITHUB_ENV
+          echo "API_SOURCE_DIR=${API_SOURCE_DIR}" >> $GITHUB_ENV
+
+      - name: 🚀 Config site
+        run: |
+          cd /opt/propertiesmanager-connector
+
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE \
+            "${PROJECT_NAME}" \
+            "snapshot" \
+            "${ENV_NAME}" \
+            "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config/config.json"
+
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE \
+            "${PROJECT_NAME}" \
+            "snapshot" \
+            "${ENV_NAME}" \
+            "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config/keycloak.json"
+
+          cd "${{ github.workspace }}"
+
+      - name: Build site
+        run: |
+          cd "${UI_PROJECT_DIR}"
+          npm install
+          npm run build
+
+      - name: Build backend
+        run: ./build-all.sh ${ENV_NAME}
+
+      - name: 🚀 Config API
+        run: |
+          cd /opt/propertiesmanager-connector
+
+          java -jar propertiesmanager-java-connector-runner.jar UPDATE \
+            "${PROJECT_NAME}" \
+            "snapshot" \
+            "${ENV_NAME}" \
+            "${{ github.workspace }}/${API_PROJECT_DIR}/src/main/resources/application.properties"
+
+          cd "${{ github.workspace }}"
+
+      - name: 📦 Préparation livraison UI distante
+        run: |
+          ssh ${REMOTE_USER}@${UI_REMOTE_HOST} "
+            sudo rm -rf '${UI_SOURCE_DIR}' &&
+            sudo mkdir -p '${UI_SOURCE_DIR}/dist' '${UI_SOURCE_DIR}/config' &&
+            sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${UI_SOURCE_DIR}'
+          "
+
+      - name: 📦 Préparation livraison API distante
+        run: |
+          ssh ${REMOTE_USER}@${API_REMOTE_HOST} "
+            sudo rm -rf '${API_SOURCE_DIR}' &&
+            sudo mkdir -p '${API_SOURCE_DIR}/dist' '${API_SOURCE_DIR}/config/config' &&
+            sudo chown -R ${REMOTE_USER}:${REMOTE_USER} '${API_SOURCE_DIR}'
+          "
+
+      - name: 📤 Upload livraison site
+        run: |
+          rsync -av --delete \
+            "${UI_PROJECT_DIR}/build/" \
+            ${REMOTE_USER}@${UI_REMOTE_HOST}:${UI_SOURCE_DIR}/dist/
+
+          rsync -av --delete \
+            "${UI_PROJECT_DIR}/public/config/" \
+            ${REMOTE_USER}@${UI_REMOTE_HOST}:${UI_SOURCE_DIR}/config/
+
+      - name: 📤 Upload livraison API
+        run: |
+          rsync -av \
+            "${API_PROJECT_DIR}"/target/*-runner.jar \
+            ${REMOTE_USER}@${API_REMOTE_HOST}:${API_SOURCE_DIR}/dist/runner.jar
+
+          rsync -av \
+            "${API_PROJECT_DIR}/src/main/resources/application.properties" \
+            ${REMOTE_USER}@${API_REMOTE_HOST}:${API_SOURCE_DIR}/config/config/application.properties
+
+      - name: 🚀 Deploy site distant
+        run: |
+          ssh ${REMOTE_USER}@${UI_REMOTE_HOST} "
+            sudo mkdir -p '${BACKUP_DIR}' &&
+
+            if [ -d '${UI_TARGET_DIR}' ]; then
+              sudo rm -rf '${UI_BACKUP_DIR}' &&
+              sudo cp -a '${UI_TARGET_DIR}' '${UI_BACKUP_DIR}'
+            fi &&
+
+            sudo rm -rf '${UI_TARGET_DIR}' &&
+            sudo mkdir -p '${UI_TARGET_DIR}' &&
+
+            sudo cp -r '${UI_SOURCE_DIR}/dist/.' '${UI_TARGET_DIR}/' &&
+            sudo cp -r '${UI_SOURCE_DIR}/config/.' '${UI_TARGET_DIR}/' &&
+
+            sudo chown -R nginx '${UI_TARGET_DIR}'
+          "
+
+      - name: 🚀 Deploy API distant
+        run: |
+          ssh ${REMOTE_USER}@${API_REMOTE_HOST} "sudo bash -s -- '${API_SERVICE_NAME}' '${API_APP_NAME}' '${API_SOURCE_DIR}'" < /opt/scripts/install-service.sh
