@@ -45,6 +45,7 @@ jobs:
           API_SOURCE_DIR="${SOURCES_DIR}/${API_APP_NAME}-${VERSION}"
 
           echo "DELIVERY_VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "BUILD_VERSION=${BUILD_VERSION}" >> $GITHUB_ENV
 
           echo "UI_PROJECT_DIR=${UI_PROJECT_DIR}" >> $GITHUB_ENV
           echo "API_PROJECT_DIR=${API_PROJECT_DIR}" >> $GITHUB_ENV
