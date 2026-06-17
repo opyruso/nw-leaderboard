@@ -28,6 +28,7 @@ jobs:
       - name: 🏷️ Préparation variables livraison
         run: |
           VERSION=$(date +'%Y%m%d%H%M%S')-${GITHUB_SHA::8}
+          BUILD_VERSION="${GITHUB_REF_NAME}"
 
           UI_PROJECT_DIR="${PROJECT_NAME}-ui"
           API_PROJECT_DIR="${PROJECT_NAME}-api"
@@ -64,13 +65,13 @@ jobs:
 
           java -jar propertiesmanager-java-connector-runner.jar UPDATE \
             "${PROJECT_NAME}" \
-            "snapshot" \
+            "${BUILD_VERSION}" \
             "${ENV_NAME}" \
             "${{ github.workspace }}/${UI_PROJECT_DIR}/config"
 
           java -jar propertiesmanager-java-connector-runner.jar UPDATE \
             "${PROJECT_NAME}" \
-            "snapshot" \
+            "${BUILD_VERSION}" \
             "${ENV_NAME}" \
             "${{ github.workspace }}/${UI_PROJECT_DIR}/public/config"
 
@@ -104,7 +105,7 @@ jobs:
 
           java -jar propertiesmanager-java-connector-runner.jar UPDATE \
             "${PROJECT_NAME}" \
-            "snapshot" \
+            "${BUILD_VERSION}" \
             "${ENV_NAME}" \
             "${{ github.workspace }}/${API_PROJECT_DIR}/src/main/resources/application.properties"
 
