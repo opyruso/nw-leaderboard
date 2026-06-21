@@ -530,7 +530,7 @@ export default function ContributeMutations() {
       sortedSeasonOptions.length > 0 ? String(sortedSeasonOptions[0].id) : '';
     setNewRow({
       week: '',
-      dungeonId: '',
+      dungeonIds: [],
       seasonId: defaultSeasonId,
       mutationElementId: '',
       mutationTypeId: '',
@@ -552,7 +552,12 @@ export default function ContributeMutations() {
       return;
     }
     const weekValue = Number.parseInt(newRow.week, 10);
-    const dungeonIdValue = Number(newRow.dungeonId);
+    const dungeonIds = Array.isArray(newRow.dungeonIds)
+      ? newRow.dungeonIds
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      : [];
+    const uniqueDungeonIds = [...new Set(dungeonIds)];
     const seasonIdValue = Number(newRow.seasonId);
     const element = (newRow.mutationElementId || '').trim();
     const type = (newRow.mutationTypeId || '').trim();
@@ -562,7 +567,7 @@ export default function ContributeMutations() {
       setFeedback({ type: 'error', text: t.contributeMutationsWeekRequired });
       return;
     }
-    if (!Number.isFinite(dungeonIdValue) || dungeonIdValue <= 0) {
+    if (uniqueDungeonIds.length === 0) {
       setFeedback({ type: 'error', text: t.contributeMutationsDungeonRequired });
       return;
     }
@@ -575,7 +580,7 @@ export default function ContributeMutations() {
       return;
     }
     const duplicate = entries.some(
-      (entry) => entry && entry.week === weekValue && entry.dungeonId === dungeonIdValue,
+      (entry) => entry && entry.week === weekValue && uniqueDungeonIds.includes(entry.dungeonId),
     );
     if (duplicate) {
       setFeedback({ type: 'error', text: t.contributeMutationsDuplicateError });
@@ -584,37 +589,40 @@ export default function ContributeMutations() {
     setFeedback({ type: '', text: '' });
     setCreatingPending(true);
 
-    fetch(`${API_BASE_URL}/contributor/mutations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        week: weekValue,
-        dungeon_id: dungeonIdValue,
-        season_id: seasonIdValue,
-        mutation_element_id: element,
-        mutation_type_id: type,
-        mutation_promotion_id: promotion,
-        mutation_curse_id: curse,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          return response
-            .json()
-            .catch(() => null)
-            .then((data) => {
-              const message = data && typeof data.message === 'string' ? data.message : '';
-              throw new Error(message || `Failed to create mutation: ${response.status}`);
-            });
-        }
-        return response.json().catch(() => null);
-      })
-      .then((data) => {
-        const created = normaliseEntry(data || {}, entries.length);
-        if (created) {
-          updateEntryList(created);
-          setFeedback({ type: 'success', text: t.contributeMutationsCreateSuccess });
-        }
+    Promise.all(
+      uniqueDungeonIds.map((dungeonId) =>
+        fetch(`${API_BASE_URL}/contributor/mutations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            week: weekValue,
+            dungeon_id: dungeonId,
+            season_id: seasonIdValue,
+            mutation_element_id: element,
+            mutation_type_id: type,
+            mutation_promotion_id: promotion,
+            mutation_curse_id: curse,
+          }),
+        }).then((response) => {
+          if (!response.ok) {
+            return response
+              .json()
+              .catch(() => null)
+              .then((data) => {
+                const message = data && typeof data.message === 'string' ? data.message : '';
+                throw new Error(message || `Failed to create mutation: ${response.status}`);
+              });
+          }
+          return response.json().catch(() => null);
+        }),
+      ),
+    )
+      .then((createdRows) => {
+        createdRows
+          .map((data, index) => normaliseEntry(data || {}, entries.length + index))
+          .filter(Boolean)
+          .forEach((created) => updateEntryList(created));
+        setFeedback({ type: 'success', text: t.contributeMutationsCreateSuccess });
         setNewRow(null);
       })
       .catch((creationError) => {
@@ -807,10 +815,16 @@ export default function ContributeMutations() {
                   </th>
                   <td>
                     <select
-                      value={newRow.dungeonId}
-                      onChange={(event) => handleNewRowChange('dungeonId', event.target.value)}
+                      multiple
+                      size={Math.min(6, Math.max(2, sortedDungeonOptions.length))}
+                      value={newRow.dungeonIds}
+                      onChange={(event) =>
+                        handleNewRowChange(
+                          'dungeonIds',
+                          Array.from(event.target.selectedOptions, (option) => option.value),
+                        )
+                      }
                     >
-                      <option value="">{t.contributeMutationsSelectOption}</option>
                       {sortedDungeonOptions.map((option) => (
                         <option key={option.id} value={String(option.id)}>
                           {getDungeonOptionLabel(option, lang)}
